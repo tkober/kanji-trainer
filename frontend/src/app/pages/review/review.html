@@ -1,0 +1,135 @@
+@if (error(); as message) {
+  <p class="error">{{ message }}</p>
+}
+
+@if (loading()) {
+  <p class="muted">Lade Reviews …</p>
+} @else if (done()) {
+  <section class="card finished">
+    <h1>Keine offenen Reviews</h1>
+    @if (answered() > 0) {
+      <p class="muted">
+        {{ answered() }} Antworten in dieser Sitzung, {{ accuracy() }} % richtig.
+      </p>
+    } @else {
+      <p class="muted">Als Nächstes kommt etwas dran, sobald ein Intervall abgelaufen ist.</p>
+    }
+    <div class="row">
+      <button class="primary" (click)="load()">Neu laden</button>
+      <a routerLink="/lessons"><button>Zu den Lektionen</button></a>
+    </div>
+  </section>
+} @else if (current(); as card) {
+  <div class="progress">
+    <span>{{ queue().length }} in dieser Runde</span>
+    <span class="muted">·</span>
+    <span class="muted">{{ totalDue() }} insgesamt fällig</span>
+    @if (accuracy() !== null) {
+      <span class="muted">·</span>
+      <span class="muted">{{ accuracy() }} % richtig</span>
+    }
+  </div>
+
+  <section class="prompt" [attr.data-type]="card.subject.object_type">
+    @if (card.subject.characters) {
+      <div class="characters jp">{{ card.subject.characters }}</div>
+    } @else if (card.subject.character_image_url) {
+      <img class="characters" [src]="card.subject.character_image_url" [alt]="card.subject.slug" />
+    } @else {
+      <div class="characters jp">{{ card.subject.slug }}</div>
+    }
+    <div class="meta">
+      <span>{{ typeLabel(card.subject.object_type) }}</span>
+      <span>Level {{ card.subject.level }}</span>
+      <span>{{ card.stage_name }}</span>
+    </div>
+  </section>
+
+  <section class="question" [class.reading]="question() === 'reading'">
+    <label for="answer">
+      {{ question() === 'reading' ? 'Lesung' : 'Bedeutung' }}
+    </label>
+
+    <input
+      #answerField
+      id="answer"
+      type="text"
+      class="jp"
+      autocomplete="off"
+      autocorrect="off"
+      autocapitalize="off"
+      spellcheck="false"
+      [value]="display()"
+      [readOnly]="feedback() !== null"
+      [class.correct]="feedback()?.correct === true"
+      [class.wrong]="feedback()?.correct === false"
+      (input)="onInput($event)"
+      (keydown)="onKeydown($event)"
+    />
+  </section>
+
+  @if (feedback(); as result) {
+    <section class="feedback" [class.correct]="result.correct" [class.wrong]="!result.correct">
+      @if (result.correct) {
+        <strong>Richtig.</strong>
+        @if (result.secondary) {
+          <span> Gemeint war vor allem <em>{{ result.expected }}</em>.</span>
+        }
+      } @else {
+        <strong>Falsch.</strong>
+        <span> Erwartet: <em class="jp">{{ result.expected }}</em></span>
+      }
+
+      @if (result.hint) {
+        <p class="hint">{{ result.hint }}</p>
+      }
+
+      @if (result.completed) {
+        <p class="stage">
+          {{ result.srs_stage_before }} → {{ result.srs_stage_after }} ·
+          {{ result.stage_name_after }}
+          @if (result.next_review_at) {
+            · wieder fällig {{ result.next_review_at | date: 'dd.MM. HH:mm' }}
+          }
+        </p>
+      }
+
+      <details>
+        <summary>Item ansehen</summary>
+        <dl>
+          <dt>Bedeutungen</dt>
+          <dd>{{ primaryMeanings(result) }}</dd>
+          @if (result.subject.readings.length > 0) {
+            <dt>Lesungen</dt>
+            <dd class="jp">{{ primaryReadings(result) }}</dd>
+          }
+          @if (result.subject.meaning_mnemonic) {
+            <dt>Eselsbrücke Bedeutung</dt>
+            <dd [innerHTML]="result.subject.meaning_mnemonic"></dd>
+          }
+          @if (result.subject.reading_mnemonic) {
+            <dt>Eselsbrücke Lesung</dt>
+            <dd [innerHTML]="result.subject.reading_mnemonic"></dd>
+          }
+        </dl>
+      </details>
+
+      <div class="row">
+        <button class="primary" (click)="next()">Weiter (Enter)</button>
+        @if (!result.correct) {
+          <button (click)="resetCurrent()">Nochmal von vorn lernen</button>
+        }
+      </div>
+    </section>
+  } @else {
+    <div class="row actions">
+      <button class="primary" [disabled]="submitting()" (click)="submit()">
+        Antworten (Enter)
+      </button>
+      <button class="known" (click)="markKnown()" title="Alt+K">Das kann ich</button>
+    </div>
+    <p class="muted hint-line">
+      „Das kann ich“ nimmt das Item sofort aus der Wiederholung — kein Warten auf Intervalle.
+    </p>
+  }
+}

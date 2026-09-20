@@ -1,0 +1,36 @@
+# The same stack without Postgres: the backend keeps its schema in a SQLite
+# file on a volume. For a machine that has no postgres-core to point at.
+#
+# Everything that differs between the two backends lives in backend/app/db.py,
+# so this is a change of DB_URL and nothing else.
+services:
+  backend:
+    build:
+      context: .
+      dockerfile: backend/Dockerfile
+    environment:
+      DB_URL: sqlite:////data/kanji_trainer.db
+      WANIKANI_API_TOKEN: ${WANIKANI_API_TOKEN:-}
+    volumes:
+      - kanji-trainer-sqlite:/data
+    healthcheck:
+      test: ["CMD-SHELL", "python -c \"import urllib.request; urllib.request.urlopen('http://localhost:8000/api/health')\""]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+      start_period: 30s
+    restart: unless-stopped
+
+  frontend:
+    build: ./frontend
+    environment:
+      API_UPSTREAM: backend:8000
+    depends_on:
+      backend:
+        condition: service_healthy
+    ports:
+      - "8086:80"
+    restart: unless-stopped
+
+volumes:
+  kanji-trainer-sqlite:

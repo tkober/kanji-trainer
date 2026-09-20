@@ -1,0 +1,84 @@
+<h1>Lektionen</h1>
+
+@if (error(); as message) {
+  <p class="error">{{ message }}</p>
+}
+
+@if (loading()) {
+  <p class="muted">Lade …</p>
+} @else if (items().length === 0) {
+  <section class="card empty">
+    <h2>Keine offenen Lektionen</h2>
+    @if (dailyLimit() > 0 && totalAvailable() > 0) {
+      <p class="muted">
+        Es wären noch {{ totalAvailable() }} verfügbar, aber dein Tageslimit von
+        {{ dailyLimit() }} ist erreicht. Das Limit lässt sich in den Einstellungen ändern.
+      </p>
+    } @else {
+      <p class="muted">Alles gelernt. Importiere neuen Content oder mach Reviews.</p>
+    }
+    <a routerLink="/review"><button class="primary">Zu den Reviews</button></a>
+  </section>
+} @else {
+  <p class="muted count">
+    {{ items().length }} in dieser Runde, {{ totalAvailable() }} insgesamt offen.
+  </p>
+
+  @if (current(); as item) {
+    <section class="prompt" [attr.data-type]="item.subject.object_type">
+      @if (item.subject.characters) {
+        <div class="characters jp">{{ item.subject.characters }}</div>
+      } @else if (item.subject.character_image_url) {
+        <img class="characters" [src]="item.subject.character_image_url" [alt]="item.subject.slug" />
+      }
+      <div class="meta">
+        <span>{{ typeLabel(item.subject.object_type) }}</span>
+        <span>Level {{ item.subject.level }}</span>
+        <span>{{ index() + 1 }} / {{ items().length }}</span>
+      </div>
+    </section>
+
+    <section class="card detail">
+      <dl>
+        <dt>Bedeutung</dt>
+        <dd>{{ meanings(item) }}</dd>
+        @if (item.subject.readings.length > 0) {
+          <dt>Lesung</dt>
+          <dd class="jp">{{ readings(item) }}</dd>
+        }
+        @if (item.subject.meaning_mnemonic) {
+          <dt>Eselsbrücke Bedeutung</dt>
+          <dd [innerHTML]="item.subject.meaning_mnemonic"></dd>
+        }
+        @if (item.subject.reading_mnemonic) {
+          <dt>Eselsbrücke Lesung</dt>
+          <dd [innerHTML]="item.subject.reading_mnemonic"></dd>
+        }
+      </dl>
+
+      <div class="row nav">
+        <button [disabled]="index() === 0" (click)="previous()">Zurück</button>
+        <button [disabled]="index() >= items().length - 1" (click)="next()">Weiter</button>
+        <button class="known" [disabled]="busy()" (click)="markCurrentKnown()">
+          Dieses kann ich
+        </button>
+      </div>
+    </section>
+  }
+
+  <section class="card batch">
+    <h2>Ganze Runde</h2>
+    <div class="row">
+      <button class="primary" [disabled]="busy()" (click)="startBatch()">
+        {{ items().length }} Items lernen
+      </button>
+      <button class="known" [disabled]="busy()" (click)="markBatchKnown()">
+        Alle {{ items().length }} kann ich schon
+      </button>
+    </div>
+    <p class="muted footnote">
+      Der zweite Knopf ist der schnelle Weg durch Level, die du schon einmal hattest:
+      die Items gehen direkt auf „beherrscht“, ohne je in der Wiederholung aufzutauchen.
+    </p>
+  </section>
+}

@@ -1,0 +1,172 @@
+<h1>Einstellungen</h1>
+
+@if (error(); as message) {
+  <p class="error">{{ message }}</p>
+}
+@if (status(); as message) {
+  <p class="notice">{{ message }}</p>
+}
+
+<section class="card">
+  <h2>WaniKani-Zugang</h2>
+  <p class="muted">
+    Ein <strong>read-only</strong> Personal Access Token genügt — der Trainer schreibt nie
+    nach WaniKani zurück. Anlegen unter
+    <em>wanikani.com → Settings → API Tokens</em>. Der Token verlässt den Server nicht;
+    hier steht nur, ob einer gesetzt ist.
+  </p>
+
+  @if (settings(); as settings) {
+    <p>
+      @if (settings.wanikani_token_set) {
+        Gesetzt ({{ settings.wanikani_token_hint }})
+        @if (settings.wanikani_token_from_env) {
+          <span class="muted"> — kommt aus der Umgebung und lässt sich hier nicht löschen.</span>
+        }
+      } @else {
+        <span class="muted">Kein Token hinterlegt.</span>
+      }
+    </p>
+
+    <div class="row">
+      <input
+        type="password"
+        class="grow"
+        placeholder="Neuen Token einfügen"
+        autocomplete="off"
+        [(ngModel)]="token"
+      />
+      <button class="primary" [disabled]="!token || busy()" (click)="saveToken()">
+        Speichern
+      </button>
+      <button
+        [disabled]="!settings.wanikani_token_set || settings.wanikani_token_from_env || busy()"
+        (click)="clearToken()"
+      >
+        Entfernen
+      </button>
+      <button [disabled]="!settings.wanikani_token_set || busy()" (click)="checkAccount()">
+        Prüfen
+      </button>
+    </div>
+  }
+
+  @if (account(); as account) {
+    <p class="notice">
+      {{ account.username }}, Level {{ account.level }} ·
+      @if (account.subscription_active) {
+        Abo aktiv, Level 1–{{ account.max_level_granted }} freigeschaltet.
+      } @else {
+        <strong>Kein aktives Abo</strong> — der Import bekäme nur Level
+        1–{{ account.max_level_granted }}.
+      }
+    </p>
+  }
+</section>
+
+<section class="card">
+  <h2>Import</h2>
+  <p class="muted">
+    Der Import liest deinen WaniKani-Stand und übernimmt ihn. Alles ab der gewählten
+    SRS-Stufe kommt direkt als <strong>beherrscht</strong> herein und taucht nie in der
+    Wiederholung auf — genau das, was WaniKani nicht anbietet. Alles darunter behält
+    seine Stufe <em>und seinen dortigen Fälligkeitstermin</em>. Gesperrte Items werden
+    zu Lektionen.
+  </p>
+
+  <div class="row">
+    <label>
+      Ab SRS-Stufe gilt als beherrscht
+      <!-- ngValue, not value: a plain [value] binding would hand the API the
+           string "5" instead of the number the schema declares. -->
+      <select [(ngModel)]="importThreshold">
+        <option [ngValue]="1">1 — Apprentice I</option>
+        <option [ngValue]="2">2 — Apprentice II</option>
+        <option [ngValue]="3">3 — Apprentice III</option>
+        <option [ngValue]="4">4 — Apprentice IV</option>
+        <option [ngValue]="5">5 — Guru I (Standard)</option>
+        <option [ngValue]="6">6 — Guru II</option>
+        <option [ngValue]="7">7 — Master</option>
+        <option [ngValue]="8">8 — Enlightened</option>
+        <option [ngValue]="9">9 — Burned</option>
+      </select>
+    </label>
+
+    <label class="check">
+      <input type="checkbox" [(ngModel)]="remapExisting" />
+      Bereits bearbeitete Items neu zuordnen
+    </label>
+  </div>
+
+  <p class="muted footnote">
+    Ohne den Haken bleibt alles unberührt, woran du hier schon gearbeitet hast — so holt
+    ein zweiter Import nur neuen WaniKani-Content nach. Mit Haken wird die Zuordnung
+    komplett neu gezogen; das ist der Weg, eine Schwelle zu korrigieren, die sich beim
+    Lernen falsch angefühlt hat.
+  </p>
+
+  <div class="row">
+    <button
+      class="primary"
+      [disabled]="busy() || run()?.status === 'running' || !settings()?.wanikani_token_set"
+      (click)="startImport()"
+    >
+      Import starten
+    </button>
+  </div>
+
+  @if (run(); as run) {
+    <div class="run">
+      @if (run.status === 'running') {
+        <p>
+          Läuft … {{ run.subjects_imported }} von {{ run.subjects_total || '?' }} Items
+        </p>
+        <div class="bar"><div class="fill" [style.width.%]="percent(run)"></div></div>
+      } @else if (run.status === 'succeeded') {
+        <p>
+          Fertig: {{ run.subjects_imported }} Items geholt,
+          <strong>{{ run.marked_known }}</strong> als beherrscht übernommen,
+          {{ run.marked_learning }} im Lernzyklus, {{ run.marked_new }} als Lektion offen.
+        </p>
+      } @else {
+        <p class="error">{{ run.message || 'Der Import ist fehlgeschlagen.' }}</p>
+      }
+      @if (run.status === 'succeeded' && run.message) {
+        <p class="notice">{{ run.message }}</p>
+      }
+    </div>
+  }
+</section>
+
+<section class="card">
+  <h2>Lernverhalten</h2>
+
+  <div class="row">
+    <label>
+      „Das kann ich“ setzt auf Stufe
+      <select [(ngModel)]="knownStage">
+        <option [ngValue]="9">9 — Burned (nie wieder)</option>
+        <option [ngValue]="8">8 — Enlightened (eine Kontrolle in 4 Monaten)</option>
+        <option [ngValue]="7">7 — Master (eine Kontrolle in 1 Monat)</option>
+      </select>
+    </label>
+
+    <label>
+      Tageslimit Lektionen (0 = kein Limit)
+      <input type="number" min="0" max="500" [(ngModel)]="dailyLimit" />
+    </label>
+  </div>
+
+  <label class="block">
+    SRS-Intervalle in Stunden, je Stufe 0–9
+    <input type="text" [(ngModel)]="intervals" />
+  </label>
+  <p class="muted footnote">
+    Standard ist <code>0,4,8,24,48,168,336,720,2880,0</code> — dieselben Abstände wie bei
+    WaniKani. Stufe 0 und 9 stehen auf 0, weil dort nichts geplant wird.
+  </p>
+
+  <div class="row">
+    <button class="primary" [disabled]="busy()" (click)="saveSrs()">Speichern</button>
+  </div>
+</section>

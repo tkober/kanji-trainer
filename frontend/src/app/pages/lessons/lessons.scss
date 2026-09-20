@@ -1,0 +1,95 @@
+:host {
+  display: block;
+  max-width: 640px;
+  margin: 0 auto;
+}
+
+.count {
+  margin-top: 0;
+}
+
+section + section {
+  margin-top: 1rem;
+}
+
+.prompt {
+  border-radius: var(--radius);
+  padding: 2rem 1rem 1rem;
+  text-align: center;
+  color: #fff;
+  box-shadow: var(--shadow);
+
+  &[data-type='radical'] {
+    background: var(--radical);
+  }
+
+  &[data-type='kanji'] {
+    background: var(--kanji);
+  }
+
+  &[data-type='vocabulary'],
+  &[data-type='kana_vocabulary'] {
+    background: var(--vocabulary);
+  }
+}
+
+.characters {
+  font-size: clamp(3rem, 15vw, 5rem);
+  line-height: 1.1;
+}
+
+img.characters {
+  height: clamp(3rem, 15vw, 5rem);
+  filter: brightness(0) invert(1);
+}
+
+.meta {
+  display: flex;
+  justify-content: center;
+  gap: 1rem;
+  font-size: 0.85rem;
+  opacity: 0.85;
+  margin-top: 1rem;
+}
+
+.detail {
+  dt {
+    font-size: 0.8rem;
+    text-transform: uppercase;
+    letter-spacing: 0.06em;
+    color: var(--muted);
+    margin-top: 0.75rem;
+  }
+
+  dd {
+    margin: 0.15rem 0 0;
+  }
+
+  dd.jp {
+    font-size: 1.15rem;
+  }
+}
+
+.nav {
+  margin-top: 1rem;
+}
+
+.known {
+  border-color: color-mix(in srgb, var(--ok) 45%, var(--border));
+  color: var(--ok);
+  font-weight: 600;
+}
+
+.footnote {
+  font-size: 0.85rem;
+  margin-bottom: 0;
+}
+
+.empty {
+  text-align: center;
+
+  p {
+    max-width: 52ch;
+    margin: 0.5rem auto 1rem;
+  }
+}

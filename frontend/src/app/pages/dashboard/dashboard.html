@@ -1,0 +1,109 @@
+<h1>Übersicht</h1>
+
+@if (error(); as message) {
+  <p class="error">{{ message }}</p>
+}
+
+@if (loading()) {
+  <p class="muted">Lade …</p>
+} @else if (stats(); as stats) {
+  @if (stats.total_subjects === 0) {
+    <section class="card empty">
+      <h2>Noch keine Items</h2>
+      <p class="muted">
+        Importiere deinen WaniKani-Stand, um dort weiterzumachen, wo du wirklich stehst —
+        alles ab der gewählten SRS-Stufe kommt direkt als „beherrscht“ herein und landet
+        nie wieder in der Wiederholung.
+      </p>
+      <a routerLink="/settings"><button class="primary">Zum Import</button></a>
+    </section>
+  } @else {
+    <section class="tiles">
+      <a class="tile due" routerLink="/review">
+        <span class="value">{{ stats.due_now }}</span>
+        <span class="label">Reviews fällig</span>
+      </a>
+      <a class="tile" routerLink="/lessons">
+        <span class="value">{{ stats.new_count }}</span>
+        <span class="label">Lektionen offen</span>
+      </a>
+      <div class="tile">
+        <span class="value">{{ stats.reviews_today }}</span>
+        <span class="label">heute beantwortet</span>
+      </div>
+      <div class="tile">
+        <span class="value">{{ accuracy(stats) }}</span>
+        <span class="label">Trefferquote heute</span>
+      </div>
+    </section>
+
+    <section class="card">
+      <h2>Sammlung</h2>
+      <p class="muted summary">
+        {{ stats.total_subjects }} Items, davon {{ settled(stats) }} % dauerhaft erledigt.
+      </p>
+      <dl class="breakdown">
+        <div>
+          <dt>Apprentice</dt>
+          <dd>{{ stats.apprentice_count }}</dd>
+        </div>
+        <div>
+          <dt>Guru</dt>
+          <dd>{{ stats.guru_count }}</dd>
+        </div>
+        <div>
+          <dt>Master</dt>
+          <dd>{{ stats.master_count }}</dd>
+        </div>
+        <div>
+          <dt>Enlightened</dt>
+          <dd>{{ stats.enlightened_count }}</dd>
+        </div>
+        <div>
+          <dt>Burned</dt>
+          <dd>{{ stats.burned_count }}</dd>
+        </div>
+        <div class="declared">
+          <dt>Als gekonnt markiert</dt>
+          <dd>{{ stats.known_count }}</dd>
+        </div>
+        <div>
+          <dt>Ausgeblendet</dt>
+          <dd>{{ stats.suspended_count }}</dd>
+        </div>
+      </dl>
+      <p class="muted footnote">
+        „Burned“ zählt nur Items, die du dir erarbeitet hast. Was du selbst als gekonnt
+        markiert hast, steht getrennt davon — sonst wäre die Zahl geschmeichelt.
+      </p>
+    </section>
+
+    <section class="card">
+      <h2>Kommt auf dich zu</h2>
+      <div class="row upcoming">
+        <span><strong>{{ stats.due_next_hour }}</strong> in der nächsten Stunde</span>
+        <span><strong>{{ stats.due_today }}</strong> in den nächsten 24 Stunden</span>
+      </div>
+    </section>
+  }
+
+  @if (lastImport(); as run) {
+    <section class="card">
+      <h2>Letzter Import</h2>
+      <p class="muted">
+        {{ run.status === 'succeeded' ? 'Erfolgreich' : run.status === 'failed' ? 'Fehlgeschlagen' : 'Läuft' }}
+        · Schwelle SRS-Stufe {{ run.known_srs_stage }}
+      </p>
+      @if (run.status === 'succeeded') {
+        <p>
+          {{ run.subjects_imported }} Items geholt,
+          <strong>{{ run.marked_known }}</strong> davon als beherrscht übernommen,
+          {{ run.marked_learning }} im Lernzyklus, {{ run.marked_new }} neu.
+        </p>
+      }
+      @if (run.message) {
+        <p class="notice">{{ run.message }}</p>
+      }
+    </section>
+  }
+}

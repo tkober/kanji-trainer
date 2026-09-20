@@ -1,0 +1,119 @@
+:host {
+  display: block;
+}
+
+section + section,
+table {
+  margin-top: 1rem;
+}
+
+.filters label {
+  display: flex;
+  flex-direction: column;
+  gap: 0.2rem;
+  font-size: 0.8rem;
+  color: var(--muted);
+}
+
+.filters input[type='number'] {
+  width: 6rem;
+}
+
+.filters .grow {
+  flex: 1;
+  min-width: 12rem;
+}
+
+.actions {
+  position: sticky;
+  top: 3.6rem;
+  z-index: 5;
+
+  &.armed {
+    border-color: var(--accent);
+  }
+}
+
+.check {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.4rem;
+  font-size: 0.9rem;
+  color: var(--muted);
+}
+
+.spacer {
+  flex: 1;
+}
+
+.known {
+  border-color: color-mix(in srgb, var(--ok) 45%, var(--border));
+  color: var(--ok);
+  font-weight: 600;
+}
+
+table {
+  width: 100%;
+  border-collapse: collapse;
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  overflow: hidden;
+  font-size: 0.92rem;
+}
+
+th,
+td {
+  text-align: left;
+  padding: 0.45rem 0.6rem;
+  border-bottom: 1px solid var(--border);
+}
+
+th {
+  background: var(--surface-alt);
+  font-size: 0.78rem;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  color: var(--muted);
+}
+
+tbody tr:last-child td {
+  border-bottom: none;
+}
+
+tbody tr.selected {
+  background: color-mix(in srgb, var(--accent) 10%, transparent);
+}
+
+.character {
+  font-size: 1.35rem;
+  white-space: nowrap;
+
+  &[data-type='radical'] {
+    color: var(--radical);
+  }
+
+  &[data-type='kanji'] {
+    color: var(--kanji);
+  }
+
+  &[data-type='vocabulary'],
+  &[data-type='kana_vocabulary'] {
+    color: var(--vocabulary);
+  }
+
+  img {
+    height: 1.3rem;
+    vertical-align: middle;
+  }
+}
+
+.declared {
+  color: var(--ok);
+  font-size: 0.8rem;
+}
+
+.pager {
+  justify-content: center;
+  margin-top: 1rem;
+}

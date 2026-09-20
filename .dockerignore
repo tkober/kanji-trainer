@@ -1,0 +1,12 @@
+**/.git
+**/.venv
+**/node_modules
+**/dist
+**/.angular
+**/__pycache__
+**/.pytest_cache
+**/.env
+**/*.db
+**/*.db-wal
+**/*.db-shm
+**/.DS_Store

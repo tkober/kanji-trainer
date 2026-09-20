@@ -1,0 +1,27 @@
+<header>
+  <a routerLink="/" class="brand">漢字<span>Trainer</span></a>
+
+  <nav>
+    <a routerLink="/" routerLinkActive="active" [routerLinkActiveOptions]="{ exact: true }">
+      Übersicht
+    </a>
+    <a routerLink="/review" routerLinkActive="active">
+      Reviews
+      @if (due() > 0) {
+        <span class="badge">{{ due() }}</span>
+      }
+    </a>
+    <a routerLink="/lessons" routerLinkActive="active">
+      Lektionen
+      @if (lessons() > 0) {
+        <span class="badge muted-badge">{{ lessons() }}</span>
+      }
+    </a>
+    <a routerLink="/browse" routerLinkActive="active">Items</a>
+    <a routerLink="/settings" routerLinkActive="active">Einstellungen</a>
+  </nav>
+</header>
+
+<main>
+  <router-outlet />
+</main>

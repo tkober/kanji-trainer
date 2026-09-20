@@ -1,0 +1,70 @@
+:host {
+  display: block;
+  max-width: 760px;
+}
+
+section + section {
+  margin-top: 1rem;
+}
+
+.card p {
+  max-width: 68ch;
+}
+
+label {
+  display: flex;
+  flex-direction: column;
+  gap: 0.2rem;
+  font-size: 0.8rem;
+  color: var(--muted);
+}
+
+label.block {
+  margin-top: 0.75rem;
+}
+
+label.check {
+  flex-direction: row;
+  align-items: center;
+  gap: 0.4rem;
+  font-size: 0.9rem;
+}
+
+.grow {
+  flex: 1;
+  min-width: 14rem;
+}
+
+.row {
+  margin-top: 0.75rem;
+  align-items: flex-end;
+}
+
+.footnote {
+  font-size: 0.85rem;
+  margin-bottom: 0;
+}
+
+code {
+  background: var(--surface-alt);
+  border-radius: 4px;
+  padding: 0.05rem 0.3rem;
+  font-size: 0.9em;
+}
+
+.run {
+  margin-top: 1rem;
+}
+
+.bar {
+  height: 6px;
+  border-radius: 999px;
+  background: var(--surface-alt);
+  overflow: hidden;
+}
+
+.fill {
+  height: 100%;
+  background: var(--accent);
+  transition: width 400ms ease;
+}

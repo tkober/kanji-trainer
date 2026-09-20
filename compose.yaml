@@ -1,0 +1,62 @@
+# Local end-to-end stack: Postgres + backend + nginx frontend on :8086.
+#
+# It mirrors the deployment (see the kanji_trainer stack in
+# compose-stacks-unraid) down to the two Postgres roles — dev/initdb creates
+# them, so the owner/app split is exercised here and not only in production.
+services:
+  postgres:
+    image: postgres:17
+    environment:
+      POSTGRES_USER: postgres
+      POSTGRES_PASSWORD: postgres
+      POSTGRES_DB: kanji_trainer
+      TZ: Europe/Berlin
+    volumes:
+      - kanji-trainer-db:/var/lib/postgresql/data
+      - ./dev/initdb:/docker-entrypoint-initdb.d:ro
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U postgres -d kanji_trainer"]
+      interval: 5s
+      timeout: 5s
+      retries: 10
+    restart: unless-stopped
+
+  backend:
+    build:
+      context: .
+      dockerfile: backend/Dockerfile
+    environment:
+      DB_URL: postgresql://postgres:5432/kanji_trainer
+      DB_USER: kanji_trainer_app
+      DB_PASSWORD: kanji_trainer
+      DB_OWNER_USER: kanji_trainer_owner
+      DB_OWNER_PASSWORD: kanji_trainer
+      # Supply your read-only token here or set it in the app's Settings
+      # screen, which stores it in the database and takes precedence.
+      WANIKANI_API_TOKEN: ${WANIKANI_API_TOKEN:-}
+    depends_on:
+      postgres:
+        condition: service_healthy
+    healthcheck:
+      test: ["CMD-SHELL", "python -c \"import urllib.request; urllib.request.urlopen('http://localhost:8000/api/health')\""]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+      start_period: 60s
+    restart: unless-stopped
+
+  frontend:
+    build: ./frontend
+    environment:
+      # The image default points at the deployment's container name; locally
+      # the backend answers to its compose service name.
+      API_UPSTREAM: backend:8000
+    depends_on:
+      backend:
+        condition: service_healthy
+    ports:
+      - "8086:80"
+    restart: unless-stopped
+
+volumes:
+  kanji-trainer-db:

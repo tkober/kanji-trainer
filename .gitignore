@@ -1,0 +1,22 @@
+# Python
+__pycache__/
+*.py[cod]
+.venv/
+.pytest_cache/
+
+# Node / Angular
+node_modules/
+dist/
+.angular/
+
+# Secrets and local state. The .env.example files are tracked; the .env files
+# they are copied to are not.
+.env
+deploy/*/env/*/.env
+
+# Local SQLite databases
+*.db
+*.db-wal
+*.db-shm
+
+.DS_Store

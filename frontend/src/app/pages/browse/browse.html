@@ -1,0 +1,146 @@
+<h1>Items</h1>
+
+<section class="card filters">
+  <div class="row">
+    <label>
+      Status
+      <select [(ngModel)]="state" (change)="applyFilters()">
+        <option value="">alle</option>
+        <option value="new">neu</option>
+        <option value="learning">im Lernzyklus</option>
+        <option value="known">beherrscht</option>
+        <option value="suspended">ausgeblendet</option>
+      </select>
+    </label>
+
+    <label>
+      Typ
+      <select [(ngModel)]="objectType" (change)="applyFilters()">
+        <option value="">alle</option>
+        <option value="radical">Radikal</option>
+        <option value="kanji">Kanji</option>
+        <option value="vocabulary">Vokabel</option>
+        <option value="kana_vocabulary">Vokabel (Kana)</option>
+      </select>
+    </label>
+
+    <label>
+      Level
+      <input type="number" min="1" max="60" [(ngModel)]="level" (change)="applyFilters()" />
+    </label>
+
+    <label class="grow">
+      Suche
+      <input
+        type="text"
+        class="jp"
+        placeholder="Zeichen oder Slug"
+        [(ngModel)]="search"
+        (keyup.enter)="applyFilters()"
+      />
+    </label>
+
+    <button (click)="applyFilters()">Filtern</button>
+  </div>
+</section>
+
+@if (error(); as message) {
+  <p class="error">{{ message }}</p>
+}
+@if (status(); as message) {
+  <p class="notice">{{ message }}</p>
+}
+
+<section class="card actions" [class.armed]="selectedCount() > 0">
+  <div class="row">
+    <label class="check">
+      <input type="checkbox" [checked]="allSelected()" (change)="toggleAll()" />
+      {{ selectedCount() }} von {{ items().length }} ausgewählt
+    </label>
+
+    <span class="spacer"></span>
+
+    <button
+      class="known"
+      [disabled]="selectedCount() === 0 || busy()"
+      (click)="markKnown()"
+      title="Sofort auf Burned — taucht nie wieder auf"
+    >
+      Kann ich sicher
+    </button>
+    <button
+      [disabled]="selectedCount() === 0 || busy()"
+      (click)="markKnown(8)"
+      title="Enlightened — eine letzte Kontrolle in vier Monaten"
+    >
+      Ziemlich sicher
+    </button>
+    <button [disabled]="selectedCount() === 0 || busy()" (click)="reset()">
+      Nochmal von vorn
+    </button>
+    <button [disabled]="selectedCount() === 0 || busy()" (click)="suspend()">Ausblenden</button>
+    <button [disabled]="selectedCount() === 0 || busy()" (click)="unsuspend()">Einblenden</button>
+  </div>
+</section>
+
+@if (loading()) {
+  <p class="muted">Lade …</p>
+} @else if (items().length === 0) {
+  <p class="muted">Keine Items für diese Filter.</p>
+} @else {
+  <table>
+    <thead>
+      <tr>
+        <th></th>
+        <th>Item</th>
+        <th>Bedeutung</th>
+        <th>Typ</th>
+        <th>Lvl</th>
+        <th>Stufe</th>
+        <th>Status</th>
+      </tr>
+    </thead>
+    <tbody>
+      @for (item of items(); track item.subject.id) {
+        <tr [class.selected]="selected().has(item.subject.id)">
+          <td>
+            <input
+              type="checkbox"
+              [checked]="selected().has(item.subject.id)"
+              (change)="toggle(item.subject.id)"
+            />
+          </td>
+          <td class="character jp" [attr.data-type]="item.subject.object_type">
+            @if (item.subject.characters) {
+              {{ item.subject.characters }}
+            } @else if (item.subject.character_image_url) {
+              <img [src]="item.subject.character_image_url" [alt]="item.subject.slug" />
+            } @else {
+              {{ item.subject.slug }}
+            }
+          </td>
+          <td>{{ meanings(item) }}</td>
+          <td class="muted">{{ typeLabel(item.subject.object_type) }}</td>
+          <td class="muted">{{ item.subject.level }}</td>
+          <td class="muted">{{ item.progress.stage_name }}</td>
+          <td class="muted">
+            {{ stateLabel(item.progress.state) }}
+            @if (item.progress.known_at) {
+              <span class="declared" title="von dir als gekonnt markiert">·&nbsp;selbst</span>
+            }
+          </td>
+        </tr>
+      }
+    </tbody>
+  </table>
+
+  <div class="row pager">
+    <button [disabled]="offset() === 0" (click)="pageBack()">Zurück</button>
+    <span class="muted">
+      {{ offset() + 1 }}–{{ offset() + items().length }} von {{ total() }}
+    </span>
+    <button [disabled]="offset() + items().length >= total()" (click)="pageForward()">
+      Weiter
+    </button>
+  </div>
+}

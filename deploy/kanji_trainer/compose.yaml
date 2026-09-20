@@ -1,0 +1,41 @@
+# docker-compose.yml
+services:
+
+  kanji-trainer-backend:
+    image: ghcr.io/tkober/kanji-trainer-backend:latest
+    container_name: kanji-trainer-backend
+    restart: unless-stopped
+    env_file:
+      - ./env/kanji-trainer-backend/.env
+    networks:
+      - kanji-trainer-net
+      - postgres-core-net # external: reach the postgres-core container by name
+    healthcheck:
+      test: ["CMD-SHELL", "python -c \"import urllib.request; urllib.request.urlopen('http://localhost:8000/api/health')\""]
+      interval: 30s
+      timeout: 5s
+      retries: 5
+      # The backend waits for postgres-core, which is a separate stack and may
+      # still be starting. Failed checks should not count during that window.
+      start_period: 60s
+    # No published port: the frontend's nginx proxies /api over the internal
+    # network, so the API is reachable under whatever address serves the UI.
+
+  kanji-trainer-frontend:
+    image: ghcr.io/tkober/kanji-trainer-frontend:latest
+    container_name: kanji-trainer-frontend
+    restart: unless-stopped
+    depends_on:
+      kanji-trainer-backend:
+        condition: service_healthy
+    ports:
+      - "8086:80" # only published port: nginx serves the SPA and proxies /api
+    networks:
+      - kanji-trainer-net
+
+networks:
+  kanji-trainer-net:
+    name: kanji-trainer-net
+
+  postgres-core-net:
+    external: true
