@@ -263,6 +263,13 @@ The stack directory (`deploy/kanji_trainer/`) is meant to be copied into the
 `compose-stacks-unraid` repo. `compose.yaml` at the repo root is the local
 mirror of it, down to creating both Postgres roles via `dev/initdb`.
 
+**`index.html` must never be cached, the hashed assets always.** nginx serves
+the shell with `Cache-Control: no-cache` and everything with a content hash in
+its name as `immutable` for a year. Without the first, a browser reuses the old
+shell after a redeploy and stays pinned to the previous bundle — with no
+symptom except that the new code is simply not there, which costs an hour to
+diagnose because the server is serving the right files the whole time.
+
 **Installing it as a PWA needs TLS.** Service workers are `[SecureContext]`, so
 over plain HTTP to a LAN address (`http://<host>:8086/`) one cannot register.
 The app works normally in a browser there; "installed on the phone, offline"

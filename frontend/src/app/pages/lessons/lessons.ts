@@ -221,13 +221,56 @@ export class LessonsPage {
 
   // --- the override -----------------------------------------------------
 
-  /** "Kenne ich schon" for the item on screen — skips the lesson entirely. */
+  /** "Kenne ich schon" for the item on screen — skips the lesson entirely.
+   *
+   * Drops the item from the batch in place rather than reloading it. A reload
+   * refetches the whole batch *and* resets the index to 0, so declaring the
+   * second of five sent you back to the first — every time, which made
+   * working through a batch impossible. Keeping the index means the slot now
+   * holds whatever came next, which is where the reader already was.
+   */
   async markCurrentKnown(): Promise<void> {
     const item = this.current();
     if (!item) {
       return;
     }
-    await this.apply(() => this.api.markKnown([item.subject.id]));
+
+    this.busy.set(true);
+    try {
+      await this.api.markKnown([item.subject.id]);
+
+      const rest = this.items().filter((entry) => entry.subject.id !== item.subject.id);
+      if (rest.length === 0) {
+        // Nothing left to read; fetching the next batch is the only move.
+        await this.load();
+        return;
+      }
+
+      this.items.set(rest);
+      // Clamp for the case where the declared item was the last one.
+      this.index.update((i) => Math.min(i, rest.length - 1));
+      this.countDeclared(1);
+      this.error.set(null);
+    } catch (err) {
+      this.error.set((err as Error).message);
+    } finally {
+      this.busy.set(false);
+    }
+  }
+
+  /** Keep the open-lesson counters honest without a round trip. */
+  private countDeclared(n: number): void {
+    this.totalInLevel.update((value) => Math.max(0, value - n));
+    this.totalAvailable.update((value) => Math.max(0, value - n));
+    this.levels.update((entries) =>
+      entries
+        .map((entry) =>
+          entry.level === this.level()
+            ? { ...entry, open_count: Math.max(0, entry.open_count - n) }
+            : entry,
+        )
+        .filter((entry) => entry.open_count > 0),
+    );
   }
 
   /** The fast path through levels already finished once. */
