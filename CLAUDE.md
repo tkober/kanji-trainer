@@ -153,6 +153,16 @@ by length); readings forgive nothing beyond kana folding and the romaji
 fallback. A reading one kana off is a *different reading*, and accepting it
 would drill the wrong word while reporting success.
 
+**Lessons are scoped to one level and gated by a quiz.** `GET /api/lessons`
+serves the lowest level that still has anything left, because the unscoped
+count after importing a reset account is "9.321 offen" — a number nobody can
+act on. There is still no *dependency* gate: pass `level` and you may learn
+level 40 with level 3 untouched. `POST /api/lessons/quiz` checks an answer
+against `answers.py` and touches nothing, so a batch reaches Apprentice I only
+after every item has been produced once. It refuses items already in the
+rotation: its response names the expected answer, which is exactly what
+`GET /api/reviews` withholds.
+
 **`importer.py`** runs in the background (`asyncio.create_task`) and reports
 through the `import_runs` row, which the UI polls. A synchronous import of
 ~9.000 subjects would hit nginx's read timeout long before it finished.
@@ -262,9 +272,17 @@ either way.
 ## Known gaps
 
 - No offline support and no service worker yet — see the TLS note above.
-- No lesson gating: nothing waits for its radicals to reach Guru first. That is
-  deliberate (the learner may jump ahead) but means the lesson order is only a
-  suggestion.
+- No dependency gating: nothing waits for its radicals to reach Guru first.
+  Deliberate (the learner may jump ahead); the level scope is what keeps the
+  queue meaningful instead.
+- The lesson quiz lives in the browser, and the batch is committed in one call
+  after it passes. Closing the tab mid-quiz loses the quiz, not the lesson —
+  acceptable, because failing it costs nothing either.
+- Meaning tolerance uses plain Levenshtein, so a transposition ("abvoe" for
+  "Above") costs two edits and is rejected on any answer under eight
+  characters. Damerau-Levenshtein would forgive the commonest typo; pinned by
+  `test_a_transposition_in_a_short_meaning_is_not_forgiven` rather than left to
+  surprise someone mid-session.
 - The review queue is served in due order and shuffled nowhere, so a long
   backlog is always worked oldest-first.
 - `_apply_assignments` issues one UPDATE per assignment. At ~9.000 rows that is
