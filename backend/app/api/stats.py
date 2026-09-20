@@ -14,7 +14,7 @@ from fastapi import APIRouter, Depends
 from sqlalchemy import func, select
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from ..db import Progress, ReviewLog, get_session
+from ..db import Progress, ReviewLog, Subject, get_session
 from ..models import Stats
 from ..runtime_config import load_runtime_config
 from ..srs import (
@@ -26,6 +26,7 @@ from ..srs import (
     ItemState,
     due_cutoff,
 )
+from .study import lowest_open_level
 
 router = APIRouter()
 
@@ -65,6 +66,22 @@ async def read_stats(session: AsyncSession = Depends(get_session)) -> Stats:
         or 0
     )
 
+    # The badge has to show what the lesson screen will actually offer. The
+    # collection-wide `new_count` below is five figures after importing a reset
+    # account, and a badge saying 9.321 is worse than no badge at all.
+    current_level = await lowest_open_level(session)
+    lessons_available = 0
+    if current_level is not None:
+        lessons_available = (
+            await session.scalar(
+                select(func.count())
+                .select_from(Progress)
+                .join(Subject, Subject.id == Progress.subject_id)
+                .where(Progress.state == ItemState.NEW.value, Subject.level == current_level)
+            )
+            or 0
+        )
+
     return Stats(
         total_subjects=await count(),
         new_count=await count(Progress.state == ItemState.NEW.value),
@@ -84,6 +101,8 @@ async def read_stats(session: AsyncSession = Depends(get_session)) -> Stats:
         ),
         master_count=await count(learning, Progress.srs_stage == STAGE_MASTER),
         enlightened_count=await count(learning, Progress.srs_stage == STAGE_ENLIGHTENED),
+        lessons_available=lessons_available,
+        current_level=current_level,
         due_now=await count(*scheduled, Progress.next_review_at <= cutoff),
         due_next_hour=await count(*scheduled, Progress.next_review_at <= now + timedelta(hours=1)),
         due_today=await count(*scheduled, Progress.next_review_at <= now + timedelta(days=1)),

@@ -124,15 +124,55 @@ class LessonItem(BaseModel):
     srs_stage: int
 
 
+class LevelSummary(BaseModel):
+    level: int
+    open_count: int
+
+
 class Lessons(BaseModel):
+    """One batch of lessons, taken from a single level.
+
+    Scoped to a level on purpose. Without it ``total_available`` is "every
+    unlearned item in all sixty levels", which after an import of a reset
+    account is a five-figure number that means nothing and cannot be acted on.
+    """
+
     items: list[LessonItem]
+    #: Which level the batch came from; None when nothing is left anywhere.
+    level: int | None = None
+    #: Open lessons in that level -- the number worth showing.
+    total_in_level: int = 0
+    #: Open lessons everywhere. Context, not a to-do list.
     total_available: int
     #: 0 when no limit is configured.
     daily_limit: int
+    batch_size: int
+    #: Every level that still has lessons, for the level picker.
+    levels: list[LevelSummary] = Field(default_factory=list)
 
 
 class StartLessonsIn(BaseModel):
     subject_ids: list[int]
+
+
+class QuizIn(BaseModel):
+    subject_id: int
+    question: QuestionType
+    answer: str
+
+
+class QuizOut(BaseModel):
+    """A lesson-quiz verdict. Carries no SRS fields, because it moves nothing.
+
+    The quiz is a gate in front of the SRS, not a part of it -- exactly as in
+    WaniKani, where failing the lesson quiz costs no stage because the item
+    has no stage yet.
+    """
+
+    correct: bool
+    expected: str
+    secondary: bool = False
+    hint: str | None = None
 
 
 # --- overrides -------------------------------------------------------------
@@ -167,6 +207,7 @@ class SettingsOut(BaseModel):
     known_srs_stage: int
     srs_interval_hours: str
     daily_lesson_limit: int
+    lesson_batch_size: int
 
 
 class SettingsIn(BaseModel):
@@ -177,6 +218,7 @@ class SettingsIn(BaseModel):
     known_srs_stage: int | None = Field(default=None, ge=1, le=9)
     srs_interval_hours: str | None = None
     daily_lesson_limit: int | None = Field(default=None, ge=0)
+    lesson_batch_size: int | None = Field(default=None, ge=1, le=100)
 
 
 class WaniKaniAccount(BaseModel):
@@ -228,6 +270,10 @@ class Stats(BaseModel):
     guru_count: int
     master_count: int
     enlightened_count: int
+    #: Lessons in the level currently being taught -- what the badge shows.
+    #: ``new_count`` stays the collection-wide figure for the breakdown.
+    lessons_available: int
+    current_level: int | None = None
     due_now: int
     due_next_hour: int
     due_today: int

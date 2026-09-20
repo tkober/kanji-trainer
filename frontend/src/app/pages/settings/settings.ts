@@ -25,6 +25,7 @@ export class SettingsPage implements OnDestroy {
   protected knownStage = 9;
   protected intervals = '';
   protected dailyLimit = 0;
+  protected batchSize = 5;
   protected remapExisting = false;
 
   private poller: ReturnType<typeof setInterval> | null = null;
@@ -41,6 +42,7 @@ export class SettingsPage implements OnDestroy {
       this.knownStage = settings.known_srs_stage;
       this.intervals = settings.srs_interval_hours;
       this.dailyLimit = settings.daily_lesson_limit;
+      this.batchSize = settings.lesson_batch_size;
       this.run.set(run);
       if (run?.status === 'running') {
         this.watch(run.id);
@@ -69,6 +71,7 @@ export class SettingsPage implements OnDestroy {
         known_srs_stage: this.knownStage,
         srs_interval_hours: this.intervals,
         daily_lesson_limit: this.dailyLimit,
+        lesson_batch_size: this.batchSize,
       },
       'Einstellungen gespeichert.',
     );

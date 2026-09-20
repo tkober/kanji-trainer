@@ -24,8 +24,14 @@
         <span class="label">Reviews fällig</span>
       </a>
       <a class="tile" routerLink="/lessons">
-        <span class="value">{{ stats.new_count }}</span>
-        <span class="label">Lektionen offen</span>
+        <span class="value">{{ stats.lessons_available }}</span>
+        <span class="label">
+          @if (stats.current_level !== null) {
+            Lektionen in Level {{ stats.current_level }}
+          } @else {
+            Lektionen offen
+          }
+        </span>
       </a>
       <div class="tile">
         <span class="value">{{ stats.reviews_today }}</span>
@@ -41,6 +47,7 @@
       <h2>Sammlung</h2>
       <p class="muted summary">
         {{ stats.total_subjects }} Items, davon {{ settled(stats) }} % dauerhaft erledigt.
+        {{ stats.new_count }} insgesamt noch ungelernt.
       </p>
       <dl class="breakdown">
         <div>

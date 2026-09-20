@@ -95,10 +95,30 @@ export interface LessonItem {
   srs_stage: number;
 }
 
+export interface LevelSummary {
+  level: number;
+  open_count: number;
+}
+
 export interface Lessons {
   items: LessonItem[];
+  /** Which level this batch came from; null when nothing is left anywhere. */
+  level: number | null;
+  /** Open lessons in that level — the number worth showing. */
+  total_in_level: number;
+  /** Open lessons everywhere. Context, not a to-do list. */
   total_available: number;
   daily_limit: number;
+  batch_size: number;
+  levels: LevelSummary[];
+}
+
+/** A lesson-quiz verdict. Carries no SRS fields, because it moves nothing. */
+export interface QuizResult {
+  correct: boolean;
+  expected: string;
+  secondary: boolean;
+  hint: string | null;
 }
 
 export interface Settings {
@@ -109,6 +129,7 @@ export interface Settings {
   known_srs_stage: number;
   srs_interval_hours: string;
   daily_lesson_limit: number;
+  lesson_batch_size: number;
 }
 
 export interface SettingsPatch {
@@ -117,6 +138,7 @@ export interface SettingsPatch {
   known_srs_stage?: number;
   srs_interval_hours?: string;
   daily_lesson_limit?: number;
+  lesson_batch_size?: number;
 }
 
 export interface WaniKaniAccount {
@@ -152,6 +174,9 @@ export interface Stats {
   guru_count: number;
   master_count: number;
   enlightened_count: number;
+  /** Lessons in the level currently being taught — what the badge shows. */
+  lessons_available: number;
+  current_level: number | null;
   due_now: number;
   due_next_hour: number;
   due_today: number;

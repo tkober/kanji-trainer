@@ -1,4 +1,18 @@
-<h1>Lektionen</h1>
+<div class="head">
+  <h1>Lektionen</h1>
+  @if (levels().length > 0) {
+    <label class="level-pick">
+      Level
+      <select [value]="level() ?? ''" (change)="pickLevel($event)">
+        @for (entry of levels(); track entry.level) {
+          <option [value]="entry.level">
+            Level {{ entry.level }} — {{ entry.open_count }} offen
+          </option>
+        }
+      </select>
+    </label>
+  }
+</div>
 
 @if (error(); as message) {
   <p class="error">{{ message }}</p>
@@ -14,14 +28,20 @@
         Es wären noch {{ totalAvailable() }} verfügbar, aber dein Tageslimit von
         {{ dailyLimit() }} ist erreicht. Das Limit lässt sich in den Einstellungen ändern.
       </p>
+    } @else if (totalAvailable() > 0) {
+      <p class="muted">
+        In diesem Level ist nichts mehr offen. Insgesamt warten noch
+        {{ totalAvailable() }} Items in anderen Leveln.
+      </p>
     } @else {
       <p class="muted">Alles gelernt. Importiere neuen Content oder mach Reviews.</p>
     }
     <a routerLink="/review"><button class="primary">Zu den Reviews</button></a>
   </section>
-} @else {
+} @else if (phase() === 'reading') {
   <p class="muted count">
-    {{ items().length }} in dieser Runde, {{ totalAvailable() }} insgesamt offen.
+    Level {{ level() }}: {{ items().length }} in dieser Runde, {{ totalInLevel() }} im Level
+    offen<span class="dim"> · {{ totalAvailable() }} insgesamt</span>
   </p>
 
   @if (current(); as item) {
@@ -41,10 +61,10 @@
     <section class="card detail">
       <dl>
         <dt>Bedeutung</dt>
-        <dd>{{ meanings(item) }}</dd>
+        <dd>{{ meanings(item.subject) }}</dd>
         @if (item.subject.readings.length > 0) {
           <dt>Lesung</dt>
-          <dd class="jp">{{ readings(item) }}</dd>
+          <dd class="jp">{{ readings(item.subject) }}</dd>
         }
         @if (item.subject.meaning_mnemonic) {
           <dt>Eselsbrücke Bedeutung</dt>
@@ -58,7 +78,13 @@
 
       <div class="row nav">
         <button [disabled]="index() === 0" (click)="previous()">Zurück</button>
-        <button [disabled]="index() >= items().length - 1" (click)="next()">Weiter</button>
+        @if (onLastItem()) {
+          <button class="primary" [disabled]="busy()" (click)="startQuiz()">
+            Quiz starten ({{ items().length }} Items)
+          </button>
+        } @else {
+          <button (click)="next()">Weiter</button>
+        }
         <button class="known" [disabled]="busy()" (click)="markCurrentKnown()">
           Dieses kann ich
         </button>
@@ -67,18 +93,79 @@
   }
 
   <section class="card batch">
-    <h2>Ganze Runde</h2>
     <div class="row">
-      <button class="primary" [disabled]="busy()" (click)="startBatch()">
-        {{ items().length }} Items lernen
-      </button>
       <button class="known" [disabled]="busy()" (click)="markBatchKnown()">
         Alle {{ items().length }} kann ich schon
       </button>
     </div>
     <p class="muted footnote">
-      Der zweite Knopf ist der schnelle Weg durch Level, die du schon einmal hattest:
-      die Items gehen direkt auf „beherrscht“, ohne je in der Wiederholung aufzutauchen.
+      Der schnelle Weg durch Level, die du schon einmal hattest: die Items gehen direkt auf
+      „beherrscht“, ohne Quiz und ohne je in der Wiederholung aufzutauchen.
     </p>
   </section>
+} @else if (card(); as card) {
+  <div class="progress">
+    <span>{{ passed() }} / {{ items().length }} sitzen</span>
+    <span class="muted">·</span>
+    <span class="muted">{{ queue().length }} offen in dieser Abfrage</span>
+  </div>
+
+  <section class="prompt" [attr.data-type]="card.subject.object_type">
+    @if (card.subject.characters) {
+      <div class="characters jp">{{ card.subject.characters }}</div>
+    } @else if (card.subject.character_image_url) {
+      <img class="characters" [src]="card.subject.character_image_url" [alt]="card.subject.slug" />
+    }
+    <div class="meta">
+      <span>{{ typeLabel(card.subject.object_type) }}</span>
+      <span>Level {{ card.subject.level }}</span>
+    </div>
+  </section>
+
+  <section class="question" [class.reading]="question() === 'reading'">
+    <label for="quiz-answer">{{ question() === 'reading' ? 'Lesung' : 'Bedeutung' }}</label>
+    <input
+      #answerField
+      id="quiz-answer"
+      type="text"
+      class="jp"
+      autocomplete="off"
+      autocorrect="off"
+      autocapitalize="off"
+      spellcheck="false"
+      [value]="display()"
+      [readOnly]="feedback() !== null"
+      [class.correct]="feedback()?.correct === true"
+      [class.wrong]="feedback()?.correct === false"
+      (input)="onInput($event)"
+      (keydown)="onKeydown($event)"
+    />
+  </section>
+
+  @if (feedback(); as result) {
+    <section class="feedback" [class.correct]="result.correct" [class.wrong]="!result.correct">
+      @if (result.correct) {
+        <strong>Richtig.</strong>
+        @if (result.secondary) {
+          <span> Gemeint war vor allem <em>{{ result.expected }}</em>.</span>
+        }
+      } @else {
+        <strong>Noch nicht.</strong>
+        <span> Erwartet: <em class="jp">{{ result.expected }}</em></span>
+      }
+      @if (result.hint) {
+        <p class="hint">{{ result.hint }}</p>
+      }
+      <p class="muted no-cost">
+        Das Quiz kostet keine SRS-Stufe — falsche Antworten kommen einfach wieder.
+      </p>
+      <div class="row">
+        <button class="primary" (click)="advance()">Weiter (Enter)</button>
+      </div>
+    </section>
+  } @else {
+    <div class="row actions">
+      <button class="primary" [disabled]="busy()" (click)="submit()">Antworten (Enter)</button>
+    </div>
+  }
 }

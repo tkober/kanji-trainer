@@ -27,7 +27,9 @@ export class App {
     try {
       const stats = await this.api.stats();
       this.due.set(stats.due_now);
-      this.lessons.set(stats.new_count);
+      // The level's open lessons, not the collection's. A badge reading
+      // 9.321 after importing a reset account is worse than no badge.
+      this.lessons.set(stats.lessons_available);
     } catch {
       // A badge is not worth an error banner; the screens themselves report.
     }

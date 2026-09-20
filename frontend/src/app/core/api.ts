@@ -10,6 +10,7 @@ import type {
   Lessons,
   Queue,
   QuestionType,
+  QuizResult,
   Settings,
   SettingsPatch,
   Stats,
@@ -38,11 +39,28 @@ export class Api {
     return this.post('/api/reviews/answer', { subject_id: subjectId, question, answer });
   }
 
-  lessons(limit = 20): Promise<Lessons> {
-    return this.get('/api/lessons', new HttpParams().set('limit', limit));
+  /** One batch from a single level; omit `level` for the lowest open one. */
+  lessons(level?: number | null, limit?: number): Promise<Lessons> {
+    let params = new HttpParams();
+    if (level !== undefined && level !== null) {
+      params = params.set('level', level);
+    }
+    if (limit !== undefined) {
+      params = params.set('limit', limit);
+    }
+    return this.get('/api/lessons', params);
   }
 
-  startLessons(subjectIds: number[]): Promise<Lessons> {
+  /** Check a lesson-quiz answer. Moves nothing — see the backend endpoint. */
+  quiz(subjectId: number, question: QuestionType, answer: string): Promise<QuizResult> {
+    return this.post('/api/lessons/quiz', {
+      subject_id: subjectId,
+      question,
+      answer,
+    });
+  }
+
+  startLessons(subjectIds: number[]): Promise<{ changed: number }> {
     return this.post('/api/lessons/start', { subject_ids: subjectIds });
   }
 

@@ -93,3 +93,102 @@ img.characters {
     margin: 0.5rem auto 1rem;
   }
 }
+
+/* --- quiz phase --------------------------------------------------------- */
+
+.head {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 1rem;
+  flex-wrap: wrap;
+}
+
+.level-pick {
+  display: flex;
+  align-items: center;
+  gap: 0.4rem;
+  font-size: 0.85rem;
+  color: var(--muted);
+}
+
+.dim {
+  opacity: 0.7;
+}
+
+.progress {
+  display: flex;
+  gap: 0.5rem;
+  font-size: 0.9rem;
+  margin-bottom: 0.75rem;
+}
+
+.question {
+  margin-top: 1rem;
+
+  label {
+    display: block;
+    text-align: center;
+    font-size: 0.85rem;
+    text-transform: uppercase;
+    letter-spacing: 0.08em;
+    color: var(--muted);
+    margin-bottom: 0.4rem;
+  }
+
+  input {
+    width: 100%;
+    font-size: 1.5rem;
+    text-align: center;
+    padding: 0.7rem;
+  }
+
+  /* Readings get the dark field, so the two question types are
+     distinguishable before the label is read. */
+  &.reading input {
+    background: #2b2f38;
+    color: #fff;
+    border-color: #2b2f38;
+  }
+
+  input.correct {
+    border-color: var(--ok);
+    background: color-mix(in srgb, var(--ok) 15%, var(--surface));
+  }
+
+  input.wrong {
+    border-color: var(--bad);
+    background: color-mix(in srgb, var(--bad) 15%, var(--surface));
+  }
+}
+
+.actions {
+  margin-top: 1rem;
+  justify-content: center;
+}
+
+.feedback {
+  margin-top: 1rem;
+  border-radius: var(--radius);
+  border: 1px solid var(--border);
+  background: var(--surface);
+  padding: var(--gap);
+
+  &.correct {
+    border-color: color-mix(in srgb, var(--ok) 45%, var(--border));
+  }
+
+  &.wrong {
+    border-color: color-mix(in srgb, var(--bad) 45%, var(--border));
+  }
+
+  .hint {
+    color: var(--warn);
+    margin: 0.5rem 0 0;
+  }
+
+  .no-cost {
+    font-size: 0.85rem;
+    margin: 0.5rem 0 0.75rem;
+  }
+}

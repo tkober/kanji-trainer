@@ -48,6 +48,10 @@ class Settings(BaseSettings):
     # ~3h01m; without something similar a session that runs long keeps
     # dangling items just out of reach.
     review_grace_minutes: int = 59
+    # Items per lesson batch, read together and then quizzed together.
+    # Five is WaniKani's default and is about as much as can be held in
+    # mind between reading a mnemonic and being asked to produce it.
+    lesson_batch_size: int = 5
 
     # --- Answer checking ---
     # Allowed Levenshtein distance for a meaning, per this many characters of

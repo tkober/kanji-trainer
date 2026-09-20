@@ -155,7 +155,17 @@
       Tageslimit Lektionen (0 = kein Limit)
       <input type="number" min="0" max="500" [(ngModel)]="dailyLimit" />
     </label>
+
+    <label>
+      Items pro Lektions-Stapel
+      <input type="number" min="1" max="100" [(ngModel)]="batchSize" />
+    </label>
   </div>
+
+  <p class="muted footnote">
+    Ein Stapel wird am Stück gelesen und danach am Stück abgefragt; 5 ist WaniKanis
+    Standard und etwa so viel, wie sich zwischen Eselsbrücke und Abfrage halten lässt.
+  </p>
 
   <label class="block">
     SRS-Intervalle in Stunden, je Stufe 0–9

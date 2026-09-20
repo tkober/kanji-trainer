@@ -32,6 +32,7 @@ class RuntimeConfig:
     srs_intervals: tuple[int, ...]
     #: 0 means unlimited.
     daily_lesson_limit: int
+    lesson_batch_size: int
 
     # --- environment only (infrastructure, not user business) ---
     wanikani_api_base: str
@@ -81,6 +82,9 @@ def build_runtime_config(row: AppSettings | None, env: Settings) -> RuntimeConfi
             row.srs_interval_hours if row else None, env.srs_intervals
         ),
         daily_lesson_limit=_pick_int(row.daily_lesson_limit if row else None, 0),
+        lesson_batch_size=max(
+            1, _pick_int(row.lesson_batch_size if row else None, env.lesson_batch_size)
+        ),
         wanikani_api_base=env.wanikani_api_base,
         wanikani_revision=env.wanikani_revision,
         review_grace_minutes=env.review_grace_minutes,
