@@ -91,6 +91,49 @@ img.characters {
     border-color: var(--bad);
     background: color-mix(in srgb, var(--bad) 15%, var(--surface));
   }
+
+  /* Held, not wrong: the answer has not been submitted, so it must not look
+     like a verdict. Amber says "look again", red would say "you failed". */
+  input.held {
+    border-color: var(--warn);
+    background: color-mix(in srgb, var(--warn) 12%, var(--surface));
+  }
+
+  input.shake {
+    animation: shake 320ms ease;
+  }
+}
+
+@keyframes shake {
+  0%, 100% { transform: translateX(0); }
+  20% { transform: translateX(-6px); }
+  40% { transform: translateX(6px); }
+  60% { transform: translateX(-4px); }
+  80% { transform: translateX(3px); }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .question input.shake {
+    animation: none;
+  }
+}
+
+.warning {
+  margin: 0.75rem 0 0;
+  text-align: center;
+  color: var(--warn);
+  background: color-mix(in srgb, var(--warn) 10%, transparent);
+  border: 1px solid color-mix(in srgb, var(--warn) 35%, transparent);
+  border-radius: var(--radius);
+  padding: 0.6rem 0.8rem;
+
+  kbd {
+    font: inherit;
+    font-weight: 700;
+    border: 1px solid currentColor;
+    border-radius: 4px;
+    padding: 0 0.3rem;
+  }
 }
 
 .actions {
@@ -122,6 +165,10 @@ img.characters {
 
   &.wrong {
     border-color: color-mix(in srgb, var(--bad) 45%, var(--border));
+  }
+
+  &.retry {
+    border-color: color-mix(in srgb, var(--warn) 45%, var(--border));
   }
 
   .hint {

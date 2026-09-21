@@ -26,6 +26,7 @@ export class SettingsPage implements OnDestroy {
   protected intervals = '';
   protected dailyLimit = 0;
   protected batchSize = 5;
+  protected softAnswer = true;
   protected remapExisting = false;
 
   private poller: ReturnType<typeof setInterval> | null = null;
@@ -43,6 +44,7 @@ export class SettingsPage implements OnDestroy {
       this.intervals = settings.srs_interval_hours;
       this.dailyLimit = settings.daily_lesson_limit;
       this.batchSize = settings.lesson_batch_size;
+      this.softAnswer = settings.soft_answer_enabled;
       this.run.set(run);
       if (run?.status === 'running') {
         this.watch(run.id);
@@ -72,6 +74,7 @@ export class SettingsPage implements OnDestroy {
         srs_interval_hours: this.intervals,
         daily_lesson_limit: this.dailyLimit,
         lesson_batch_size: this.batchSize,
+        soft_answer_enabled: this.softAnswer,
       },
       'Einstellungen gespeichert.',
     );

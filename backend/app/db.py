@@ -169,6 +169,7 @@ class AppSettings(Base):
     # which is why this is not simply 0-as-unset.
     daily_lesson_limit: Mapped[int | None] = mapped_column(Integer, nullable=True)
     lesson_batch_size: Mapped[int | None] = mapped_column(Integer, nullable=True)
+    soft_answer_enabled: Mapped[bool | None] = mapped_column(Boolean, nullable=True)
 
     updated_at: Mapped[datetime] = mapped_column(
         UtcDateTime, nullable=False, server_default=func.now()
@@ -525,6 +526,7 @@ async def _wait_for_database(engine: AsyncEngine) -> None:
 # removed, only added to.
 ADDED_COLUMNS: tuple[tuple[str, str, str], ...] = (
     ("app_settings", "lesson_batch_size", "INTEGER"),
+    ("app_settings", "soft_answer_enabled", "BOOLEAN"),
 )
 
 

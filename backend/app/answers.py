@@ -43,6 +43,13 @@ class AnswerCheck:
     #: Set when an answer was rejected on purpose rather than merely missed:
     #: a blacklisted meaning, or the on'yomi where the kun'yomi was asked.
     hint: str | None = None
+    #: "Not wrong, just not what was asked." A real reading of this kanji, of
+    #: the type the question did not ask for. WaniKani re-asks rather than
+    #: counting it wrong, and so does this: the learner knew the character.
+    retry: bool = False
+    #: Accepted, but not spelled the way the item spells it. Worth showing --
+    #: silently forgiving a typo teaches the typo.
+    typo: bool = False
 
 
 # --- normalisation ---------------------------------------------------------
@@ -171,10 +178,14 @@ def check_meaning(
 
     for candidate in candidates:
         if answer == normalise_meaning(candidate):
+            secondary = normalise_meaning(candidate) != normalise_meaning(primary)
+            # On a secondary answer `expected` names the *primary* one, because
+            # that is the thing the learner has not said yet. Naming the answer
+            # they just gave would read as "you meant what you wrote".
             return AnswerCheck(
                 correct=True,
-                expected=candidate,
-                secondary=normalise_meaning(candidate) != normalise_meaning(primary),
+                expected=primary if secondary else candidate,
+                secondary=secondary,
             )
 
     # Nothing matched exactly; allow for a typo against the closest candidate.
@@ -185,10 +196,15 @@ def check_meaning(
             best = (distance, candidate)
 
     if best is not None and best[0] <= typo_allowance(normalise_meaning(best[1]), typo_divisor):
+        secondary = normalise_meaning(best[1]) != normalise_meaning(primary)
         return AnswerCheck(
             correct=True,
-            expected=best[1],
-            secondary=normalise_meaning(best[1]) != normalise_meaning(primary),
+            # A misspelled secondary meaning gets the primary, since that is
+            # the more useful of the two things to show; a misspelled primary
+            # gets its own correct spelling.
+            expected=primary if secondary else best[1],
+            secondary=secondary,
+            typo=True,
         )
 
     return AnswerCheck(correct=False, expected=primary)
@@ -228,19 +244,25 @@ def check_reading(
 
     for entry in accepted:
         if answer == normalise_kana(entry["reading"]):
+            secondary = not entry.get("primary", False)
             return AnswerCheck(
                 correct=True,
-                expected=entry["reading"],
-                secondary=not entry.get("primary", False),
+                expected=primary if secondary else entry["reading"],
+                secondary=secondary,
             )
 
     for entry in entries:
         if entry.get("reading") and answer == normalise_kana(entry["reading"]):
             kind = entry.get("type") or "diese Lesung"
+            # Not counted. The learner produced a real reading of this
+            # character, so they knew it -- they answered a question that was
+            # not the one asked. WaniKani re-asks here rather than marking it
+            # wrong, and charging for it would punish knowing *more*.
             return AnswerCheck(
                 correct=False,
-                expected=primary,
-                hint=f"Das ist die {kind}-Lesung — gefragt war eine andere.",
+                expected="",
+                retry=True,
+                hint=f"Das ist die {kind}-Lesung — gefragt war eine andere. Nochmal.",
             )
 
     return AnswerCheck(correct=False, expected=primary)

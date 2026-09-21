@@ -35,8 +35,19 @@ export class Api {
     return this.get('/api/reviews', new HttpParams().set('limit', limit));
   }
 
-  answer(subjectId: number, question: QuestionType, answer: string): Promise<AnswerResult> {
-    return this.post('/api/reviews/answer', { subject_id: subjectId, question, answer });
+  /** `confirm` is the second Enter after a "das sieht falsch aus" warning. */
+  answer(
+    subjectId: number,
+    question: QuestionType,
+    answer: string,
+    confirm = false,
+  ): Promise<AnswerResult> {
+    return this.post('/api/reviews/answer', {
+      subject_id: subjectId,
+      question,
+      answer,
+      confirm,
+    });
   }
 
   /** One batch from a single level; omit `level` for the lowest open one. */

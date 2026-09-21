@@ -193,6 +193,22 @@ answering the meaning of a kanji must not hand back a free pass on the reading.
 They are initialised on the first *answer*, not when the queue is served — a
 GET that writes is surprising, and an item merely looked at should be untouched.
 
+**Two verdicts leave the question open, and neither reveals the answer.**
+`held` (soft answer) is a wrong answer caught before it counts — one keypress
+to insist or to correct a typo, since below four characters there is no typo
+tolerance to catch a slip. `retry` is a real reading of the character of the
+type that was *not* asked: WaniKani re-asks rather than counting it wrong, and
+charging for it would punish knowing more than the question wanted. Both return
+through `_still_open()`, which sends no `expected` and no `subject` — the
+learner is about to answer this same question again, and a warning carrying the
+answer would be a reveal button with extra steps. Neither commits, so the
+`begin_review` that ran before them is rolled back with the session.
+
+**`expected` names what the learner has not said yet.** On a secondary answer
+it is the *primary* meaning or reading, not the one they typed — "Gemeint war
+vor allem いつ" after answering いつ reads as nonsense. On a forgiven typo it is
+the correct spelling, since silently accepting a misspelling teaches it.
+
 **A wrong answer does not demote immediately.** It is counted in
 `session_incorrect` and the question stays outstanding, so the learner is asked
 again in the same session and the item moves exactly once, when it is fully

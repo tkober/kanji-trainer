@@ -162,6 +162,18 @@
     </label>
   </div>
 
+  <label class="check block">
+    <input type="checkbox" [(ngModel)]="softAnswer" />
+    Zweite Chance bei Fehlern
+  </label>
+  <p class="muted footnote">
+    Eine Antwort, die falsch wäre, wird einmal zurückgehalten: <kbd>Enter</kbd> schickt sie
+    trotzdem ab, <kbd>Esc</kbd> gibt das Feld zum Korrigieren zurück. Ein Vertipper kostet
+    dich sonst genauso viel wie „nicht gewusst“ — und unter vier Zeichen gibt es gar keine
+    Tippfehler-Toleranz, die ihn auffangen könnte. Die Warnung verrät nie die richtige
+    Antwort.
+  </p>
+
   <p class="muted footnote">
     Ein Stapel wird am Stück gelesen und danach am Stück abgefragt; 5 ist WaniKanis
     Standard und etwa so viel, wie sich zwischen Eselsbrücke und Abfrage halten lässt.

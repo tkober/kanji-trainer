@@ -52,6 +52,11 @@ class Settings(BaseSettings):
     # Five is WaniKani's default and is about as much as can be held in
     # mind between reading a mnemonic and being asked to produce it.
     lesson_batch_size: int = 5
+    # Hold an answer that is about to be marked wrong and ask once whether it
+    # was meant that way. A typo otherwise costs exactly as much as not
+    # knowing the item -- and at three characters there is no typo tolerance
+    # at all, so "en" for "end" is simply a demotion.
+    soft_answer_enabled: bool = True
 
     # --- Answer checking ---
     # Allowed Levenshtein distance for a meaning, per this many characters of

@@ -33,6 +33,7 @@ class RuntimeConfig:
     #: 0 means unlimited.
     daily_lesson_limit: int
     lesson_batch_size: int
+    soft_answer_enabled: bool
 
     # --- environment only (infrastructure, not user business) ---
     wanikani_api_base: str
@@ -84,6 +85,11 @@ def build_runtime_config(row: AppSettings | None, env: Settings) -> RuntimeConfi
         daily_lesson_limit=_pick_int(row.daily_lesson_limit if row else None, 0),
         lesson_batch_size=max(
             1, _pick_int(row.lesson_batch_size if row else None, env.lesson_batch_size)
+        ),
+        soft_answer_enabled=(
+            env.soft_answer_enabled
+            if row is None or row.soft_answer_enabled is None
+            else row.soft_answer_enabled
         ),
         wanikani_api_base=env.wanikani_api_base,
         wanikani_revision=env.wanikani_revision,

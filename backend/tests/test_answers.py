@@ -33,11 +33,12 @@ def test_exact_meaning_is_accepted_regardless_of_case_and_spacing():
     assert check_meaning("  WATER ", WATER).correct
 
 
-def test_a_secondary_meaning_counts_but_says_so():
+def test_a_secondary_meaning_counts_but_names_the_primary_one():
+    """`expected` is what the learner has *not* said yet, not what they typed."""
     check = check_meaning("large", BIG)
     assert check.correct
     assert check.secondary
-    assert check.expected == "Large"
+    assert check.expected == "Big"
 
 
 def test_the_primary_meaning_is_not_flagged_as_secondary():

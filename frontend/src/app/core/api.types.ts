@@ -78,16 +78,24 @@ export interface Queue {
 
 export interface AnswerResult {
   correct: boolean;
+  /** Empty while the question is still open — see `held` and `retry`. */
   expected: string;
   secondary: boolean;
+  /** Accepted despite a misspelling; the right spelling is in `expected`. */
+  typo: boolean;
   hint: string | null;
+  /** Would be wrong, but nothing has happened yet. One keypress to insist. */
+  held: boolean;
+  /** A real reading of the character, of the type not asked. Costs nothing. */
+  retry: boolean;
   completed: boolean;
   remaining: QuestionType[];
   srs_stage_before: number;
   srs_stage_after: number;
   stage_name_after: string;
   next_review_at: string | null;
-  subject: SubjectDetail;
+  /** Null while the question is still open, so the answer is not revealed. */
+  subject: SubjectDetail | null;
 }
 
 export interface LessonItem {
@@ -118,6 +126,8 @@ export interface QuizResult {
   correct: boolean;
   expected: string;
   secondary: boolean;
+  typo: boolean;
+  retry: boolean;
   hint: string | null;
 }
 
@@ -130,6 +140,7 @@ export interface Settings {
   srs_interval_hours: string;
   daily_lesson_limit: number;
   lesson_batch_size: number;
+  soft_answer_enabled: boolean;
 }
 
 export interface SettingsPatch {
@@ -139,6 +150,7 @@ export interface SettingsPatch {
   srs_interval_hours?: string;
   daily_lesson_limit?: number;
   lesson_batch_size?: number;
+  soft_answer_enabled?: boolean;
 }
 
 export interface WaniKaniAccount {

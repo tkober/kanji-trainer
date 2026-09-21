@@ -99,15 +99,36 @@ class AnswerIn(BaseModel):
     subject_id: int
     question: QuestionType
     answer: str
+    #: Set by the second Enter after a "das sieht falsch aus" warning. Without
+    #: it a wrong answer is held rather than applied -- see `held` below.
+    confirm: bool = False
 
 
 class AnswerOut(BaseModel):
+    """The verdict on one answer.
+
+    Three outcomes rather than two, and the extra two are both second chances:
+
+    * ``held`` -- the answer would be wrong, and nothing has happened yet. The
+      learner gets one keypress to insist or to correct a typo. **No** expected
+      answer and no subject come back, or the warning would be a free reveal.
+    * ``retry`` -- a real reading of the character, of the type that was not
+      asked. Not counted, not logged, question still open. Charging for this
+      would punish knowing more than was asked.
+
+    ``expected`` and ``subject`` are empty exactly when one of those is set.
+    """
+
     correct: bool
     #: The answer that was expected -- shown on a miss, and on a hit when the
     #: learner gave a secondary meaning and should see the primary one.
-    expected: str
+    expected: str = ""
     secondary: bool = False
+    #: Accepted despite a misspelling; the UI shows the right spelling.
+    typo: bool = False
     hint: str | None = None
+    held: bool = False
+    retry: bool = False
     completed: bool
     remaining: list[QuestionType]
     srs_stage_before: int
@@ -115,8 +136,8 @@ class AnswerOut(BaseModel):
     stage_name_after: str
     next_review_at: datetime | None = None
     #: Sent once the answer is in, so the review screen can show the mnemonic
-    #: without a second request.
-    subject: SubjectDetail
+    #: without a second request. None while the question is still open.
+    subject: SubjectDetail | None = None
 
 
 class LessonItem(BaseModel):
@@ -172,6 +193,8 @@ class QuizOut(BaseModel):
     correct: bool
     expected: str
     secondary: bool = False
+    typo: bool = False
+    retry: bool = False
     hint: str | None = None
 
 
@@ -208,6 +231,7 @@ class SettingsOut(BaseModel):
     srs_interval_hours: str
     daily_lesson_limit: int
     lesson_batch_size: int
+    soft_answer_enabled: bool
 
 
 class SettingsIn(BaseModel):
@@ -219,6 +243,7 @@ class SettingsIn(BaseModel):
     srs_interval_hours: str | None = None
     daily_lesson_limit: int | None = Field(default=None, ge=0)
     lesson_batch_size: int | None = Field(default=None, ge=1, le=100)
+    soft_answer_enabled: bool | None = None
 
 
 class WaniKaniAccount(BaseModel):

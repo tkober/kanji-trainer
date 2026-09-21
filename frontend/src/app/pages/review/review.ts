@@ -26,6 +26,15 @@ export class Review {
   protected readonly feedback = signal<AnswerResult | null>(null);
   protected readonly raw = signal('');
   protected readonly submitting = signal(false);
+  /**
+   * An answer that would be wrong, held back for one keypress.
+   *
+   * The server has not applied anything and has deliberately not said what the
+   * right answer is — the question is still open, and a warning that revealed
+   * it would be a reveal button with extra steps.
+   */
+  protected readonly held = signal(false);
+  protected readonly shake = signal(false);
 
   protected readonly answered = signal(0);
   protected readonly correct = signal(0);
@@ -71,10 +80,26 @@ export class Review {
 
   onInput(event: Event): void {
     this.raw.set((event.target as HTMLInputElement).value);
+    // Editing withdraws the answer that was warned about; the next Enter is
+    // checked afresh rather than submitting the old text.
+    if (this.held()) {
+      this.held.set(false);
+    }
   }
 
   /** Enter submits, and once there is feedback on screen, Enter moves on. */
   onKeydown(event: KeyboardEvent): void {
+    if (event.key === 'Escape' && this.held()) {
+      // Hand the input back with the text selected, so correcting a slip is
+      // one keystroke rather than a clear-and-retype.
+      event.preventDefault();
+      this.held.set(false);
+      const input = this.field()?.nativeElement;
+      input?.focus();
+      input?.select();
+      return;
+    }
+
     if (event.key === 'Enter') {
       event.preventDefault();
       if (this.feedback()) {
@@ -106,11 +131,26 @@ export class Review {
 
     this.submitting.set(true);
     try {
-      const result = await this.api.answer(card.subject.id, question, answer);
+      // The second Enter after a warning is what confirms it.
+      const result = await this.api.answer(card.subject.id, question, answer, this.held());
+
+      if (result.held) {
+        this.held.set(true);
+        this.nudge();
+        return;
+      }
+      this.held.set(false);
+
       this.feedback.set(result);
-      this.answered.update((n) => n + 1);
-      if (result.correct) {
-        this.correct.update((n) => n + 1);
+
+      // A retry is not an answer: the learner produced a real reading of the
+      // character, just not the one asked for. It counts for nothing in
+      // either direction, so it stays out of the session tally too.
+      if (!result.retry) {
+        this.answered.update((n) => n + 1);
+        if (result.correct) {
+          this.correct.update((n) => n + 1);
+        }
       }
     } catch (err) {
       this.error.set((err as Error).message);
@@ -119,11 +159,26 @@ export class Review {
     }
   }
 
+  /** Briefly shake the field, so a held answer is felt as well as read. */
+  private nudge(): void {
+    this.shake.set(true);
+    setTimeout(() => this.shake.set(false), 400);
+    queueMicrotask(() => this.field()?.nativeElement.focus());
+  }
+
   /** Advance past the feedback, re-queueing the item if it still owes a half. */
   next(): void {
     const result = this.feedback();
     const card = this.current();
     if (!result || !card) {
+      return;
+    }
+
+    if (result.retry) {
+      // Same question, same item, nothing consumed — just ask again.
+      this.feedback.set(null);
+      this.raw.set('');
+      this.focus();
       return;
     }
 
@@ -137,6 +192,7 @@ export class Review {
     this.queue.set(rest);
     this.feedback.set(null);
     this.raw.set('');
+    this.held.set(false);
     this.focus();
   }
 
@@ -157,6 +213,7 @@ export class Review {
       this.queue.set(this.queue().slice(1));
       this.feedback.set(null);
       this.raw.set('');
+      this.held.set(false);
       this.totalDue.update((n) => Math.max(0, n - 1));
       this.focus();
     } catch (err) {
@@ -175,6 +232,7 @@ export class Review {
       this.queue.set(this.queue().slice(1));
       this.feedback.set(null);
       this.raw.set('');
+      this.held.set(false);
       this.focus();
     } catch (err) {
       this.error.set((err as Error).message);
@@ -195,14 +253,14 @@ export class Review {
   }
 
   protected primaryReadings(result: AnswerResult): string {
-    return result.subject.readings
+    return (result.subject?.readings ?? [])
       .filter((reading) => reading.accepted_answer !== false)
       .map((reading) => reading.reading)
       .join('、');
   }
 
   protected primaryMeanings(result: AnswerResult): string {
-    return result.subject.meanings
+    return (result.subject?.meanings ?? [])
       .filter((meaning) => meaning.accepted_answer !== false)
       .map((meaning) => meaning.meaning)
       .join(', ');

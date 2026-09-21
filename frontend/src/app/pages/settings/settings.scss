@@ -68,3 +68,15 @@ code {
   background: var(--accent);
   transition: width 400ms ease;
 }
+
+label.check.block {
+  margin-top: 1rem;
+}
+
+kbd {
+  font: inherit;
+  font-weight: 700;
+  border: 1px solid currentColor;
+  border-radius: 4px;
+  padding: 0 0.3rem;
+}

@@ -127,6 +127,25 @@ async def submit_answer(
     else:
         check = check_reading(payload.answer, subject.readings, subject.object_type)
 
+    # --- the two second chances, both of which leave the item untouched ---
+    #
+    # Neither commits, so the `begin_review` above is rolled back with the
+    # session and the item is exactly as it was. Neither reveals the expected
+    # answer either: the question is still open, and a warning that showed the
+    # answer would be a free reveal on demand.
+
+    if check.retry:
+        # A real reading of this character, of the type that was not asked.
+        # WaniKani re-asks instead of counting it wrong, and charging for it
+        # would punish knowing more than the question wanted.
+        return _still_open(progress, subject, retry=True, hint=check.hint)
+
+    if not check.correct and not payload.confirm and config.soft_answer_enabled:
+        # Hold it and ask once. A typo otherwise costs exactly what not
+        # knowing the item costs, and below four characters there is no typo
+        # tolerance at all to catch it.
+        return _still_open(progress, subject, held=True)
+
     outcome = srs.apply_answer(
         progress,
         subject.object_type,
@@ -154,6 +173,7 @@ async def submit_answer(
         correct=check.correct,
         expected=check.expected,
         secondary=check.secondary,
+        typo=check.typo,
         hint=check.hint,
         completed=outcome.completed,
         remaining=list(outcome.remaining),
@@ -162,6 +182,36 @@ async def submit_answer(
         stage_name_after=srs.stage_name(outcome.stage_after),
         next_review_at=outcome.next_review_at,
         subject=subject_detail(subject),
+    )
+
+
+def _still_open(
+    progress: Progress,
+    subject: Subject,
+    *,
+    held: bool = False,
+    retry: bool = False,
+    hint: str | None = None,
+) -> AnswerOut:
+    """A verdict that changes nothing and keeps the question open.
+
+    Deliberately carries no ``expected`` and no ``subject``: the learner is
+    about to answer this question again, and handing over the answer first
+    would turn either second chance into a reveal button.
+    """
+    return AnswerOut(
+        correct=False,
+        expected="",
+        hint=hint,
+        held=held,
+        retry=retry,
+        completed=False,
+        remaining=list(srs.outstanding(progress)),
+        srs_stage_before=progress.srs_stage,
+        srs_stage_after=progress.srs_stage,
+        stage_name_after=srs.stage_name(progress.srs_stage),
+        next_review_at=progress.next_review_at,
+        subject=None,
     )
 
 
@@ -312,8 +362,12 @@ async def quiz_answer(
 
     return QuizOut(
         correct=check.correct,
+        # Nothing is at stake in a lesson quiz, so the expected answer is not
+        # withheld on a retry the way it is in a review.
         expected=check.expected,
         secondary=check.secondary,
+        typo=check.typo,
+        retry=check.retry,
         hint=check.hint,
     )
 

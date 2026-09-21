@@ -48,6 +48,7 @@ async def _current(session: AsyncSession) -> SettingsOut:
         srs_interval_hours=",".join(str(hours) for hours in config.srs_intervals),
         daily_lesson_limit=config.daily_lesson_limit,
         lesson_batch_size=config.lesson_batch_size,
+        soft_answer_enabled=config.soft_answer_enabled,
     )
 
 
@@ -78,6 +79,7 @@ async def write_settings(
         "srs_interval_hours",
         "daily_lesson_limit",
         "lesson_batch_size",
+        "soft_answer_enabled",
     ):
         if name in fields:
             values[name] = fields[name]

@@ -100,12 +100,21 @@ async def test_answering_the_same_question_twice_is_rejected(client, session):
 async def test_a_wrong_answer_keeps_the_item_due(client, session):
     subject_id = await seed_kanji(session)
 
-    response = await client.post(
-        "/api/reviews/answer",
-        json={"subject_id": subject_id, "question": "meaning", "answer": "below"},
-    )
-    body = response.json()
-    assert not body["correct"]
+    # Soft answer is on by default, so the first attempt is held; confirming
+    # is what actually submits it. See tests/test_second_chance.py.
+    for confirm in (False, True):
+        response = await client.post(
+            "/api/reviews/answer",
+            json={
+                "subject_id": subject_id,
+                "question": "meaning",
+                "answer": "below",
+                "confirm": confirm,
+            },
+        )
+        body = response.json()
+        assert not body["correct"]
+
     assert body["expected"] == "Above"
     assert body["remaining"] == ["meaning", "reading"]
 
