@@ -106,7 +106,18 @@ Put TLS in front of the stack if you want it installed and offline-capable.
 
 ## A note on the content
 
-The imported subjects — meanings, readings, mnemonics — are WaniKani's
-copyrighted content. Importing them into your own trainer with your own active
+This repository contains no WaniKani content — only the code that imports it.
+
+The subjects an import fetches — meanings, readings, mnemonics — are WaniKani's
+copyrighted content. Pulling them into your own trainer with your own active
 subscription is a personal-use copy. Publishing or redistributing the resulting
 database is not.
+
+## Disclaimer
+
+Unofficial and not affiliated with or endorsed by Tofugu / WaniKani. It talks to
+their public API v2 with a read-only token you provide, and never writes back.
+
+## License
+
+[MIT](LICENSE) © Thorsten Kober
