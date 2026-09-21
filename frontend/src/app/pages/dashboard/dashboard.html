@@ -43,6 +43,91 @@
       </div>
     </section>
 
+    <section class="card viz-root coming-up">
+      <div class="head">
+        <div>
+          <h2>Coming up</h2>
+          <p class="muted">
+            The next 24 hours, all stages together.
+            @if (stats.due_now > 0) {
+              {{ stats.due_now }} already waiting.
+            }
+          </p>
+        </div>
+        <a routerLink="/forecast" class="more">Full forecast →</a>
+      </div>
+
+      @if (arriving() === 0) {
+        <p class="muted quiet">Nothing scheduled in the next 24 hours.</p>
+      } @else {
+        <svg
+          [attr.viewBox]="'0 0 ' + plot.width + ' ' + plot.height"
+          preserveAspectRatio="xMidYMid meet"
+          role="img"
+          aria-label="Reviews arriving per hour over the next 24 hours"
+        >
+          <line
+            class="grid"
+            [attr.x1]="plot.left"
+            [attr.x2]="plot.width - plot.right"
+            [attr.y1]="plot.top"
+            [attr.y2]="plot.top"
+          />
+          <text class="axis" [attr.x]="plot.left - 6" [attr.y]="plot.top + 4" text-anchor="end">
+            {{ peak() }}
+          </text>
+
+          @for (bar of bars(); track bar.at.getTime(); let i = $index) {
+            <g
+              class="column"
+              [class.active]="hovered() === bar"
+              (mouseenter)="hovered.set(bar)"
+              (mouseleave)="hovered.set(null)"
+            >
+              <rect
+                class="hit"
+                [attr.x]="bar.hitX"
+                [attr.y]="plot.top"
+                [attr.width]="bar.hitWidth"
+                [attr.height]="plot.height - plot.top - plot.bottom"
+              />
+              @if (bar.path) {
+                <path class="bar" [attr.d]="bar.path" />
+              }
+            </g>
+            @if (i % tickEvery === 0) {
+              <text
+                class="axis"
+                [attr.x]="bar.hitX + bar.hitWidth / 2"
+                [attr.y]="plot.height - 6"
+                text-anchor="middle"
+              >
+                {{ bar.label }}
+              </text>
+            }
+          }
+
+          <line
+            class="baseline"
+            [attr.x1]="plot.left"
+            [attr.x2]="plot.width - plot.right"
+            [attr.y1]="plot.height - plot.bottom"
+            [attr.y2]="plot.height - plot.bottom"
+          />
+        </svg>
+
+        <p class="readout">
+          @if (hovered(); as bar) {
+            <strong>{{ bar.label }}</strong> · {{ bar.count }} arriving ·
+            <span class="muted">{{ bar.cumulative }} waiting by then</span>
+          } @else {
+            <strong>{{ arriving() }}</strong> arriving in the next 24 hours ·
+            <span class="muted">{{ waitingAfter() }} waiting by this time tomorrow</span>
+          }
+        </p>
+      }
+    </section>
+
     <section class="card">
       <h2>Collection</h2>
       <p class="muted summary">
