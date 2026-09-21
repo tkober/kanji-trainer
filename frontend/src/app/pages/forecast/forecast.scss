@@ -1,0 +1,207 @@
+:host {
+  display: block;
+}
+
+/* Categorical slots 1-3 of the validated palette, stepped per mode.
+   Light run: CVD ΔE 9.2, normal-vision 27.6 — both clear.
+   Dark run: CVD ΔE 9.4, normal-vision 26.5 — both clear.
+   Aqua sits at 2.82:1 on the light surface, below the 3:1 line, so the
+   relief rule applies: the legend, the tooltip and the "Show numbers"
+   table all carry the identity in text, never colour alone. */
+.viz-root {
+  --band-apprentice: #2a78d6;
+  --band-guru: #eb6834;
+  --band-master: #1baf7a;
+  --chart-surface: var(--surface);
+  --grid: var(--border);
+}
+
+@media (prefers-color-scheme: dark) {
+  .viz-root {
+    --band-apprentice: #3987e5;
+    --band-guru: #d95926;
+    --band-master: #199e70;
+  }
+}
+
+.controls {
+  margin-bottom: 1rem;
+}
+
+.spacer {
+  flex: 1;
+}
+
+.tiles {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(170px, 1fr));
+  gap: 0.75rem;
+  margin-bottom: 1rem;
+}
+
+.tile {
+  display: flex;
+  flex-direction: column;
+  gap: 0.15rem;
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  box-shadow: var(--shadow);
+  padding: 1rem;
+}
+
+.value {
+  font-size: 2rem;
+  font-weight: 700;
+  line-height: 1.1;
+}
+
+.label {
+  font-size: 0.85rem;
+  color: var(--muted);
+}
+
+.chart {
+  margin: 0 0 1rem;
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  box-shadow: var(--shadow);
+  padding: var(--gap);
+
+  figcaption {
+    margin-bottom: 0.5rem;
+
+    h2 {
+      margin-bottom: 0.15rem;
+    }
+
+    p {
+      margin: 0;
+      font-size: 0.88rem;
+    }
+  }
+
+  svg {
+    display: block;
+    width: 100%;
+    height: auto;
+  }
+}
+
+/* Identity never rests on colour alone: the legend is always present, and the
+   swatch sits beside text rather than colouring it. */
+.legend {
+  display: flex;
+  gap: 1rem;
+  flex-wrap: wrap;
+  margin-bottom: 0.5rem;
+  font-size: 0.85rem;
+  color: var(--muted);
+}
+
+.key {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.35rem;
+}
+
+.swatch {
+  width: 10px;
+  height: 10px;
+  border-radius: 2px;
+
+  &[data-band='apprentice'] { background: var(--band-apprentice); }
+  &[data-band='guru'] { background: var(--band-guru); }
+  &[data-band='master'] { background: var(--band-master); }
+}
+
+[data-band='apprentice'] { fill: var(--band-apprentice); }
+[data-band='guru'] { fill: var(--band-guru); }
+[data-band='master'] { fill: var(--band-master); }
+
+/* Hairline, solid, one step off the surface — chrome that stays behind. */
+.grid,
+.baseline {
+  stroke: var(--grid);
+  stroke-width: 1;
+}
+
+.baseline {
+  stroke: var(--border);
+}
+
+.axis {
+  fill: var(--muted);
+  font-size: 11px;
+  font-family: inherit;
+}
+
+/* A hit target wider than the mark, so a 6px column is still hoverable. */
+.hit {
+  fill: transparent;
+}
+
+.column.active .hit {
+  fill: color-mix(in srgb, var(--accent) 7%, transparent);
+}
+
+.cumulative {
+  fill: none;
+  stroke: var(--accent);
+  stroke-width: 2;
+  stroke-linejoin: round;
+  stroke-linecap: round;
+}
+
+.tooltip {
+  margin: 0.5rem 0 0;
+  font-size: 0.88rem;
+  min-height: 1.3em;
+}
+
+.empty {
+  padding: 2rem 0;
+  text-align: center;
+}
+
+.numbers {
+  width: 100%;
+  border-collapse: collapse;
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  overflow: hidden;
+  font-size: 0.9rem;
+
+  caption {
+    caption-side: top;
+    text-align: left;
+    padding-bottom: 0.4rem;
+    font-size: 0.85rem;
+  }
+
+  th,
+  td {
+    text-align: right;
+    padding: 0.35rem 0.6rem;
+    border-bottom: 1px solid var(--border);
+  }
+
+  th:first-child,
+  td:first-child {
+    text-align: left;
+  }
+
+  th {
+    background: var(--surface-alt);
+    font-size: 0.78rem;
+    text-transform: uppercase;
+    letter-spacing: 0.05em;
+    color: var(--muted);
+  }
+
+  tbody tr:last-child td {
+    border-bottom: none;
+  }
+}

@@ -284,6 +284,33 @@ class ImportRunOut(BaseModel):
 # --- dashboard -------------------------------------------------------------
 
 
+class ForecastBucket(BaseModel):
+    """One hour of the forecast."""
+
+    #: Start of the hour, UTC. The browser renders it in local time.
+    at: datetime
+    count: int
+    #: The same count split by where the items currently stand, so a bar says
+    #: whether tomorrow's pile is new material or old material returning.
+    apprentice: int = 0
+    guru: int = 0
+    master: int = 0
+    #: Everything due from now up to and including this hour, overdue items
+    #: included -- the line that answers "how deep is the hole by Friday".
+    cumulative: int
+
+
+class Forecast(BaseModel):
+    now: datetime
+    #: Already overdue. The opening value of the cumulative line rather than a
+    #: bar of its own, because it is not arriving -- it is here.
+    due_now: int
+    hours: int
+    #: Reviews arriving in the window, excluding what is already due.
+    total: int
+    buckets: list[ForecastBucket]
+
+
 class Stats(BaseModel):
     total_subjects: int
     new_count: int

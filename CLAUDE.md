@@ -290,6 +290,30 @@ The app works normally in a browser there; "installed on the phone, offline"
 needs a reverse proxy with a certificate in front. Nothing in the code assumes
 either way.
 
+## The forecast
+
+`GET /api/forecast` returns hourly buckets with a running cumulative. Bucketing
+happens in Python, not SQL: Postgres wants `date_trunc` and SQLite wants
+`strftime`, and that split is not worth a second code path for a few thousand
+timestamps.
+
+Two charts, never one with two y-axes — a bar count and a running total have
+different scales, and a dual axis is the single most misread chart form. The
+columns are stacked by stage band so a tall bar says whether tomorrow is new
+material or old material returning; the cumulative line sits below with its
+own scale.
+
+The three series use slots 1-3 of the data-viz reference palette, validated
+with its script in both modes (worst adjacent CVD ΔE 9.2 light / 9.4 dark).
+Aqua measures 2.82:1 on the light surface, under the 3:1 line, so the relief
+rule applies and is why the legend, the tooltip and the "Show numbers" table
+all carry the band names in text. Re-run the validator before changing a hue.
+
+Forecast tests anchor their due times to the current *hour boundary*, not to
+`now`. Offsets measured from `now` put two items in the same bucket or not
+depending on the minute the suite runs at, which is a test that fails once a
+week for no reason.
+
 ## Known gaps
 
 - No offline support and no service worker yet — see the TLS note above.

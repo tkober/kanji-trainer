@@ -175,6 +175,25 @@ export interface ImportRun {
   finished_at: string | null;
 }
 
+export interface ForecastBucket {
+  /** Start of the hour, UTC. Rendered in local time. */
+  at: string;
+  count: number;
+  apprentice: number;
+  guru: number;
+  master: number;
+  /** Everything due up to and including this hour, overdue items included. */
+  cumulative: number;
+}
+
+export interface Forecast {
+  now: string;
+  due_now: number;
+  hours: number;
+  total: number;
+  buckets: ForecastBucket[];
+}
+
 export interface Stats {
   total_subjects: number;
   new_count: number;

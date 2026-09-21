@@ -6,6 +6,7 @@ import type {
   AnswerResult,
   ImportRun,
   Item,
+  Forecast,
   ItemPage,
   Lessons,
   Queue,
@@ -150,6 +151,10 @@ export class Api {
 
   stats(): Promise<Stats> {
     return this.get('/api/stats');
+  }
+
+  forecast(hours: number): Promise<Forecast> {
+    return this.get('/api/forecast', new HttpParams().set('hours', hours));
   }
 
   // --- plumbing ---------------------------------------------------------

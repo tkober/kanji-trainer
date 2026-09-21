@@ -1,0 +1,217 @@
+<h1>Forecast</h1>
+
+@if (error(); as message) {
+  <p class="error">{{ message }}</p>
+}
+
+<div class="controls row">
+  @for (option of ranges; track option.hours) {
+    <button [class.primary]="range().hours === option.hours" (click)="pick(option)">
+      {{ option.label }}
+    </button>
+  }
+  <span class="spacer"></span>
+  <button (click)="showTable.set(!showTable())">
+    {{ showTable() ? 'Hide numbers' : 'Show numbers' }}
+  </button>
+</div>
+
+@if (loading()) {
+  <p class="muted">Loading …</p>
+} @else if (data(); as forecast) {
+  <section class="tiles">
+    <div class="tile">
+      <span class="value">{{ forecast.due_now }}</span>
+      <span class="label">waiting right now</span>
+    </div>
+    <div class="tile">
+      <span class="value">{{ forecast.total }}</span>
+      <span class="label">arriving in {{ range().label }}</span>
+    </div>
+    <div class="tile">
+      <span class="value">{{ peakWaiting() }}</span>
+      <span class="label">waiting if you do nothing</span>
+    </div>
+  </section>
+
+  @if (forecast.total === 0 && forecast.due_now === 0) {
+    <p class="muted empty">
+      Nothing scheduled. Reviews appear here once you have finished some lessons.
+    </p>
+  } @else {
+    <figure class="viz-root chart">
+      <figcaption>
+        <h2>Reviews arriving</h2>
+        <p class="muted">
+          Each column is {{ range().bucket >= 24 ? 'one day' : range().bucket + 'h' }},
+          split by where the items currently stand.
+        </p>
+      </figcaption>
+
+      <div class="legend">
+        @for (band of ['apprentice', 'guru', 'master']; track band) {
+          <span class="key">
+            <span class="swatch" [attr.data-band]="band"></span>
+            {{ bandLabel($any(band)) }}
+          </span>
+        }
+      </div>
+
+      <svg
+        [attr.viewBox]="'0 0 ' + plot.width + ' ' + plot.height"
+        preserveAspectRatio="xMidYMid meet"
+        role="img"
+        aria-label="Reviews arriving per time slot, stacked by SRS stage"
+      >
+        @for (tick of yTicks(); track tick.value) {
+          <line
+            class="grid"
+            [attr.x1]="plot.left"
+            [attr.x2]="plot.width - plot.right"
+            [attr.y1]="tick.y"
+            [attr.y2]="tick.y"
+          />
+          <text class="axis" [attr.x]="plot.left - 8" [attr.y]="tick.y + 4" text-anchor="end">
+            {{ tick.value }}
+          </text>
+        }
+
+        @for (column of columns(); track column.slot.at.getTime(); let i = $index) {
+          <g
+            class="column"
+            [class.active]="hovered() === column.slot"
+            (mouseenter)="hovered.set(column.slot)"
+            (mouseleave)="hovered.set(null)"
+          >
+            <rect
+              class="hit"
+              [attr.x]="column.hitX"
+              [attr.y]="plot.top"
+              [attr.width]="column.hitWidth"
+              [attr.height]="plot.height - plot.top - plot.bottom"
+            />
+            @for (segment of column.segments; track segment.band) {
+              @if (segment.path) {
+                <path [attr.d]="segment.path" [attr.data-band]="segment.band" />
+              } @else {
+                <rect
+                  [attr.x]="segment.x"
+                  [attr.y]="segment.y"
+                  [attr.width]="segment.width"
+                  [attr.height]="segment.height"
+                  [attr.data-band]="segment.band"
+                />
+              }
+            }
+          </g>
+
+          @if (i % tickEvery() === 0) {
+            <text
+              class="axis"
+              [attr.x]="column.hitX + column.hitWidth / 2"
+              [attr.y]="plot.height - 8"
+              text-anchor="middle"
+            >
+              {{ column.slot.label }}
+            </text>
+          }
+        }
+
+        <line
+          class="baseline"
+          [attr.x1]="plot.left"
+          [attr.x2]="plot.width - plot.right"
+          [attr.y1]="plot.height - plot.bottom"
+          [attr.y2]="plot.height - plot.bottom"
+        />
+      </svg>
+
+      @if (hovered(); as slot) {
+        <p class="tooltip" role="status">
+          <strong>{{ fullLabel(slot) }}</strong>
+          · {{ slot.count }} arriving
+          @if (slot.apprentice) { · {{ slot.apprentice }} Apprentice }
+          @if (slot.guru) { · {{ slot.guru }} Guru }
+          @if (slot.master) { · {{ slot.master }} Master+ }
+          · <span class="muted">{{ slot.cumulative }} waiting by then</span>
+        </p>
+      } @else {
+        <p class="tooltip muted">Hover a column for its breakdown.</p>
+      }
+    </figure>
+
+    <figure class="viz-root chart">
+      <figcaption>
+        <h2>Waiting in total</h2>
+        <p class="muted">
+          If you do nothing else — everything overdue plus everything that arrives. Peaks
+          at {{ cumulativeMax() }}.
+        </p>
+      </figcaption>
+
+      <svg
+        [attr.viewBox]="'0 0 ' + linePlot.width + ' ' + linePlot.height"
+        preserveAspectRatio="xMidYMid meet"
+        role="img"
+        aria-label="Cumulative reviews waiting over the same period"
+      >
+        <line
+          class="grid"
+          [attr.x1]="linePlot.left"
+          [attr.x2]="linePlot.width - linePlot.right"
+          [attr.y1]="linePlot.top"
+          [attr.y2]="linePlot.top"
+        />
+        <text class="axis" [attr.x]="linePlot.left - 8" [attr.y]="linePlot.top + 4" text-anchor="end">
+          {{ cumulativeMax() }}
+        </text>
+        <text
+          class="axis"
+          [attr.x]="linePlot.left - 8"
+          [attr.y]="linePlot.height - linePlot.bottom + 4"
+          text-anchor="end"
+        >
+          0
+        </text>
+        <path class="cumulative" [attr.d]="cumulativePath()" />
+        <line
+          class="baseline"
+          [attr.x1]="linePlot.left"
+          [attr.x2]="linePlot.width - linePlot.right"
+          [attr.y1]="linePlot.height - linePlot.bottom"
+          [attr.y2]="linePlot.height - linePlot.bottom"
+        />
+      </svg>
+    </figure>
+
+    @if (showTable()) {
+      <table class="numbers">
+        <caption class="muted">
+          The same data as numbers — also the accessible fallback for the chart.
+        </caption>
+        <thead>
+          <tr>
+            <th>Slot</th>
+            <th>Apprentice</th>
+            <th>Guru</th>
+            <th>Master+</th>
+            <th>Arriving</th>
+            <th>Waiting</th>
+          </tr>
+        </thead>
+        <tbody>
+          @for (slot of slots(); track slot.at.getTime()) {
+            <tr>
+              <td>{{ fullLabel(slot) }}</td>
+              <td>{{ slot.apprentice }}</td>
+              <td>{{ slot.guru }}</td>
+              <td>{{ slot.master }}</td>
+              <td>{{ slot.count }}</td>
+              <td>{{ slot.cumulative }}</td>
+            </tr>
+          }
+        </tbody>
+      </table>
+    }
+  }
+}
