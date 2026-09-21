@@ -1,7 +1,7 @@
 # Kanji Trainer
 
-A WaniKani-style SRS with the one thing WaniKani does not offer: **„das kann
-ich“**.
+A WaniKani-style SRS with the one thing WaniKani does not offer: **"I know
+this"**.
 
 WaniKani has no way to mark an item as already known. After a long break that
 leaves two options — dig out from thousands of overdue reviews, or reset and
@@ -23,13 +23,20 @@ subscription needed to keep going.
   "counts as known" threshold.
 - **Reviews** with WaniKani's stage ladder and intervals — familiar pacing,
   but configurable.
-- **„Das kann ich“** on any item, any time: in a review (`Alt+K`), in a
-  lesson, or in bulk from the item list. Two strengths: *kann ich sicher*
-  (retired outright) and *ziemlich sicher* (one check-up in four months).
-- **„Nochmal von vorn“** and **„Ausblenden“** as the counterparts, so nothing
-  is a one-way door.
-- **Lessons** in WaniKani's teaching order, without the gating — jump ahead if
-  you want.
+- **"I know this"** on any item, any time: during a review (`Alt+K`), in a
+  lesson, or in bulk from the item list. Two strengths: *I know these* (retired
+  outright) and *fairly sure* (one check-up in four months).
+- **"Relearn from scratch"** and **"Hide"** as the counterparts, so nothing is a
+  one-way door.
+- **A second chance on mistakes.** An answer that would be wrong is held back
+  once — `Enter` submits it anyway, `Esc` hands the field back. A typo otherwise
+  costs exactly what not knowing the item costs. Answering a kanji with a real
+  reading of the type that was not asked for is not counted at all.
+- **Lessons** in WaniKani's teaching order, scoped to one level at a time, read
+  as a batch and then quizzed as a batch. No dependency gate — jump ahead if you
+  want.
+- **A review forecast** — what is arriving per hour, and how deep the pile gets
+  if you answer nothing.
 - Romaji-to-kana input as you type, typo tolerance on meanings and none at all
   on readings.
 
@@ -64,8 +71,8 @@ TEST_DB=sqlite uv run pytest   # same suite, no Docker
 
 1. Create a **read-only** personal access token at
    *wanikani.com → Settings → API Tokens*.
-2. Paste it under **Einstellungen → WaniKani-Zugang**, then press *Prüfen* to
-   confirm the account and that the subscription is active. Without an active
+2. Paste it under **Settings → WaniKani access**, then press *Check* to confirm
+   the account and that the subscription is active. Without an active
    subscription the import only sees levels 1–3.
 3. Pick the threshold under **Import**. Guru I (stage 5) is the default and is
    what WaniKani itself treats as "this has landed".
@@ -76,7 +83,11 @@ Do **not** reset your WaniKani account before importing — your SRS stages ther
 are exactly the data this uses to decide what you already know.
 
 Not happy with the mapping after a few sessions? Change the threshold and
-import again with *Bereits bearbeitete Items neu zuordnen* ticked.
+import again with *Re-map items you have already worked on* ticked.
+
+Coming back after a break and you know roughly how far you got? **Items** →
+filter by level → *I know these* is the fast way to hand yourself back the
+levels you finished once, without relearning them.
 
 ## Deploying to unraid
 
