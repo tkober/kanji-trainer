@@ -1,5 +1,13 @@
 import { DatePipe } from '@angular/common';
-import { Component, ElementRef, computed, inject, signal, viewChild } from '@angular/core';
+import {
+  Component,
+  ElementRef,
+  computed,
+  effect,
+  inject,
+  signal,
+  viewChild,
+} from '@angular/core';
 import { RouterLink } from '@angular/router';
 
 import { Api } from '../../core/api';
@@ -58,6 +66,24 @@ export class Review {
   });
 
   protected readonly done = computed(() => !this.loading() && this.queue().length === 0);
+
+  /**
+   * Keep the caret in the answer field, always.
+   *
+   * An `effect` rather than a call after each state change: the field lives
+   * inside `@if` blocks, so right after `loading` flips or the queue advances
+   * it is not in the DOM yet and a focus call lands on nothing. The viewChild
+   * signal updates once it *is* rendered, and reading the question here makes
+   * the effect re-run for every new prompt.
+   */
+  private readonly keepFocus = effect(() => {
+    const input = this.field()?.nativeElement;
+    this.question();
+    const answered = this.feedback() !== null;
+    if (input && !answered) {
+      input.focus();
+    }
+  });
 
   constructor() {
     void this.load();
@@ -266,9 +292,14 @@ export class Review {
       .join(', ');
   }
 
+  /**
+   * Focus now, for the cases the effect cannot see.
+   *
+   * The effect covers every change of question. This covers the rest: the
+   * field is already rendered and already the right one, it just lost the
+   * caret to a button click.
+   */
   private focus(): void {
-    // Deferred: the input is inside a @if that has not rendered yet when this
-    // runs straight after a state change.
-    queueMicrotask(() => this.field()?.nativeElement.focus());
+    this.field()?.nativeElement.focus();
   }
 }

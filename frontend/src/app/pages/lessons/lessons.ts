@@ -1,4 +1,12 @@
-import { Component, ElementRef, computed, inject, signal, viewChild } from '@angular/core';
+import {
+  Component,
+  ElementRef,
+  computed,
+  effect,
+  inject,
+  signal,
+  viewChild,
+} from '@angular/core';
 import { RouterLink } from '@angular/router';
 
 import { Api } from '../../core/api';
@@ -75,6 +83,16 @@ export class LessonsPage {
       return value;
     }
     return romajiToKana(value);
+  });
+
+  /** See the identical effect in review.ts — same reason, same shape. */
+  private readonly keepFocus = effect(() => {
+    const input = this.field()?.nativeElement;
+    this.question();
+    const answered = this.feedback() !== null;
+    if (input && !answered) {
+      input.focus();
+    }
   });
 
   constructor() {
@@ -316,7 +334,7 @@ export class LessonsPage {
   }
 
   private focus(): void {
-    queueMicrotask(() => this.field()?.nativeElement.focus());
+    this.field()?.nativeElement.focus();
   }
 }
 
