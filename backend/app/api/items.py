@@ -37,8 +37,8 @@ async def list_items(
 ) -> ItemPage:
     """Filtered list of items with their progress.
 
-    The filters are the ones that make bulk-declaring realistic: "alle Kanji
-    aus Level 1–20, die noch als neu gelten" is one query, and the result is
+    The filters are the ones that make bulk-declaring realistic: "all kanji
+    from levels 1-20 that still count as new" is one query, and the result is
     selectable in one gesture.
     """
     filters = []
@@ -114,7 +114,7 @@ async def _load(session: AsyncSession, subject_ids: list[int]) -> list[Progress]
 async def mark_known(
     payload: MarkKnownIn, session: AsyncSession = Depends(get_session)
 ) -> OverrideResult:
-    """"Das kann ich" -- the reason this trainer exists.
+    """"I know this" -- the reason this trainer exists.
 
     Works on any item in any state, including one that has never been
     learned: skipping the lesson entirely is exactly what someone returning
@@ -137,7 +137,7 @@ async def mark_known(
 async def reset_items(
     payload: SubjectIdsIn, session: AsyncSession = Depends(get_session)
 ) -> OverrideResult:
-    """"Nochmal von vorn" -- back to Apprentice I, due in four hours."""
+    """"Relearn from scratch" -- back to Apprentice I, due in four hours."""
     config = await load_runtime_config(session)
     now = datetime.now(timezone.utc)
 
@@ -154,7 +154,7 @@ async def reset_items(
 async def suspend_items(
     payload: SubjectIdsIn, session: AsyncSession = Depends(get_session)
 ) -> OverrideResult:
-    """"Ausblenden" -- out of every queue, history kept."""
+    """"Hide" -- out of every queue, history kept."""
     now = datetime.now(timezone.utc)
     rows = await _load(session, payload.subject_ids)
     for progress in rows:

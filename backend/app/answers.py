@@ -166,7 +166,7 @@ def check_meaning(
         return AnswerCheck(
             correct=False,
             expected=primary,
-            hint="Diese Bedeutung ist für dieses Item ausdrücklich ausgeschlossen.",
+            hint="This meaning is explicitly excluded for this item.",
         )
 
     whitelist = [
@@ -262,7 +262,7 @@ def check_reading(
                 correct=False,
                 expected="",
                 retry=True,
-                hint=f"Das ist die {kind}-Lesung — gefragt war eine andere. Nochmal.",
+                hint=f"That is the {kind} reading — a different one was asked for.",
             )
 
     return AnswerCheck(correct=False, expected=primary)

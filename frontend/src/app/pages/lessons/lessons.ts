@@ -239,7 +239,7 @@ export class LessonsPage {
 
   // --- the override -----------------------------------------------------
 
-  /** "Kenne ich schon" for the item on screen — skips the lesson entirely.
+  /** "I know this one" for the item on screen — skips the lesson entirely.
    *
    * Drops the item from the batch in place rather than reloading it. A reload
    * refetches the whole batch *and* resets the index to 0, so declaring the
@@ -312,10 +312,10 @@ export class LessonsPage {
 
   protected typeLabel(type: ObjectType): string {
     return {
-      radical: 'Radikal',
+      radical: 'Radical',
       kanji: 'Kanji',
-      vocabulary: 'Vokabel',
-      kana_vocabulary: 'Vokabel (Kana)',
+      vocabulary: 'Vocabulary',
+      kana_vocabulary: 'Vocabulary (kana)',
     }[type];
   }
 

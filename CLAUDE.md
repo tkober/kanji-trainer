@@ -19,23 +19,21 @@ trustworthy, it is probably the wrong change.
 
 ## Language convention
 
-Conversation with the user happens in **German**. Everything in the repository —
-identifiers, comments, commit messages, documentation — is **English**.
+Conversation with the user happens in **German**. Everything else — the UI
+included — is **English**: identifiers, comments, commit messages,
+documentation, and every string the learner reads.
 
-The exception is user-facing UI copy, which is German because the learner is a
-German speaker: Angular templates, the German lead-in on error messages, and
-the feedback hints in `backend/app/answers.py`. Backend `HTTPException` details
-stay English and the frontend prefixes them with a German sentence
-(`rethrow()` in `frontend/src/app/core/api.ts`).
+The UI was German at first and was switched deliberately. The content this app
+teaches is WaniKani's, and WaniKani's meanings, mnemonics and stage names are
+English; a German shell around English content meant every screen mixed the
+two, and answering "Bedeutung" with an English word read as a seam rather than
+as a prompt.
 
-`ImportRun.message` is the one German string stored in the database. It is
-rendered verbatim on the import screen, so it is UI copy rather than an error
-message — `importer.py` wraps the English `WaniKaniError` in a German sentence
-before writing it.
-
-SRS stage names (`Apprentice I`, `Guru`, `Burned`) stay English in the UI too.
-They are the vocabulary the learner already thinks in; translating them would
-make their own history unreadable to them.
+So: `HTTPException` details are English and `rethrow()` in
+`frontend/src/app/core/api.ts` gives them an English lead-in.
+`ImportRun.message` is stored English and rendered verbatim. The feedback hints
+in `answers.py` are English. Stage names (`Apprentice I`, `Guru`, `Burned`) are
+WaniKani's own and were always left alone.
 
 ## Working in this repository
 

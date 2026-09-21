@@ -99,7 +99,7 @@ class AnswerIn(BaseModel):
     subject_id: int
     question: QuestionType
     answer: str
-    #: Set by the second Enter after a "das sieht falsch aus" warning. Without
+    #: Set by the second Enter after a "that looks wrong" warning. Without
     #: it a wrong answer is held rather than applied -- see `held` below.
     confirm: bool = False
 
@@ -204,7 +204,7 @@ class QuizOut(BaseModel):
 class MarkKnownIn(BaseModel):
     subject_ids: list[int]
     #: Overrides the configured stage for this call only -- the browse screen
-    #: offers "kenne ich sicher" (burned) and "ziemlich sicher" (one check-up
+    #: offers "I know these" (burned) and "fairly sure" (one check-up
     #: left) as separate actions.
     known_stage: int | None = None
 

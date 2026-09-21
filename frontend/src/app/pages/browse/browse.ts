@@ -10,7 +10,7 @@ const PAGE_SIZE = 100;
  * Browsing and bulk-declaring.
  *
  * The filters exist to make declaring realistic rather than to be thorough:
- * "alle Kanji bis Level 20, die noch als neu gelten" has to be one query and
+ * "all kanji up to level 20 that still count as new" has to be one query and
  * one gesture, or nobody will use the feature that the whole app is built
  * around.
  */
@@ -99,32 +99,32 @@ export class Browse {
     );
   }
 
-  /** "Das kann ich", for everything ticked. */
+  /** "I know this", for everything ticked. */
   markKnown(knownStage?: number): void {
     void this.apply(
       (ids) => this.api.markKnown(ids, knownStage),
-      (n) => `${n} Items als beherrscht markiert.`,
+      (n) => `${n} items marked as known.`,
     );
   }
 
   reset(): void {
     void this.apply(
       (ids) => this.api.resetItems(ids),
-      (n) => `${n} Items auf Apprentice I zurückgesetzt.`,
+      (n) => `${n} items reset to Apprentice I.`,
     );
   }
 
   suspend(): void {
     void this.apply(
       (ids) => this.api.suspendItems(ids),
-      (n) => `${n} Items ausgeblendet.`,
+      (n) => `${n} items hidden.`,
     );
   }
 
   unsuspend(): void {
     void this.apply(
       (ids) => this.api.unsuspendItems(ids),
-      (n) => `${n} Items wieder eingeblendet.`,
+      (n) => `${n} items unhidden.`,
     );
   }
 
@@ -150,14 +150,14 @@ export class Browse {
   }
 
   protected typeLabel(type: ObjectType): string {
-    return { radical: 'Radikal', kanji: 'Kanji', vocabulary: 'Vokabel', kana_vocabulary: 'Kana' }[
+    return { radical: 'Radical', kanji: 'Kanji', vocabulary: 'Vocabulary', kana_vocabulary: 'Kana' }[
       type
     ];
   }
 
   protected stateLabel(state: string): string {
     return (
-      { new: 'neu', learning: 'im Lernzyklus', known: 'beherrscht', suspended: 'ausgeblendet' }[
+      { new: 'new', learning: 'in review cycle', known: 'known', suspended: 'hidden' }[
         state
       ] ?? state
     );

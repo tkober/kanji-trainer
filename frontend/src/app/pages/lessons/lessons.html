@@ -1,12 +1,12 @@
 <div class="head">
-  <h1>Lektionen</h1>
+  <h1>Lessons</h1>
   @if (levels().length > 0) {
     <label class="level-pick">
       Level
       <select [value]="level() ?? ''" (change)="pickLevel($event)">
         @for (entry of levels(); track entry.level) {
           <option [value]="entry.level">
-            Level {{ entry.level }} — {{ entry.open_count }} offen
+            Level {{ entry.level }} — {{ entry.open_count }} left
           </option>
         }
       </select>
@@ -19,29 +19,29 @@
 }
 
 @if (loading()) {
-  <p class="muted">Lade …</p>
+  <p class="muted">Loading …</p>
 } @else if (items().length === 0) {
   <section class="card empty">
-    <h2>Keine offenen Lektionen</h2>
+    <h2>No lessons left</h2>
     @if (dailyLimit() > 0 && totalAvailable() > 0) {
       <p class="muted">
-        Es wären noch {{ totalAvailable() }} verfügbar, aber dein Tageslimit von
-        {{ dailyLimit() }} ist erreicht. Das Limit lässt sich in den Einstellungen ändern.
+        {{ totalAvailable() }} would still be available, but your daily limit of
+        {{ dailyLimit() }} is reached. You can change the limit in Settings.
       </p>
     } @else if (totalAvailable() > 0) {
       <p class="muted">
-        In diesem Level ist nichts mehr offen. Insgesamt warten noch
-        {{ totalAvailable() }} Items in anderen Leveln.
+        Nothing left in this level. {{ totalAvailable() }} items are still waiting in other
+        levels.
       </p>
     } @else {
-      <p class="muted">Alles gelernt. Importiere neuen Content oder mach Reviews.</p>
+      <p class="muted">Everything learned. Import new content or do some reviews.</p>
     }
-    <a routerLink="/review"><button class="primary">Zu den Reviews</button></a>
+    <a routerLink="/review"><button class="primary">Go to reviews</button></a>
   </section>
 } @else if (phase() === 'reading') {
   <p class="muted count">
-    Level {{ level() }}: {{ items().length }} in dieser Runde, {{ totalInLevel() }} im Level
-    offen<span class="dim"> · {{ totalAvailable() }} insgesamt</span>
+    Level {{ level() }}: {{ items().length }} in this batch, {{ totalInLevel() }} left in the
+    level<span class="dim"> · {{ totalAvailable() }} in total</span>
   </p>
 
   @if (current(); as item) {
@@ -60,33 +60,33 @@
 
     <section class="card detail">
       <dl>
-        <dt>Bedeutung</dt>
+        <dt>Meaning</dt>
         <dd>{{ meanings(item.subject) }}</dd>
         @if (item.subject.readings.length > 0) {
-          <dt>Lesung</dt>
+          <dt>Reading</dt>
           <dd class="jp">{{ readings(item.subject) }}</dd>
         }
         @if (item.subject.meaning_mnemonic) {
-          <dt>Eselsbrücke Bedeutung</dt>
+          <dt>Meaning mnemonic</dt>
           <dd [innerHTML]="item.subject.meaning_mnemonic"></dd>
         }
         @if (item.subject.reading_mnemonic) {
-          <dt>Eselsbrücke Lesung</dt>
+          <dt>Reading mnemonic</dt>
           <dd [innerHTML]="item.subject.reading_mnemonic"></dd>
         }
       </dl>
 
       <div class="row nav">
-        <button [disabled]="index() === 0" (click)="previous()">Zurück</button>
+        <button [disabled]="index() === 0" (click)="previous()">Back</button>
         @if (onLastItem()) {
           <button class="primary" [disabled]="busy()" (click)="startQuiz()">
-            Quiz starten ({{ items().length }} Items)
+            Start quiz ({{ items().length }} items)
           </button>
         } @else {
-          <button (click)="next()">Weiter</button>
+          <button (click)="next()">Next</button>
         }
         <button class="known" [disabled]="busy()" (click)="markCurrentKnown()">
-          Dieses kann ich
+          I know this one
         </button>
       </div>
     </section>
@@ -95,19 +95,19 @@
   <section class="card batch">
     <div class="row">
       <button class="known" [disabled]="busy()" (click)="markBatchKnown()">
-        Alle {{ items().length }} kann ich schon
+        I already know all {{ items().length }}
       </button>
     </div>
     <p class="muted footnote">
-      Der schnelle Weg durch Level, die du schon einmal hattest: die Items gehen direkt auf
-      „beherrscht“, ohne Quiz und ohne je in der Wiederholung aufzutauchen.
+      The fast way through levels you have finished once before: the items go straight to
+      “known”, with no quiz and without ever entering the review queue.
     </p>
   </section>
 } @else if (card(); as card) {
   <div class="progress">
-    <span>{{ passed() }} / {{ items().length }} sitzen</span>
+    <span>{{ passed() }} / {{ items().length }} done</span>
     <span class="muted">·</span>
-    <span class="muted">{{ queue().length }} offen in dieser Abfrage</span>
+    <span class="muted">{{ queue().length }} left in this quiz</span>
   </div>
 
   <section class="prompt" [attr.data-type]="card.subject.object_type">
@@ -123,7 +123,7 @@
   </section>
 
   <section class="question" [class.reading]="question() === 'reading'">
-    <label for="quiz-answer">{{ question() === 'reading' ? 'Lesung' : 'Bedeutung' }}</label>
+    <label for="quiz-answer">{{ question() === 'reading' ? 'Reading' : 'Meaning' }}</label>
     <input
       #answerField
       id="quiz-answer"
@@ -145,27 +145,29 @@
   @if (feedback(); as result) {
     <section class="feedback" [class.correct]="result.correct" [class.wrong]="!result.correct">
       @if (result.correct) {
-        <strong>Richtig.</strong>
-        @if (result.secondary) {
-          <span> Gemeint war vor allem <em>{{ result.expected }}</em>.</span>
+        <strong>Correct.</strong>
+        @if (result.typo) {
+          <span> It is spelled <em>{{ result.expected }}</em>.</span>
+        } @else if (result.secondary) {
+          <span> The primary answer is <em class="jp">{{ result.expected }}</em>.</span>
         }
       } @else {
-        <strong>Noch nicht.</strong>
-        <span> Erwartet: <em class="jp">{{ result.expected }}</em></span>
+        <strong>Not yet.</strong>
+        <span> Expected: <em class="jp">{{ result.expected }}</em></span>
       }
       @if (result.hint) {
         <p class="hint">{{ result.hint }}</p>
       }
       <p class="muted no-cost">
-        Das Quiz kostet keine SRS-Stufe — falsche Antworten kommen einfach wieder.
+        The quiz costs no SRS stage — wrong answers simply come round again.
       </p>
       <div class="row">
-        <button class="primary" (click)="advance()">Weiter (Enter)</button>
+        <button class="primary" (click)="advance()">Next (Enter)</button>
       </div>
     </section>
   } @else {
     <div class="row actions">
-      <button class="primary" [disabled]="busy()" (click)="submit()">Antworten (Enter)</button>
+      <button class="primary" [disabled]="busy()" (click)="submit()">Answer (Enter)</button>
     </div>
   }
 }

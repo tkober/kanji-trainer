@@ -1,4 +1,4 @@
-<h1>Einstellungen</h1>
+<h1>Settings</h1>
 
 @if (error(); as message) {
   <p class="error">{{ message }}</p>
@@ -8,23 +8,22 @@
 }
 
 <section class="card">
-  <h2>WaniKani-Zugang</h2>
+  <h2>WaniKani access</h2>
   <p class="muted">
-    Ein <strong>read-only</strong> Personal Access Token genügt — der Trainer schreibt nie
-    nach WaniKani zurück. Anlegen unter
-    <em>wanikani.com → Settings → API Tokens</em>. Der Token verlässt den Server nicht;
-    hier steht nur, ob einer gesetzt ist.
+    A <strong>read-only</strong> personal access token is enough — the trainer never writes
+    back to WaniKani. Create one under <em>wanikani.com → Settings → API Tokens</em>. The
+    token never leaves the server; this page only shows whether one is set.
   </p>
 
   @if (settings(); as settings) {
     <p>
       @if (settings.wanikani_token_set) {
-        Gesetzt ({{ settings.wanikani_token_hint }})
+        Set ({{ settings.wanikani_token_hint }})
         @if (settings.wanikani_token_from_env) {
-          <span class="muted"> — kommt aus der Umgebung und lässt sich hier nicht löschen.</span>
+          <span class="muted"> — comes from the environment and cannot be cleared here.</span>
         }
       } @else {
-        <span class="muted">Kein Token hinterlegt.</span>
+        <span class="muted">No token stored.</span>
       }
     </p>
 
@@ -32,32 +31,30 @@
       <input
         type="password"
         class="grow"
-        placeholder="Neuen Token einfügen"
+        placeholder="Paste a new token"
         autocomplete="off"
         [(ngModel)]="token"
       />
-      <button class="primary" [disabled]="!token || busy()" (click)="saveToken()">
-        Speichern
-      </button>
+      <button class="primary" [disabled]="!token || busy()" (click)="saveToken()">Save</button>
       <button
         [disabled]="!settings.wanikani_token_set || settings.wanikani_token_from_env || busy()"
         (click)="clearToken()"
       >
-        Entfernen
+        Remove
       </button>
       <button [disabled]="!settings.wanikani_token_set || busy()" (click)="checkAccount()">
-        Prüfen
+        Check
       </button>
     </div>
   }
 
   @if (account(); as account) {
     <p class="notice">
-      {{ account.username }}, Level {{ account.level }} ·
+      {{ account.username }}, level {{ account.level }} ·
       @if (account.subscription_active) {
-        Abo aktiv, Level 1–{{ account.max_level_granted }} freigeschaltet.
+        subscription active, levels 1–{{ account.max_level_granted }} unlocked.
       } @else {
-        <strong>Kein aktives Abo</strong> — der Import bekäme nur Level
+        <strong>No active subscription</strong> — the import would only see levels
         1–{{ account.max_level_granted }}.
       }
     </p>
@@ -67,16 +64,15 @@
 <section class="card">
   <h2>Import</h2>
   <p class="muted">
-    Der Import liest deinen WaniKani-Stand und übernimmt ihn. Alles ab der gewählten
-    SRS-Stufe kommt direkt als <strong>beherrscht</strong> herein und taucht nie in der
-    Wiederholung auf — genau das, was WaniKani nicht anbietet. Alles darunter behält
-    seine Stufe <em>und seinen dortigen Fälligkeitstermin</em>. Gesperrte Items werden
-    zu Lektionen.
+    The import reads your WaniKani progress and takes it over. Everything at or above the
+    chosen SRS stage comes in as <strong>known</strong> and never appears in the review
+    queue — the thing WaniKani does not offer. Everything below keeps its stage <em>and its
+    WaniKani due date</em>. Locked items become lessons.
   </p>
 
   <div class="row">
     <label>
-      Ab SRS-Stufe gilt als beherrscht
+      Counts as known from SRS stage
       <!-- ngValue, not value: a plain [value] binding would hand the API the
            string "5" instead of the number the schema declares. -->
       <select [(ngModel)]="importThreshold">
@@ -84,7 +80,7 @@
         <option [ngValue]="2">2 — Apprentice II</option>
         <option [ngValue]="3">3 — Apprentice III</option>
         <option [ngValue]="4">4 — Apprentice IV</option>
-        <option [ngValue]="5">5 — Guru I (Standard)</option>
+        <option [ngValue]="5">5 — Guru I (default)</option>
         <option [ngValue]="6">6 — Guru II</option>
         <option [ngValue]="7">7 — Master</option>
         <option [ngValue]="8">8 — Enlightened</option>
@@ -94,15 +90,15 @@
 
     <label class="check">
       <input type="checkbox" [(ngModel)]="remapExisting" />
-      Bereits bearbeitete Items neu zuordnen
+      Re-map items you have already worked on
     </label>
   </div>
 
   <p class="muted footnote">
-    Ohne den Haken bleibt alles unberührt, woran du hier schon gearbeitet hast — so holt
-    ein zweiter Import nur neuen WaniKani-Content nach. Mit Haken wird die Zuordnung
-    komplett neu gezogen; das ist der Weg, eine Schwelle zu korrigieren, die sich beim
-    Lernen falsch angefühlt hat.
+    Without the checkbox, anything you have worked on here is left alone — so a second
+    import only picks up new WaniKani content. With it, the mapping is redrawn from
+    scratch; that is how you correct a threshold that felt wrong once you started
+    reviewing.
   </p>
 
   <div class="row">
@@ -111,25 +107,24 @@
       [disabled]="busy() || run()?.status === 'running' || !settings()?.wanikani_token_set"
       (click)="startImport()"
     >
-      Import starten
+      Start import
     </button>
   </div>
 
   @if (run(); as run) {
     <div class="run">
       @if (run.status === 'running') {
-        <p>
-          Läuft … {{ run.subjects_imported }} von {{ run.subjects_total || '?' }} Items
-        </p>
+        <p>Running … {{ run.subjects_imported }} of {{ run.subjects_total || '?' }} items</p>
         <div class="bar"><div class="fill" [style.width.%]="percent(run)"></div></div>
       } @else if (run.status === 'succeeded') {
         <p>
-          Fertig: {{ run.subjects_imported }} Items geholt,
-          <strong>{{ run.marked_known }}</strong> als beherrscht übernommen,
-          {{ run.marked_learning }} im Lernzyklus, {{ run.marked_new }} als Lektion offen.
+          Done: {{ run.subjects_imported }} items fetched,
+          <strong>{{ run.marked_known }}</strong> taken over as known,
+          {{ run.marked_learning }} in the review cycle, {{ run.marked_new }} waiting as
+          lessons.
         </p>
       } @else {
-        <p class="error">{{ run.message || 'Der Import ist fehlgeschlagen.' }}</p>
+        <p class="error">{{ run.message || 'The import failed.' }}</p>
       }
       @if (run.status === 'succeeded' && run.message) {
         <p class="notice">{{ run.message }}</p>
@@ -139,56 +134,55 @@
 </section>
 
 <section class="card">
-  <h2>Lernverhalten</h2>
+  <h2>Study behaviour</h2>
 
   <div class="row">
     <label>
-      „Das kann ich“ setzt auf Stufe
+      “I know this” sets the stage to
       <select [(ngModel)]="knownStage">
-        <option [ngValue]="9">9 — Burned (nie wieder)</option>
-        <option [ngValue]="8">8 — Enlightened (eine Kontrolle in 4 Monaten)</option>
-        <option [ngValue]="7">7 — Master (eine Kontrolle in 1 Monat)</option>
+        <option [ngValue]="9">9 — Burned (never again)</option>
+        <option [ngValue]="8">8 — Enlightened (one check-up in 4 months)</option>
+        <option [ngValue]="7">7 — Master (one check-up in 1 month)</option>
       </select>
     </label>
 
     <label>
-      Tageslimit Lektionen (0 = kein Limit)
+      Daily lesson limit (0 = no limit)
       <input type="number" min="0" max="500" [(ngModel)]="dailyLimit" />
     </label>
 
     <label>
-      Items pro Lektions-Stapel
+      Items per lesson batch
       <input type="number" min="1" max="100" [(ngModel)]="batchSize" />
     </label>
   </div>
 
   <label class="check block">
     <input type="checkbox" [(ngModel)]="softAnswer" />
-    Zweite Chance bei Fehlern
+    Second chance on mistakes
   </label>
   <p class="muted footnote">
-    Eine Antwort, die falsch wäre, wird einmal zurückgehalten: <kbd>Enter</kbd> schickt sie
-    trotzdem ab, <kbd>Esc</kbd> gibt das Feld zum Korrigieren zurück. Ein Vertipper kostet
-    dich sonst genauso viel wie „nicht gewusst“ — und unter vier Zeichen gibt es gar keine
-    Tippfehler-Toleranz, die ihn auffangen könnte. Die Warnung verrät nie die richtige
-    Antwort.
+    An answer that would be wrong is held back once: <kbd>Enter</kbd> submits it anyway,
+    <kbd>Esc</kbd> hands the field back for editing. Otherwise a typo costs exactly as much
+    as not knowing the item — and below four characters there is no typo tolerance to catch
+    it. The warning never reveals the right answer.
   </p>
 
   <p class="muted footnote">
-    Ein Stapel wird am Stück gelesen und danach am Stück abgefragt; 5 ist WaniKanis
-    Standard und etwa so viel, wie sich zwischen Eselsbrücke und Abfrage halten lässt.
+    A batch is read in one go and quizzed in one go; 5 is WaniKani's default and about as
+    much as fits between reading a mnemonic and being asked to produce it.
   </p>
 
   <label class="block">
-    SRS-Intervalle in Stunden, je Stufe 0–9
+    SRS intervals in hours, one per stage 0–9
     <input type="text" [(ngModel)]="intervals" />
   </label>
   <p class="muted footnote">
-    Standard ist <code>0,4,8,24,48,168,336,720,2880,0</code> — dieselben Abstände wie bei
-    WaniKani. Stufe 0 und 9 stehen auf 0, weil dort nichts geplant wird.
+    The default is <code>0,4,8,24,48,168,336,720,2880,0</code> — the same spacing as
+    WaniKani. Stages 0 and 9 are 0 because nothing is scheduled there.
   </p>
 
   <div class="row">
-    <button class="primary" [disabled]="busy()" (click)="saveSrs()">Speichern</button>
+    <button class="primary" [disabled]="busy()" (click)="saveSrs()">Save</button>
   </div>
 </section>

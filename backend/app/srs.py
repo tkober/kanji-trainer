@@ -4,7 +4,7 @@ The stage ladder and the penalty arithmetic are WaniKani's, deliberately: the
 learner this is built for has years of muscle memory for what "Guru" means and
 how far a wrong answer throws an item back. What is *not* WaniKani's is that
 every stage is reachable by declaring it. :func:`mark_known` is the whole
-reason this project exists -- WaniKani has no way to say "ich kann das schon",
+reason this project exists -- WaniKani has no way to say "I already know this",
 so restarting after a break means re-earning thousands of items at four hours
 a step.
 
@@ -30,11 +30,10 @@ STAGE_MASTER = 7
 STAGE_ENLIGHTENED = 8
 STAGE_BURNED = 9
 
-# WaniKani's names, kept in English while the rest of the UI copy is German.
-# They are the vocabulary the learner already thinks in; translating "Guru" to
-# something German would make their own history unreadable to them.
+# WaniKani's stage names, unchanged. They are the vocabulary the learner
+# already thinks in.
 STAGE_NAMES: tuple[str, ...] = (
-    "Ungelernt",
+    "Unlearned",
     "Apprentice I",
     "Apprentice II",
     "Apprentice III",
@@ -51,7 +50,7 @@ class ItemState(StrEnum):
     """What the learner intends for an item, as opposed to where it stands.
 
     Both this and ``srs_stage`` are stored because stage 9 is reachable two
-    ways -- by answering correctly eight times, or by saying "das kann ich" --
+    ways -- by answering correctly eight times, or by saying "I know this" --
     and statistics that cannot tell those apart are worthless.
     """
 
@@ -319,7 +318,7 @@ def mark_known(
     known_stage: int = STAGE_BURNED,
     intervals: tuple[int, ...] = DEFAULT_INTERVAL_HOURS,
 ) -> None:
-    """"Das kann ich" -- park the item at ``known_stage`` without review.
+    """"I know this" -- park the item at ``known_stage`` without review.
 
     At stage 9 the item is retired outright. At 8 it keeps one four-month
     check-up, which is the honest setting for someone who is *fairly* sure:
@@ -341,7 +340,7 @@ def reset_to_apprentice(
     now: datetime,
     intervals: tuple[int, ...] = DEFAULT_INTERVAL_HOURS,
 ) -> None:
-    """"Nochmal von vorn" -- back to Apprentice I, due in four hours.
+    """"Relearn from scratch" -- back to Apprentice I, due in four hours.
 
     The counterpart to :func:`mark_known`, and the reason declaring an item
     known is not a one-way door: an item that turns out to be shakier than it
@@ -353,7 +352,7 @@ def reset_to_apprentice(
 
 
 def suspend(progress: _ProgressLike) -> None:
-    """"Ausblenden" -- out of every queue, without losing the history.
+    """"Hide" -- out of every queue, without losing the history.
 
     Deliberately not a delete: the review log still refers to the subject, and
     an item suspended in frustration is usually wanted back later.

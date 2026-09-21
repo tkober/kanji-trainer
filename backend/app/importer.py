@@ -2,7 +2,7 @@
 
 This is the answer to the problem the project was started for. Restarting
 WaniKani after a long break means re-earning thousands of items at four hours
-a step, because WaniKani has no way to say "ich kann das schon". It does not
+a step, because WaniKani has no way to say "I already know this". It does not
 need one: the account already records what the learner knows, in
 ``assignments.srs_stage``. The import reads it and starts the trainer from
 there.
@@ -136,13 +136,10 @@ async def _run(
             )
     except WaniKaniError as exc:
         log.warning("WaniKani import failed: %s", exc)
-        # `message` is shown on the import screen unchanged, so it is UI copy
-        # and therefore German -- unlike the exception itself, which stays
-        # English like every other error raised in this backend.
-        await _fail(sessionmaker, run_id, f"Import abgebrochen: {exc}")
+        await _fail(sessionmaker, run_id, f"Import stopped: {exc}")
     except Exception as exc:  # noqa: BLE001 - the run row is the error channel
         log.exception("WaniKani import failed unexpectedly")
-        await _fail(sessionmaker, run_id, f"Unerwarteter Fehler beim Import: {exc}")
+        await _fail(sessionmaker, run_id, f"Unexpected error during import: {exc}")
 
 
 async def _fail(
@@ -228,8 +225,9 @@ def _subscription_warning(user: dict[str, Any]) -> str:
     granted = subscription.get("max_level_granted")
     if isinstance(granted, int) and granted < 60:
         return (
-            f"Das WaniKani-Abo gibt nur Level 1–{granted} frei; höhere Level fehlen "
-            "im Import. Mit aktivem Abo noch einmal importieren, um alles zu holen."
+            f"This WaniKani subscription only unlocks levels 1-{granted}; higher "
+            "levels are missing from the import. Import again with an active "
+            "subscription to pick up the rest."
         )
     return ""
 

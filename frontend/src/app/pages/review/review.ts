@@ -223,7 +223,7 @@ export class Review {
   }
 
   /**
-   * "Das kann ich", mid-session.
+   * "I know this", mid-session.
    *
    * Takes the item out of the queue entirely rather than marking the current
    * question right: the point is that the whole item is known, and asking for
@@ -271,10 +271,10 @@ export class Review {
 
   protected typeLabel(type: ObjectType): string {
     return {
-      radical: 'Radikal',
+      radical: 'Radical',
       kanji: 'Kanji',
-      vocabulary: 'Vokabel',
-      kana_vocabulary: 'Vokabel (Kana)',
+      vocabulary: 'Vocabulary',
+      kana_vocabulary: 'Vocabulary (kana)',
     }[type];
   }
 

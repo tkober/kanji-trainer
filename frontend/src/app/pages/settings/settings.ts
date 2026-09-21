@@ -56,13 +56,13 @@ export class SettingsPage implements OnDestroy {
   }
 
   async saveToken(): Promise<void> {
-    await this.save({ wanikani_api_token: this.token }, 'Token gespeichert.');
+    await this.save({ wanikani_api_token: this.token }, 'Token saved.');
     this.token = '';
     this.account.set(null);
   }
 
   async clearToken(): Promise<void> {
-    await this.save({ wanikani_api_token: '' }, 'Token entfernt.');
+    await this.save({ wanikani_api_token: '' }, 'Token removed.');
     this.account.set(null);
   }
 
@@ -76,7 +76,7 @@ export class SettingsPage implements OnDestroy {
         lesson_batch_size: this.batchSize,
         soft_answer_enabled: this.softAnswer,
       },
-      'Einstellungen gespeichert.',
+      'Settings saved.',
     );
   }
 

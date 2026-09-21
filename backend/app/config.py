@@ -39,7 +39,7 @@ class Settings(BaseSettings):
     # scheduled. Defaults match WaniKani so the pacing feels familiar, but
     # unlike WaniKani they are configuration rather than doctrine.
     srs_interval_hours: str = "0,4,8,24,48,168,336,720,2880,0"
-    # Where "das kann ich" puts an item. 9 retires it outright; 8 leaves one
+    # Where "I know this" puts an item. 9 retires it outright; 8 leaves one
     # four-month check-up before it burns, which is the safer default for
     # someone who is *fairly* sure.
     known_srs_stage: int = 9

@@ -4,7 +4,7 @@ export const routes: Routes = [
   {
     path: '',
     loadComponent: () => import('./pages/dashboard/dashboard').then((m) => m.Dashboard),
-    title: 'Übersicht · Kanji Trainer',
+    title: 'Dashboard · Kanji Trainer',
   },
   {
     path: 'review',
@@ -14,7 +14,7 @@ export const routes: Routes = [
   {
     path: 'lessons',
     loadComponent: () => import('./pages/lessons/lessons').then((m) => m.LessonsPage),
-    title: 'Lektionen · Kanji Trainer',
+    title: 'Lessons · Kanji Trainer',
   },
   {
     path: 'browse',
@@ -24,7 +24,7 @@ export const routes: Routes = [
   {
     path: 'settings',
     loadComponent: () => import('./pages/settings/settings').then((m) => m.SettingsPage),
-    title: 'Einstellungen · Kanji Trainer',
+    title: 'Settings · Kanji Trainer',
   },
   { path: '**', redirectTo: '' },
 ];

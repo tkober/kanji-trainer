@@ -3,30 +3,28 @@
 }
 
 @if (loading()) {
-  <p class="muted">Lade Reviews …</p>
+  <p class="muted">Loading reviews …</p>
 } @else if (done()) {
   <section class="card finished">
-    <h1>Keine offenen Reviews</h1>
+    <h1>No reviews due</h1>
     @if (answered() > 0) {
-      <p class="muted">
-        {{ answered() }} Antworten in dieser Sitzung, {{ accuracy() }} % richtig.
-      </p>
+      <p class="muted">{{ answered() }} answers this session, {{ accuracy() }} % correct.</p>
     } @else {
-      <p class="muted">Als Nächstes kommt etwas dran, sobald ein Intervall abgelaufen ist.</p>
+      <p class="muted">The next item comes up as soon as an interval elapses.</p>
     }
     <div class="row">
-      <button class="primary" (click)="load()">Neu laden</button>
-      <a routerLink="/lessons"><button>Zu den Lektionen</button></a>
+      <button class="primary" (click)="load()">Reload</button>
+      <a routerLink="/lessons"><button>Go to lessons</button></a>
     </div>
   </section>
 } @else if (current(); as card) {
   <div class="progress">
-    <span>{{ queue().length }} in dieser Runde</span>
+    <span>{{ queue().length }} in this round</span>
     <span class="muted">·</span>
-    <span class="muted">{{ totalDue() }} insgesamt fällig</span>
+    <span class="muted">{{ totalDue() }} due in total</span>
     @if (accuracy() !== null) {
       <span class="muted">·</span>
-      <span class="muted">{{ accuracy() }} % richtig</span>
+      <span class="muted">{{ accuracy() }} % correct</span>
     }
   </div>
 
@@ -46,9 +44,7 @@
   </section>
 
   <section class="question" [class.reading]="question() === 'reading'">
-    <label for="answer">
-      {{ question() === 'reading' ? 'Lesung' : 'Bedeutung' }}
-    </label>
+    <label for="answer">{{ question() === 'reading' ? 'Reading' : 'Meaning' }}</label>
 
     <input
       #answerField
@@ -78,18 +74,18 @@
       [class.retry]="result.retry"
     >
       @if (result.retry) {
-        <strong>Zählt nicht.</strong>
-        <span> Das ist eine echte Lesung dieses Zeichens — nur nicht die gefragte.</span>
+        <strong>Doesn't count.</strong>
+        <span> That is a real reading of this character — just not the one asked for.</span>
       } @else if (result.correct) {
-        <strong>Richtig.</strong>
+        <strong>Correct.</strong>
         @if (result.typo) {
-          <span> Geschrieben wird es <em>{{ result.expected }}</em>.</span>
+          <span> It is spelled <em>{{ result.expected }}</em>.</span>
         } @else if (result.secondary) {
-          <span> Gemeint war vor allem <em>{{ result.expected }}</em>.</span>
+          <span> The primary answer is <em class="jp">{{ result.expected }}</em>.</span>
         }
       } @else {
-        <strong>Falsch.</strong>
-        <span> Erwartet: <em class="jp">{{ result.expected }}</em></span>
+        <strong>Wrong.</strong>
+        <span> Expected: <em class="jp">{{ result.expected }}</em></span>
       }
 
       @if (result.hint) {
@@ -101,57 +97,56 @@
           {{ result.srs_stage_before }} → {{ result.srs_stage_after }} ·
           {{ result.stage_name_after }}
           @if (result.next_review_at) {
-            · wieder fällig {{ result.next_review_at | date: 'dd.MM. HH:mm' }}
+            · due again {{ result.next_review_at | date: 'dd MMM, HH:mm' }}
           }
         </p>
       }
 
       @if (result.subject; as subject) {
-      <details>
-        <summary>Item ansehen</summary>
-        <dl>
-          <dt>Bedeutungen</dt>
-          <dd>{{ primaryMeanings(result) }}</dd>
-          @if (subject.readings.length > 0) {
-            <dt>Lesungen</dt>
-            <dd class="jp">{{ primaryReadings(result) }}</dd>
-          }
-          @if (subject.meaning_mnemonic) {
-            <dt>Eselsbrücke Bedeutung</dt>
-            <dd [innerHTML]="subject.meaning_mnemonic"></dd>
-          }
-          @if (subject.reading_mnemonic) {
-            <dt>Eselsbrücke Lesung</dt>
-            <dd [innerHTML]="subject.reading_mnemonic"></dd>
-          }
-        </dl>
-      </details>
+        <details>
+          <summary>Show item</summary>
+          <dl>
+            <dt>Meanings</dt>
+            <dd>{{ primaryMeanings(result) }}</dd>
+            @if (subject.readings.length > 0) {
+              <dt>Readings</dt>
+              <dd class="jp">{{ primaryReadings(result) }}</dd>
+            }
+            @if (subject.meaning_mnemonic) {
+              <dt>Meaning mnemonic</dt>
+              <dd [innerHTML]="subject.meaning_mnemonic"></dd>
+            }
+            @if (subject.reading_mnemonic) {
+              <dt>Reading mnemonic</dt>
+              <dd [innerHTML]="subject.reading_mnemonic"></dd>
+            }
+          </dl>
+        </details>
       }
 
       <div class="row">
         <button class="primary" (click)="next()">
-          {{ result.retry ? 'Nochmal versuchen (Enter)' : 'Weiter (Enter)' }}
+          {{ result.retry ? 'Try again (Enter)' : 'Next (Enter)' }}
         </button>
         @if (!result.correct && !result.retry) {
-          <button (click)="resetCurrent()">Nochmal von vorn lernen</button>
+          <button (click)="resetCurrent()">Relearn from scratch</button>
         }
       </div>
     </section>
   } @else {
     @if (held()) {
       <p class="warning">
-        Das sieht falsch aus. <kbd>Enter</kbd> zum trotzdem Abschicken,
-        <kbd>Esc</kbd> zum Korrigieren.
+        That looks wrong. <kbd>Enter</kbd> to submit anyway, <kbd>Esc</kbd> to edit.
       </p>
     }
     <div class="row actions">
       <button class="primary" [disabled]="submitting()" (click)="submit()">
-        {{ held() ? 'Trotzdem abschicken (Enter)' : 'Antworten (Enter)' }}
+        {{ held() ? 'Submit anyway (Enter)' : 'Answer (Enter)' }}
       </button>
-      <button class="known" (click)="markKnown()" title="Alt+K">Das kann ich</button>
+      <button class="known" (click)="markKnown()" title="Alt+K">I know this</button>
     </div>
     <p class="muted hint-line">
-      „Das kann ich“ nimmt das Item sofort aus der Wiederholung — kein Warten auf Intervalle.
+      “I know this” retires the item immediately — no waiting on intervals.
     </p>
   }
 }

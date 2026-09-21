@@ -35,7 +35,7 @@ export class Api {
     return this.get('/api/reviews', new HttpParams().set('limit', limit));
   }
 
-  /** `confirm` is the second Enter after a "das sieht falsch aus" warning. */
+  /** `confirm` is the second Enter after a "that looks wrong" warning. */
   answer(
     subjectId: number,
     question: QuestionType,
@@ -99,7 +99,7 @@ export class Api {
     return this.get(`/api/items/${subjectId}`);
   }
 
-  /** "Das kann ich." The reason this app exists. */
+  /** "I know this." The reason this app exists. */
   markKnown(subjectIds: number[], knownStage?: number): Promise<{ changed: number }> {
     return this.post('/api/items/known', {
       subject_ids: subjectIds,
@@ -164,20 +164,19 @@ export class Api {
 }
 
 /**
- * Turn an HTTP failure into a German sentence.
+ * Turn an HTTP failure into a sentence.
  *
- * The backend's `detail` is English by convention, so it gets a German lead-in
- * rather than a translation: the detail names the cause precisely and is worth
- * showing verbatim, but on its own it reads like a stack trace.
+ * The backend's `detail` names the cause precisely and is worth showing
+ * verbatim, but on its own it reads like a stack trace, so it gets a lead-in.
  */
 function rethrow(error: unknown): never {
   if (error instanceof HttpErrorResponse) {
     const detail = typeof error.error?.detail === 'string' ? error.error.detail : '';
     if (error.status === 0) {
-      throw new Error('Der Server ist nicht erreichbar.');
+      throw new Error('The server is not reachable.');
     }
     throw new Error(
-      detail ? `Der Server hat abgelehnt: ${detail}` : `Der Server antwortete mit ${error.status}.`,
+      detail ? `The server refused: ${detail}` : `The server answered with ${error.status}.`,
     );
   }
   throw error;

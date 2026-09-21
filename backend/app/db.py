@@ -162,7 +162,7 @@ class AppSettings(Base):
     wanikani_api_token: Mapped[str | None] = mapped_column(Text, nullable=True)
     # The threshold the *next* import uses to decide what counts as known.
     wanikani_known_srs_stage: Mapped[int | None] = mapped_column(Integer, nullable=True)
-    # Where "das kann ich" parks an item.
+    # Where "I know this" parks an item.
     known_srs_stage: Mapped[int | None] = mapped_column(Integer, nullable=True)
     srs_interval_hours: Mapped[str | None] = mapped_column(String, nullable=True)
     # 0 means unlimited. NULL means "not set here" -- the two are different,
@@ -249,7 +249,7 @@ class Progress(Base):
 
     ``state`` records intent and ``srs_stage`` records position, which is why
     both exist: an item at stage 9 reached it either by being answered
-    correctly eight times or by the learner saying "das kann ich", and the
+    correctly eight times or by the learner saying "I know this", and the
     statistics are worth nothing if those look the same.
 
     ``pending_meaning`` / ``pending_reading`` are NULL while no review is in
@@ -326,7 +326,7 @@ class ReviewLog(Base):
 class ImportRun(Base):
     """One WaniKani import, kept so the dashboard can explain the numbers.
 
-    The counts are the interesting part: "3.412 als beherrscht übernommen"
+    The counts are the interesting part: "3,412 taken over as known"
     is the sentence that tells the learner the import did what it promised.
     """
 

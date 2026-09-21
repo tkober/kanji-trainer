@@ -1,53 +1,53 @@
-<h1>Übersicht</h1>
+<h1>Dashboard</h1>
 
 @if (error(); as message) {
   <p class="error">{{ message }}</p>
 }
 
 @if (loading()) {
-  <p class="muted">Lade …</p>
+  <p class="muted">Loading …</p>
 } @else if (stats(); as stats) {
   @if (stats.total_subjects === 0) {
     <section class="card empty">
-      <h2>Noch keine Items</h2>
+      <h2>No items yet</h2>
       <p class="muted">
-        Importiere deinen WaniKani-Stand, um dort weiterzumachen, wo du wirklich stehst —
-        alles ab der gewählten SRS-Stufe kommt direkt als „beherrscht“ herein und landet
-        nie wieder in der Wiederholung.
+        Import your WaniKani progress to pick up where you actually are — everything at or
+        above the chosen SRS stage comes in as “known” and never enters the review queue
+        again.
       </p>
-      <a routerLink="/settings"><button class="primary">Zum Import</button></a>
+      <a routerLink="/settings"><button class="primary">Go to import</button></a>
     </section>
   } @else {
     <section class="tiles">
       <a class="tile due" routerLink="/review">
         <span class="value">{{ stats.due_now }}</span>
-        <span class="label">Reviews fällig</span>
+        <span class="label">reviews due</span>
       </a>
       <a class="tile" routerLink="/lessons">
         <span class="value">{{ stats.lessons_available }}</span>
         <span class="label">
           @if (stats.current_level !== null) {
-            Lektionen in Level {{ stats.current_level }}
+            lessons in level {{ stats.current_level }}
           } @else {
-            Lektionen offen
+            lessons available
           }
         </span>
       </a>
       <div class="tile">
         <span class="value">{{ stats.reviews_today }}</span>
-        <span class="label">heute beantwortet</span>
+        <span class="label">answered today</span>
       </div>
       <div class="tile">
         <span class="value">{{ accuracy(stats) }}</span>
-        <span class="label">Trefferquote heute</span>
+        <span class="label">accuracy today</span>
       </div>
     </section>
 
     <section class="card">
-      <h2>Sammlung</h2>
+      <h2>Collection</h2>
       <p class="muted summary">
-        {{ stats.total_subjects }} Items, davon {{ settled(stats) }} % dauerhaft erledigt.
-        {{ stats.new_count }} insgesamt noch ungelernt.
+        {{ stats.total_subjects }} items, {{ settled(stats) }} % of them settled for good.
+        {{ stats.new_count }} still unlearned.
       </p>
       <dl class="breakdown">
         <div>
@@ -71,41 +71,33 @@
           <dd>{{ stats.burned_count }}</dd>
         </div>
         <div class="declared">
-          <dt>Als gekonnt markiert</dt>
+          <dt>Marked as known</dt>
           <dd>{{ stats.known_count }}</dd>
         </div>
         <div>
-          <dt>Ausgeblendet</dt>
+          <dt>Hidden</dt>
           <dd>{{ stats.suspended_count }}</dd>
         </div>
       </dl>
       <p class="muted footnote">
-        „Burned“ zählt nur Items, die du dir erarbeitet hast. Was du selbst als gekonnt
-        markiert hast, steht getrennt davon — sonst wäre die Zahl geschmeichelt.
+        “Burned” counts only items you earned. What you marked as known yourself is listed
+        separately — otherwise the number would flatter you.
       </p>
-    </section>
-
-    <section class="card">
-      <h2>Kommt auf dich zu</h2>
-      <div class="row upcoming">
-        <span><strong>{{ stats.due_next_hour }}</strong> in der nächsten Stunde</span>
-        <span><strong>{{ stats.due_today }}</strong> in den nächsten 24 Stunden</span>
-      </div>
     </section>
   }
 
   @if (lastImport(); as run) {
     <section class="card">
-      <h2>Letzter Import</h2>
+      <h2>Last import</h2>
       <p class="muted">
-        {{ run.status === 'succeeded' ? 'Erfolgreich' : run.status === 'failed' ? 'Fehlgeschlagen' : 'Läuft' }}
-        · Schwelle SRS-Stufe {{ run.known_srs_stage }}
+        {{ run.status === 'succeeded' ? 'Succeeded' : run.status === 'failed' ? 'Failed' : 'Running' }}
+        · threshold SRS stage {{ run.known_srs_stage }}
       </p>
       @if (run.status === 'succeeded') {
         <p>
-          {{ run.subjects_imported }} Items geholt,
-          <strong>{{ run.marked_known }}</strong> davon als beherrscht übernommen,
-          {{ run.marked_learning }} im Lernzyklus, {{ run.marked_new }} neu.
+          {{ run.subjects_imported }} items fetched,
+          <strong>{{ run.marked_known }}</strong> taken over as known,
+          {{ run.marked_learning }} in the review cycle, {{ run.marked_new }} new.
         </p>
       }
       @if (run.message) {
