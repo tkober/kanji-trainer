@@ -1,8 +1,10 @@
-import { Component, computed, inject, signal } from '@angular/core';
+import { DatePipe } from '@angular/common';
+import { Component, ElementRef, computed, effect, inject, signal, viewChild } from '@angular/core';
 import { FormsModule } from '@angular/forms';
 
 import { Api } from '../../core/api';
 import type { Item, ObjectType } from '../../core/api.types';
+import { type ReadingGroup, readingGroups } from '../../core/readings';
 
 const PAGE_SIZE = 100;
 
@@ -16,19 +18,24 @@ const PAGE_SIZE = 100;
  */
 @Component({
   selector: 'app-browse',
-  imports: [FormsModule],
+  imports: [DatePipe, FormsModule],
   templateUrl: './browse.html',
   styleUrl: './browse.scss',
 })
 export class Browse {
   private readonly api = inject(Api);
+  private readonly dialog = viewChild<ElementRef<HTMLDialogElement>>('detailDialog');
 
   protected state = '';
   protected objectType = '';
   protected level: number | null = null;
   protected search = '';
 
+  protected readonly levels = signal<number[]>([]);
   protected readonly items = signal<Item[]>([]);
+  /** The row whose details are open, or null. Never fetched: the list
+      already carries the full subject. */
+  protected readonly detail = signal<Item | null>(null);
   protected readonly total = signal(0);
   protected readonly offset = signal(0);
   protected readonly selected = signal<Set<number>>(new Set());
@@ -44,6 +51,21 @@ export class Browse {
 
   constructor() {
     void this.load();
+    void this.loadLevels();
+
+    // `showModal()` is what gives the dialog its backdrop, its focus trap and
+    // Escape; no attribute does that, so the signal drives it imperatively.
+    effect(() => {
+      const element = this.dialog()?.nativeElement;
+      if (!element) {
+        return;
+      }
+      if (this.detail() && !element.open) {
+        element.showModal();
+      } else if (!this.detail() && element.open) {
+        element.close();
+      }
+    });
   }
 
   async load(): Promise<void> {
@@ -65,6 +87,16 @@ export class Browse {
       this.error.set((err as Error).message);
     } finally {
       this.loading.set(false);
+    }
+  }
+
+  /** The levels that exist, so the filter never offers an empty one. */
+  private async loadLevels(): Promise<void> {
+    try {
+      this.levels.set(await this.api.levels());
+    } catch {
+      // Not worth an error banner: the filter falls back to "all levels" and
+      // the table itself, which has its own error handling, still works.
     }
   }
 
@@ -149,6 +181,21 @@ export class Browse {
     }
   }
 
+  openDetail(item: Item): void {
+    this.detail.set(item);
+  }
+
+  closeDetail(): void {
+    this.detail.set(null);
+  }
+
+  /** A click on the backdrop rather than on the card inside it. */
+  backdropClick(event: MouseEvent): void {
+    if (event.target === this.dialog()?.nativeElement) {
+      this.closeDetail();
+    }
+  }
+
   protected typeLabel(type: ObjectType): string {
     return { radical: 'Radical', kanji: 'Kanji', vocabulary: 'Vocabulary', kana_vocabulary: 'Kana' }[
       type
@@ -168,5 +215,9 @@ export class Browse {
       .filter((meaning) => meaning.accepted_answer !== false)
       .map((meaning) => meaning.meaning)
       .join(', ');
+  }
+
+  protected readings(item: Item): ReadingGroup[] {
+    return readingGroups(item.subject.readings);
   }
 }

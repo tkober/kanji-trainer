@@ -170,6 +170,26 @@ async def test_suspend_and_unsuspend_round_trip(client, session):
     assert (await client.get("/api/reviews")).json()["total_due"] == 1
 
 
+async def test_the_level_filter_offers_the_levels_that_were_imported(client, session):
+    await seed_kanji(session)
+    far_away = Subject(
+        wanikani_id=3,
+        object_type="kanji",
+        level=7,
+        slug="下",
+        characters="下",
+        meanings=[{"meaning": "Below", "primary": True, "accepted_answer": True}],
+    )
+    session.add(far_away)
+    await session.flush()
+    session.add(Progress(subject_id=far_away.id, state=ItemState.NEW.value))
+    await session.commit()
+
+    # Not a range: a lapsed subscription imports level 1 and 7 and nothing in
+    # between, and the filter must not offer the levels that are not there.
+    assert (await client.get("/api/items/levels")).json() == [1, 7]
+
+
 async def test_the_detail_links_to_wanikani_but_the_queue_does_not(client, session):
     subject_id = await seed_kanji(session)
 
