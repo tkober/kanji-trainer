@@ -68,11 +68,11 @@
         }
         @if (item.subject.meaning_mnemonic) {
           <dt>Meaning mnemonic</dt>
-          <dd [innerHTML]="item.subject.meaning_mnemonic"></dd>
+          <dd [innerHTML]="item.subject.meaning_mnemonic | mnemonic"></dd>
         }
         @if (item.subject.reading_mnemonic) {
           <dt>Reading mnemonic</dt>
-          <dd [innerHTML]="item.subject.reading_mnemonic"></dd>
+          <dd [innerHTML]="item.subject.reading_mnemonic | mnemonic"></dd>
         }
         @if (item.subject.wanikani_url; as url) {
           <dt>Source</dt>

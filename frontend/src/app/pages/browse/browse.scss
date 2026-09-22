@@ -150,6 +150,13 @@ dialog.detail {
     background: rgb(0 0 0 / 45%);
   }
 
+  /* `showModal()` focuses the dialog itself, which the browser then rings like
+     a control. The ring belongs on the buttons and links inside it, which keep
+     theirs. */
+  &:focus {
+    outline: none;
+  }
+
   article {
     padding: var(--gap);
   }

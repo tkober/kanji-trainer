@@ -61,9 +61,48 @@ body {
 /* Japanese text wants a font stack that will not fall back to a Chinese
    glyph set — 直 and 今 are drawn differently and the wrong one teaches the
    wrong stroke order. */
-.jp {
+.jp,
+.wk-ja,
+.wk-reading {
   font-family: 'Hiragino Sans', 'Hiragino Kaku Gothic ProN', 'Yu Gothic',
     'Noto Sans JP', 'Meiryo', sans-serif;
+}
+
+/* WaniKani tags the pieces of a mnemonic, `highlightMnemonic` turns those tags
+   into spans, and this is what makes them readable: the same three colours the
+   rest of the app uses for radicals, kanji and vocabulary, as a tint rather
+   than as text, so the sentence still reads as a sentence.
+
+   Global, because emulated view encapsulation does not reach content inserted
+   through `innerHTML` — a component style sheet would simply not apply. */
+.wk {
+  border-radius: 4px;
+  padding: 0.08em 0.28em;
+}
+
+.wk-radical {
+  background: color-mix(in srgb, var(--radical) 18%, transparent);
+}
+
+.wk-kanji {
+  background: color-mix(in srgb, var(--kanji) 18%, transparent);
+}
+
+.wk-vocabulary {
+  background: color-mix(in srgb, var(--vocabulary) 18%, transparent);
+}
+
+/* Readings and meanings are the answer being spelled out, not a third kind of
+   item, so they get the neutral tint rather than a fourth hue. */
+.wk-reading,
+.wk-meaning {
+  background: color-mix(in srgb, var(--text) 12%, transparent);
+}
+
+/* <ja> only marks Japanese text: the font stack above, no highlight. */
+.wk-ja {
+  padding: 0;
+  background: none;
 }
 
 h1,

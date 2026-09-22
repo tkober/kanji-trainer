@@ -19,6 +19,7 @@ import type {
   SubjectDetail,
 } from '../../core/api.types';
 import { finaliseKana, isKana, romajiToKana } from '../../core/kana';
+import { Mnemonic } from '../../core/mnemonic';
 import { type ReadingGroup, readingGroups } from '../../core/readings';
 
 /** A queue entry plus what it still owes. */
@@ -26,7 +27,7 @@ type Card = QueueItem;
 
 @Component({
   selector: 'app-review',
-  imports: [DatePipe, RouterLink],
+  imports: [DatePipe, Mnemonic, RouterLink],
   templateUrl: './review.html',
   styleUrl: './review.scss',
 })

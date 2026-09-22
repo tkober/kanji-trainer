@@ -19,6 +19,7 @@ import type {
   SubjectDetail,
 } from '../../core/api.types';
 import { finaliseKana, isKana, romajiToKana } from '../../core/kana';
+import { Mnemonic } from '../../core/mnemonic';
 import { type ReadingGroup, readingGroups } from '../../core/readings';
 
 /** One item in the quiz, with the questions it still owes. */
@@ -43,7 +44,7 @@ type Phase = 'reading' | 'quiz';
  */
 @Component({
   selector: 'app-lessons',
-  imports: [RouterLink],
+  imports: [Mnemonic, RouterLink],
   templateUrl: './lessons.html',
   styleUrl: './lessons.scss',
 })
