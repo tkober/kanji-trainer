@@ -41,6 +41,8 @@ export interface SubjectDetail extends SubjectSummary {
   meaning_hint: string | null;
   reading_mnemonic: string | null;
   reading_hint: string | null;
+  /** The item's page on wanikani.com — null for a hand-added item. */
+  wanikani_url: string | null;
 }
 
 export interface Progress {

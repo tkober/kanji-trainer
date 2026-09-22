@@ -74,6 +74,12 @@
           <dt>Reading mnemonic</dt>
           <dd [innerHTML]="item.subject.reading_mnemonic"></dd>
         }
+        @if (item.subject.wanikani_url; as url) {
+          <dt>Source</dt>
+          <dd>
+            <a [href]="url" target="_blank" rel="noopener">Open the original on WaniKani ↗</a>
+          </dd>
+        }
       </dl>
 
       <div class="row nav">
