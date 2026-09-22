@@ -7,6 +7,8 @@ never carries its answers" is visible as a single pair of functions:
 
 from __future__ import annotations
 
+from urllib.parse import quote
+
 from .db import Progress, Subject
 from .models import ProgressOut, SubjectDetail, SubjectSummary
 from .srs import stage_name
@@ -22,6 +24,34 @@ def subject_summary(subject: Subject) -> SubjectSummary:
         characters=subject.characters,
         character_image_url=subject.character_image_url,
     )
+
+
+#: WaniKani's URL segment per subject type. Kana vocabulary lives under
+#: /vocabulary/ with the rest.
+_WANIKANI_PATHS = {
+    "radical": "radicals",
+    "kanji": "kanji",
+    "vocabulary": "vocabulary",
+    "kana_vocabulary": "vocabulary",
+}
+
+
+def wanikani_url(subject: Subject) -> str | None:
+    """The item's own page on wanikani.com -- None for a hand-added item.
+
+    Built from the slug rather than imported from WaniKani's ``document_url``,
+    which would leave every collection imported before this existed without a
+    link until the next import -- and the slug is what that URL is built from
+    anyway: the characters for kanji and vocabulary, the name for radicals.
+
+    It belongs to the detail and not to :func:`subject_summary`: that page
+    names the meaning, so a queue item carrying the link would carry the
+    answer.
+    """
+    if subject.wanikani_id is None or not subject.slug:
+        return None
+    path = _WANIKANI_PATHS.get(subject.object_type)
+    return None if path is None else f"https://www.wanikani.com/{path}/{quote(subject.slug)}"
 
 
 def subject_detail(subject: Subject) -> SubjectDetail:
@@ -41,6 +71,7 @@ def subject_detail(subject: Subject) -> SubjectDetail:
         meaning_hint=subject.meaning_hint,
         reading_mnemonic=subject.reading_mnemonic,
         reading_hint=subject.reading_hint,
+        wanikani_url=wanikani_url(subject),
     )
 
 

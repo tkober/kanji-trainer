@@ -108,17 +108,23 @@
           <dl>
             <dt>Meanings</dt>
             <dd>{{ primaryMeanings(result) }}</dd>
-            @if (subject.readings.length > 0) {
-              <dt>Readings</dt>
-              <dd class="jp">{{ primaryReadings(result) }}</dd>
+            @for (group of readings(subject); track group.label) {
+              <dt>{{ group.label ?? 'Readings' }}</dt>
+              <dd class="jp">{{ group.readings }}</dd>
             }
             @if (subject.meaning_mnemonic) {
               <dt>Meaning mnemonic</dt>
-              <dd [innerHTML]="subject.meaning_mnemonic"></dd>
+              <dd [innerHTML]="subject.meaning_mnemonic | mnemonic"></dd>
             }
             @if (subject.reading_mnemonic) {
               <dt>Reading mnemonic</dt>
-              <dd [innerHTML]="subject.reading_mnemonic"></dd>
+              <dd [innerHTML]="subject.reading_mnemonic | mnemonic"></dd>
+            }
+            @if (subject.wanikani_url; as url) {
+              <dt>Source</dt>
+              <dd>
+                <a [href]="url" target="_blank" rel="noopener">Open the original on WaniKani ↗</a>
+              </dd>
             }
           </dl>
         </details>

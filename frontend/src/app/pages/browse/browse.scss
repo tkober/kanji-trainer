@@ -15,8 +15,8 @@ table {
   color: var(--muted);
 }
 
-.filters input[type='number'] {
-  width: 6rem;
+.filters select {
+  min-width: 6rem;
 }
 
 .filters .grow {
@@ -85,6 +85,14 @@ tbody tr.selected {
   background: color-mix(in srgb, var(--accent) 10%, transparent);
 }
 
+tbody tr.clickable {
+  cursor: pointer;
+}
+
+tbody tr.clickable:hover {
+  background: var(--surface-alt);
+}
+
 .character {
   font-size: 1.35rem;
   white-space: nowrap;
@@ -106,6 +114,16 @@ tbody tr.selected {
     height: 1.3rem;
     vertical-align: middle;
   }
+
+  /* The glyph is a button for the keyboard, but must not look like one. */
+  button.glyph {
+    font: inherit;
+    color: inherit;
+    background: none;
+    border: 0;
+    padding: 0;
+    border-radius: 2px;
+  }
 }
 
 .declared {
@@ -116,4 +134,86 @@ tbody tr.selected {
 .pager {
   justify-content: center;
   margin-top: 1rem;
+}
+
+dialog.detail {
+  width: min(44rem, calc(100vw - 2rem));
+  max-height: min(82vh, 50rem);
+  padding: 0;
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  background: var(--surface);
+  color: var(--text);
+  box-shadow: var(--shadow);
+
+  &::backdrop {
+    background: rgb(0 0 0 / 45%);
+  }
+
+  /* `showModal()` focuses the dialog itself, which the browser then rings like
+     a control. The ring belongs on the buttons and links inside it, which keep
+     theirs. */
+  &:focus {
+    outline: none;
+  }
+
+  article {
+    padding: var(--gap);
+  }
+
+  header {
+    display: flex;
+    align-items: flex-start;
+    gap: 0.8rem;
+  }
+
+  header .character {
+    font-size: 2.6rem;
+    line-height: 1.1;
+
+    img {
+      height: 2.4rem;
+    }
+  }
+
+  .titles {
+    flex: 1;
+    min-width: 0;
+  }
+
+  .titles p {
+    margin: 0.2rem 0 0;
+    font-size: 0.85rem;
+  }
+
+  .close {
+    font-size: 1.1rem;
+    line-height: 1;
+    padding: 0.3rem 0.6rem;
+  }
+
+  dl {
+    margin: 1rem 0 0;
+  }
+
+  dt {
+    font-size: 0.8rem;
+    text-transform: uppercase;
+    letter-spacing: 0.06em;
+    color: var(--muted);
+    margin-top: 0.75rem;
+  }
+
+  dd {
+    margin: 0.15rem 0 0;
+  }
+
+  dd.jp {
+    font-size: 1.15rem;
+  }
+
+  .source {
+    margin: 1rem 0 0;
+    font-size: 0.9rem;
+  }
 }

@@ -48,6 +48,9 @@ class SubjectDetail(SubjectSummary):
     meaning_hint: str | None = None
     reading_mnemonic: str | None = None
     reading_hint: str | None = None
+    #: The item's page on wanikani.com, empty for a hand-added item. Detail
+    #: only -- that page names the meaning, so a queue item must not carry it.
+    wanikani_url: str | None = None
 
 
 class ProgressOut(BaseModel):

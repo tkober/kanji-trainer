@@ -26,7 +26,12 @@
 
     <label>
       Level
-      <input type="number" min="1" max="60" [(ngModel)]="level" (change)="applyFilters()" />
+      <select [(ngModel)]="level" (change)="applyFilters()">
+        <option [ngValue]="null">all</option>
+        @for (value of levels(); track value) {
+          <option [ngValue]="value">{{ value }}</option>
+        }
+      </select>
     </label>
 
     <label class="grow">
@@ -102,8 +107,12 @@
     </thead>
     <tbody>
       @for (item of items(); track item.subject.id) {
-        <tr [class.selected]="selected().has(item.subject.id)">
-          <td>
+        <tr
+          class="clickable"
+          [class.selected]="selected().has(item.subject.id)"
+          (click)="openDetail(item)"
+        >
+          <td (click)="$event.stopPropagation()">
             <input
               type="checkbox"
               [checked]="selected().has(item.subject.id)"
@@ -111,13 +120,17 @@
             />
           </td>
           <td class="character jp" [attr.data-type]="item.subject.object_type">
-            @if (item.subject.characters) {
-              {{ item.subject.characters }}
-            } @else if (item.subject.character_image_url) {
-              <img [src]="item.subject.character_image_url" [alt]="item.subject.slug" />
-            } @else {
-              {{ item.subject.slug }}
-            }
+            <!-- A real button, so the detail is reachable by keyboard too;
+                 the row click is the convenience on top of it. -->
+            <button type="button" class="glyph" (click)="$event.stopPropagation(); openDetail(item)">
+              @if (item.subject.characters) {
+                {{ item.subject.characters }}
+              } @else if (item.subject.character_image_url) {
+                <img [src]="item.subject.character_image_url" [alt]="item.subject.slug" />
+              } @else {
+                {{ item.subject.slug }}
+              }
+            </button>
           </td>
           <td>{{ meanings(item) }}</td>
           <td class="muted">{{ typeLabel(item.subject.object_type) }}</td>
@@ -144,3 +157,70 @@
     </button>
   </div>
 }
+
+<!-- Everything about one item. The list already carries the full subject, so
+     opening this fetches nothing. -->
+<dialog #detailDialog class="detail" (close)="closeDetail()" (click)="backdropClick($event)">
+  @if (detail(); as item) {
+    <article>
+      <header>
+        <span class="character jp" [attr.data-type]="item.subject.object_type">
+          @if (item.subject.characters) {
+            {{ item.subject.characters }}
+          } @else if (item.subject.character_image_url) {
+            <img [src]="item.subject.character_image_url" [alt]="item.subject.slug" />
+          } @else {
+            {{ item.subject.slug }}
+          }
+        </span>
+        <div class="titles">
+          <h2>{{ meanings(item) }}</h2>
+          <p class="muted">
+            {{ typeLabel(item.subject.object_type) }} · Level {{ item.subject.level }} ·
+            {{ item.progress.stage_name }} · {{ stateLabel(item.progress.state) }}
+          </p>
+        </div>
+        <button type="button" class="close" aria-label="Close" (click)="closeDetail()">×</button>
+      </header>
+
+      <dl>
+        @for (group of readings(item); track group.label) {
+          <dt>{{ group.label ?? 'Reading' }}</dt>
+          <dd class="jp">{{ group.readings }}</dd>
+        }
+        @if (item.subject.parts_of_speech.length > 0) {
+          <dt>Part of speech</dt>
+          <dd>{{ item.subject.parts_of_speech.join(', ') }}</dd>
+        }
+        @if (item.subject.meaning_mnemonic) {
+          <dt>Meaning mnemonic</dt>
+          <dd [innerHTML]="item.subject.meaning_mnemonic | mnemonic"></dd>
+        }
+        @if (item.subject.reading_mnemonic) {
+          <dt>Reading mnemonic</dt>
+          <dd [innerHTML]="item.subject.reading_mnemonic | mnemonic"></dd>
+        }
+
+        <dt>Progress</dt>
+        <dd>
+          {{ item.progress.correct_count }} correct · {{ item.progress.incorrect_count }} wrong ·
+          {{ item.progress.lapses }} lapses
+          @if (item.progress.next_review_at) {
+            <br />
+            Next review {{ item.progress.next_review_at | date: 'dd MMM, HH:mm' }}
+          }
+          @if (item.progress.known_at) {
+            <br />
+            Declared known {{ item.progress.known_at | date: 'dd MMM yyyy' }}
+          }
+        </dd>
+      </dl>
+
+      @if (item.subject.wanikani_url; as url) {
+        <p class="source">
+          <a [href]="url" target="_blank" rel="noopener">Open the original on WaniKani ↗</a>
+        </p>
+      }
+    </article>
+  }
+</dialog>

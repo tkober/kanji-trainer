@@ -81,6 +81,20 @@ async def list_items(
     )
 
 
+@router.get("/levels", response_model=list[int])
+async def list_levels(session: AsyncSession = Depends(get_session)) -> list[int]:
+    """Which levels the collection actually has, for the browse filter.
+
+    Declared above ``/{subject_id}`` so that "levels" is not read as an id. It
+    is a list rather than a range because what got imported is not knowable
+    from the outside: a lapsed subscription returns three levels, and a number
+    field that accepts 40 and answers with an empty table says nothing about
+    why.
+    """
+    rows = await session.execute(select(Subject.level).distinct().order_by(Subject.level))
+    return list(rows.scalars())
+
+
 @router.get("/{subject_id}", response_model=ItemOut)
 async def read_item(
     subject_id: int, session: AsyncSession = Depends(get_session)

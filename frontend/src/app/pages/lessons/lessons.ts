@@ -19,6 +19,8 @@ import type {
   SubjectDetail,
 } from '../../core/api.types';
 import { finaliseKana, isKana, romajiToKana } from '../../core/kana';
+import { Mnemonic } from '../../core/mnemonic';
+import { type ReadingGroup, readingGroups } from '../../core/readings';
 
 /** One item in the quiz, with the questions it still owes. */
 interface QuizCard {
@@ -42,7 +44,7 @@ type Phase = 'reading' | 'quiz';
  */
 @Component({
   selector: 'app-lessons',
-  imports: [RouterLink],
+  imports: [Mnemonic, RouterLink],
   templateUrl: './lessons.html',
   styleUrl: './lessons.scss',
 })
@@ -326,11 +328,8 @@ export class LessonsPage {
       .join(', ');
   }
 
-  protected readings(subject: SubjectDetail): string {
-    return subject.readings
-      .filter((reading) => reading.accepted_answer !== false)
-      .map((reading) => reading.reading)
-      .join('、');
+  protected readings(subject: SubjectDetail): ReadingGroup[] {
+    return readingGroups(subject.readings);
   }
 
   private focus(): void {

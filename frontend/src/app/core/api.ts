@@ -96,6 +96,11 @@ export class Api {
     return this.get('/api/items', params);
   }
 
+  /** The levels the collection actually contains, for the browse filter. */
+  levels(): Promise<number[]> {
+    return this.get('/api/items/levels');
+  }
+
   item(subjectId: number): Promise<Item> {
     return this.get(`/api/items/${subjectId}`);
   }
