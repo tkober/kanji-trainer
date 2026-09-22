@@ -11,8 +11,15 @@ import {
 import { RouterLink } from '@angular/router';
 
 import { Api } from '../../core/api';
-import type { AnswerResult, ObjectType, QuestionType, QueueItem } from '../../core/api.types';
+import type {
+  AnswerResult,
+  ObjectType,
+  QuestionType,
+  QueueItem,
+  SubjectDetail,
+} from '../../core/api.types';
 import { finaliseKana, isKana, romajiToKana } from '../../core/kana';
+import { type ReadingGroup, readingGroups } from '../../core/readings';
 
 /** A queue entry plus what it still owes. */
 type Card = QueueItem;
@@ -278,11 +285,8 @@ export class Review {
     }[type];
   }
 
-  protected primaryReadings(result: AnswerResult): string {
-    return (result.subject?.readings ?? [])
-      .filter((reading) => reading.accepted_answer !== false)
-      .map((reading) => reading.reading)
-      .join('、');
+  protected readings(subject: SubjectDetail): ReadingGroup[] {
+    return readingGroups(subject.readings);
   }
 
   protected primaryMeanings(result: AnswerResult): string {

@@ -62,9 +62,9 @@
       <dl>
         <dt>Meaning</dt>
         <dd>{{ meanings(item.subject) }}</dd>
-        @if (item.subject.readings.length > 0) {
-          <dt>Reading</dt>
-          <dd class="jp">{{ readings(item.subject) }}</dd>
+        @for (group of readings(item.subject); track group.label) {
+          <dt>{{ group.label ?? 'Reading' }}</dt>
+          <dd class="jp">{{ group.readings }}</dd>
         }
         @if (item.subject.meaning_mnemonic) {
           <dt>Meaning mnemonic</dt>
