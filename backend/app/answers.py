@@ -253,7 +253,7 @@ def check_reading(
 
     for entry in entries:
         if entry.get("reading") and answer == normalise_kana(entry["reading"]):
-            kind = entry.get("type") or "diese Lesung"
+            kind = entry.get("type")
             # Not counted. The learner produced a real reading of this
             # character, so they knew it -- they answered a question that was
             # not the one asked. WaniKani re-asks here rather than marking it
@@ -262,7 +262,11 @@ def check_reading(
                 correct=False,
                 expected="",
                 retry=True,
-                hint=f"That is the {kind} reading — a different one was asked for.",
+                hint=(
+                    f"That is the {kind} reading — a different one was asked for."
+                    if kind
+                    else "That is a real reading of this item, but not the one asked for."
+                ),
             )
 
     return AnswerCheck(correct=False, expected=primary)

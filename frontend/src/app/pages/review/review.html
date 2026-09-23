@@ -108,9 +108,14 @@
           <dl>
             <dt>Meanings</dt>
             <dd>{{ primaryMeanings(result) }}</dd>
-            @for (group of readings(subject); track group.label) {
-              <dt>{{ group.label ?? 'Readings' }}</dt>
-              <dd class="jp">{{ group.readings }}</dd>
+            @for (group of readings(subject); track group.key) {
+              <dt>
+                {{ group.label ?? 'Readings' }}
+                @if (!group.accepted) {
+                  <span class="not-asked">(not asked in reviews)</span>
+                }
+              </dt>
+              <dd class="jp" [class.not-asked]="!group.accepted">{{ group.readings }}</dd>
             }
             @if (subject.meaning_mnemonic) {
               <dt>Meaning mnemonic</dt>
