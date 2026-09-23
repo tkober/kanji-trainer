@@ -184,9 +184,14 @@
       </header>
 
       <dl>
-        @for (group of readings(item); track group.label) {
-          <dt>{{ group.label ?? 'Reading' }}</dt>
-          <dd class="jp">{{ group.readings }}</dd>
+        @for (group of readings(item); track group.key) {
+          <dt>
+            {{ group.label ?? 'Reading' }}
+            @if (!group.accepted) {
+              <span class="not-asked">(not asked in reviews)</span>
+            }
+          </dt>
+          <dd class="jp" [class.not-asked]="!group.accepted">{{ group.readings }}</dd>
         }
         @if (item.subject.parts_of_speech.length > 0) {
           <dt>Part of speech</dt>

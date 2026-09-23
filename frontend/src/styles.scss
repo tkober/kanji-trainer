@@ -68,6 +68,21 @@ body {
     'Noto Sans JP', 'Meiryo', sans-serif;
 }
 
+/* A reading WaniKani knows but never asks for — the kun'yomi of a kanji taught
+   by its on'yomi, and vice versa. Shown, because a learner looking at 女 wants
+   to know おんな exists; muted and named as such, because typing it in a review
+   buys a retry rather than a right answer. Global for the same reason `.jp` is:
+   all three screens render the same list. */
+dd.not-asked {
+  color: var(--muted);
+}
+
+dt .not-asked {
+  text-transform: none;
+  letter-spacing: 0;
+  font-weight: 400;
+}
+
 /* WaniKani tags the pieces of a mnemonic, `highlightMnemonic` turns those tags
    into spans, and this is what makes them readable: the same three colours the
    rest of the app uses for radicals, kanji and vocabulary, as a tint rather
