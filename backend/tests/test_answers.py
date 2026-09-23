@@ -151,5 +151,13 @@ def test_romaji_to_hiragana(romaji: str, kana: str):
     assert romaji_to_hiragana(romaji) == kana
 
 
+def test_the_doubled_n_is_one_kana():
+    """Most IMEs need "nn" for ん, so that is what the fingers do."""
+    assert romaji_to_hiragana("sann") == "さん"
+    assert romaji_to_hiragana("sannnen") == "さんねん"
+    # The second n still opens a syllable wherever it can -- see "onna" above.
+    assert romaji_to_hiragana("annai") == "あんない"
+
+
 def test_normalise_kana_folds_katakana_and_strips_spaces():
     assert normalise_kana(" コー ヒー ") == "こーひー"

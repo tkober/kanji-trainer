@@ -18,7 +18,7 @@ import type {
   QuizResult,
   SubjectDetail,
 } from '../../core/api.types';
-import { finaliseKana, isKana, romajiToKana } from '../../core/kana';
+import { absorbInput, finaliseKana, isKana, romajiToKana } from '../../core/kana';
 import { Mnemonic } from '../../core/mnemonic';
 import { type ReadingGroup, readingGroups } from '../../core/readings';
 
@@ -158,7 +158,9 @@ export class LessonsPage {
   // --- quiz phase -------------------------------------------------------
 
   onInput(event: Event): void {
-    this.raw.set((event.target as HTMLInputElement).value);
+    this.raw.set(
+      absorbInput((event.target as HTMLInputElement).value, this.display(), this.raw()),
+    );
   }
 
   onKeydown(event: KeyboardEvent): void {

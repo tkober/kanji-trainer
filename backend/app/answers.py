@@ -309,6 +309,11 @@ _ROMAJI_KEYS = sorted(_ROMAJI, key=len, reverse=True)
 _VOWELS = "aiueo"
 
 
+def _opens_syllable(char: str) -> bool:
+    """Whether a character could open a syllable after an "n": a vowel, or "y"."""
+    return char != "" and (char in _VOWELS or char == "y")
+
+
 def romaji_to_hiragana(value: str) -> str:
     """Convert romaji to hiragana. A fallback, not the main path.
 
@@ -340,6 +345,14 @@ def romaji_to_hiragana(value: str) -> str:
         if char == "n":
             following = text[index + 1] if index + 1 < len(text) else ""
             if following == "'":
+                out.append("ん")
+                index += 2
+                continue
+            # "nn" is the other spelling of ん, and the one most IMEs insist
+            # on. The second n is swallowed only where it could not open a
+            # syllable of its own: "onna" stays おんな, not おんあ.
+            after = text[index + 2] if index + 2 < len(text) else ""
+            if following == "n" and not _opens_syllable(after):
                 out.append("ん")
                 index += 2
                 continue

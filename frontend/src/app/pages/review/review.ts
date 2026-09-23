@@ -18,7 +18,7 @@ import type {
   QueueItem,
   SubjectDetail,
 } from '../../core/api.types';
-import { finaliseKana, isKana, romajiToKana } from '../../core/kana';
+import { absorbInput, finaliseKana, isKana, romajiToKana } from '../../core/kana';
 import { Mnemonic } from '../../core/mnemonic';
 import { type ReadingGroup, readingGroups } from '../../core/readings';
 
@@ -113,7 +113,9 @@ export class Review {
   }
 
   onInput(event: Event): void {
-    this.raw.set((event.target as HTMLInputElement).value);
+    this.raw.set(
+      absorbInput((event.target as HTMLInputElement).value, this.display(), this.raw()),
+    );
     // Editing withdraws the answer that was warned about; the next Enter is
     // checked afresh rather than submitting the old text.
     if (this.held()) {
