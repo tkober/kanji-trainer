@@ -18,6 +18,7 @@ import type {
   QueueItem,
   SubjectDetail,
 } from '../../core/api.types';
+import { Counters } from '../../core/counters';
 import { absorbInput, finaliseKana, isKana, romajiToKana } from '../../core/kana';
 import { Mnemonic } from '../../core/mnemonic';
 import { type ReadingGroup, readingGroups } from '../../core/readings';
@@ -33,12 +34,19 @@ type Card = QueueItem;
 })
 export class Review {
   private readonly api = inject(Api);
+  private readonly counters = inject(Counters);
   private readonly field = viewChild<ElementRef<HTMLInputElement>>('answerField');
 
   protected readonly loading = signal(true);
   protected readonly error = signal<string | null>(null);
   protected readonly queue = signal<Card[]>([]);
-  protected readonly totalDue = signal(0);
+  /**
+   * The same number the header badge shows, because it is the same number.
+   *
+   * Kept as its own signal here it drifted from the badge within one
+   * answer: "37 due in total" next to a badge reading 10.
+   */
+  protected readonly totalDue = this.counters.due;
   protected readonly feedback = signal<AnswerResult | null>(null);
   protected readonly raw = signal('');
   protected readonly submitting = signal(false);
@@ -103,7 +111,7 @@ export class Review {
     try {
       const queue = await this.api.reviewQueue(100);
       this.queue.set(queue.items);
-      this.totalDue.set(queue.total_due);
+      this.counters.setDue(queue.total_due);
     } catch (err) {
       this.error.set((err as Error).message);
     } finally {
@@ -179,6 +187,13 @@ export class Review {
 
       this.feedback.set(result);
 
+      // Completed means the item has moved and its next review is hours
+      // away: it has left the due set, and the badge should say so now
+      // rather than at the next poll. A half-answered item has not moved.
+      if (result.completed) {
+        this.counters.spendDue();
+      }
+
       // A retry is not an answer: the learner produced a real reading of the
       // character, just not the one asked for. It counts for nothing in
       // either direction, so it stays out of the session tally too.
@@ -229,6 +244,22 @@ export class Review {
     this.feedback.set(null);
     this.raw.set('');
     this.held.set(false);
+    this.continueRound();
+  }
+
+  /**
+   * Hand the caret back, or fetch the next round.
+   *
+   * A round is one page of the queue, and a long backlog has several. Running
+   * a page out used to end the session on "No reviews due" while the badge
+   * went on counting the rest, and the reload it wanted was a button the
+   * learner had to notice and press.
+   */
+  private continueRound(): void {
+    if (this.queue().length === 0 && this.totalDue() > 0) {
+      void this.load();
+      return;
+    }
     this.focus();
   }
 
@@ -250,8 +281,8 @@ export class Review {
       this.feedback.set(null);
       this.raw.set('');
       this.held.set(false);
-      this.totalDue.update((n) => Math.max(0, n - 1));
-      this.focus();
+      this.counters.spendDue();
+      this.continueRound();
     } catch (err) {
       this.error.set((err as Error).message);
     }
@@ -269,7 +300,10 @@ export class Review {
       this.feedback.set(null);
       this.raw.set('');
       this.held.set(false);
-      this.focus();
+      // Back to Apprentice I is four hours out, so this one has left the due
+      // set as surely as an answered item has.
+      this.counters.spendDue();
+      this.continueRound();
     } catch (err) {
       this.error.set((err as Error).message);
     }

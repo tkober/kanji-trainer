@@ -3,6 +3,7 @@ import { RouterLink } from '@angular/router';
 
 import { Api } from '../../core/api';
 import type { Forecast, ImportRun, Stats } from '../../core/api.types';
+import { Counters } from '../../core/counters';
 
 @Component({
   selector: 'app-dashboard',
@@ -12,6 +13,7 @@ import type { Forecast, ImportRun, Stats } from '../../core/api.types';
 })
 export class Dashboard {
   private readonly api = inject(Api);
+  private readonly counters = inject(Counters);
 
   protected readonly stats = signal<Stats | null>(null);
   protected readonly forecast = signal<Forecast | null>(null);
@@ -33,6 +35,10 @@ export class Dashboard {
         this.api.forecast(24),
       ]);
       this.stats.set(stats);
+      // This screen fetches the badge's numbers anyway; handing them over
+      // costs nothing and spares the badge a poll's worth of staleness.
+      this.counters.setDue(stats.due_now);
+      this.counters.setLessons(stats.lessons_available);
       this.lastImport.set(lastImport);
       this.forecast.set(forecast);
       this.error.set(null);
