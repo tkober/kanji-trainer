@@ -151,14 +151,18 @@ img.characters {
     border-color: #2b2f38;
   }
 
+  /* The tint is mixed into `--surface`, so the text has to come back to
+     `--text`: a reading field is white on dark until a verdict lands. */
   input.correct {
     border-color: var(--ok);
     background: color-mix(in srgb, var(--ok) 15%, var(--surface));
+    color: var(--text);
   }
 
   input.wrong {
     border-color: var(--bad);
     background: color-mix(in srgb, var(--bad) 15%, var(--surface));
+    color: var(--text);
   }
 }
 
