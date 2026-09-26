@@ -291,6 +291,17 @@ The app works normally in a browser there; "installed on the phone, offline"
 needs a reverse proxy with a certificate in front. Nothing in the code assumes
 either way.
 
+**The home-screen icon is the manifest's, and it works without TLS.** A phone
+takes the icon for a shortcut from `manifest.webmanifest`, which is why the
+tab's inline SVG is not enough and `public/` carries PNGs — no image decoder
+in that path renders SVG. `icons/render.py` draws them (`uv run --with pillow
+python icons/render.py`); they are checked in rather than built, because
+`npm run build` should not need a font and a Python interpreter. The maskable
+one is a separate file on purpose: a launcher may cut a circle or a squircle
+out of it, so the character stays inside the central 80 %. nginx serves them
+short-cached, unlike the hashed bundles — their names are stable, so a year of
+`immutable` would pin a redesigned icon for a year.
+
 ## The forecast
 
 `GET /api/forecast` returns hourly buckets with a running cumulative. Bucketing
