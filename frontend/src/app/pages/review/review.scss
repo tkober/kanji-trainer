@@ -82,14 +82,19 @@ img.characters {
     border-color: #2b2f38;
   }
 
+  /* Every verdict tint is mixed into `--surface`, so the text has to come back
+     to `--text` — a reading field is white on dark until one of these lands,
+     and white on a pale tint is the answer the learner just gave, unreadable. */
   input.correct {
     border-color: var(--ok);
     background: color-mix(in srgb, var(--ok) 15%, var(--surface));
+    color: var(--text);
   }
 
   input.wrong {
     border-color: var(--bad);
     background: color-mix(in srgb, var(--bad) 15%, var(--surface));
+    color: var(--text);
   }
 
   /* Held, not wrong: the answer has not been submitted, so it must not look
@@ -97,6 +102,7 @@ img.characters {
   input.held {
     border-color: var(--warn);
     background: color-mix(in srgb, var(--warn) 12%, var(--surface));
+    color: var(--text);
   }
 
   input.shake {
