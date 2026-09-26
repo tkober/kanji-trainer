@@ -167,8 +167,9 @@ through the `import_runs` row, which the UI polls. A synchronous import of
 
 **Frontend state lives in component signals**; the app is zoneless, so anything
 the UI must react to has to be a signal. There is no shared store — each screen
-fetches what it needs, and the only cross-screen state is the due badge in
-`app.ts`, which polls once a minute.
+fetches what it needs, and the only cross-screen state is what the header
+shows — the two badges and the current level — which `Counters` holds and
+`app.ts` polls for once a minute.
 
 ## Invariants worth preserving
 
