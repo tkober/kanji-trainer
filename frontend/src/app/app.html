@@ -1,7 +1,41 @@
 <header>
   <a routerLink="/" class="brand">漢字<span>Trainer</span></a>
 
-  <nav>
+  @if (level() !== null) {
+    <a routerLink="/lessons" class="level" title="The lowest level with lessons left">
+      <span class="label">Level</span>
+      <span class="value">{{ level() }}</span>
+    </a>
+  }
+
+  <!-- Narrow screens only; `nav` below is always there on a wide one. The due
+       count rides along on the button, because collapsing the nav would
+       otherwise hide the one number that changes while nobody is looking. -->
+  <button
+    type="button"
+    class="menu-toggle"
+    (click)="toggleMenu()"
+    [attr.aria-expanded]="menuOpen()"
+    aria-controls="main-nav"
+    aria-label="Menu"
+  >
+    @if (menuOpen()) {
+      <svg viewBox="0 0 24 24" aria-hidden="true">
+        <path d="M6 6l12 12M18 6L6 18" />
+      </svg>
+    } @else {
+      <svg viewBox="0 0 24 24" aria-hidden="true">
+        <path d="M3 6h18M3 12h18M3 18h18" />
+      </svg>
+    }
+    @if (due() > 0) {
+      <span class="badge">{{ due() }}</span>
+    }
+  </button>
+
+  <!-- One handler on the list: every link closes the menu, and a link added
+       later cannot forget to. -->
+  <nav id="main-nav" [class.open]="menuOpen()" (click)="closeMenu()">
     <a routerLink="/" routerLinkActive="active" [routerLinkActiveOptions]="{ exact: true }">
       Dashboard
     </a>
@@ -21,13 +55,6 @@
     <a routerLink="/browse" routerLinkActive="active">Items</a>
     <a routerLink="/settings" routerLinkActive="active">Settings</a>
   </nav>
-
-  @if (level() !== null) {
-    <a routerLink="/lessons" class="level" title="The lowest level with lessons left">
-      <span class="label">Level</span>
-      <span class="value">{{ level() }}</span>
-    </a>
-  }
 </header>
 
 <main>
