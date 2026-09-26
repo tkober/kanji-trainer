@@ -1,7 +1,7 @@
-import { Component, inject, signal } from '@angular/core';
+import { Component, inject } from '@angular/core';
 import { RouterLink, RouterLinkActive, RouterOutlet } from '@angular/router';
 
-import { Api } from './core/api';
+import { Counters } from './core/counters';
 
 @Component({
   imports: [RouterOutlet, RouterLink, RouterLinkActive],
@@ -10,28 +10,17 @@ import { Api } from './core/api';
   templateUrl: './app.html',
 })
 export class App {
-  private readonly api = inject(Api);
+  private readonly counters = inject(Counters);
 
-  protected readonly due = signal(0);
-  protected readonly lessons = signal(0);
+  protected readonly due = this.counters.due;
+  protected readonly lessons = this.counters.lessons;
 
   constructor() {
-    void this.refresh();
-    // The badge is the only thing on screen that goes stale on its own: an
-    // item can come due while the tab sits open. A minute is well under the
-    // shortest interval (four hours) and costs one small request.
-    setInterval(() => void this.refresh(), 60_000);
-  }
-
-  async refresh(): Promise<void> {
-    try {
-      const stats = await this.api.stats();
-      this.due.set(stats.due_now);
-      // The level's open lessons, not the collection's. A badge reading
-      // 9.321 after importing a reset account is worse than no badge.
-      this.lessons.set(stats.lessons_available);
-    } catch {
-      // A badge is not worth an error banner; the screens themselves report.
-    }
+    void this.counters.refresh();
+    // The badge can go stale with nobody touching anything: an item comes due
+    // on the clock. Everything the learner does is reported to `Counters` as
+    // it happens, so this is the correction for drift, not the count itself.
+    // A minute is well under the shortest interval (four hours).
+    setInterval(() => void this.counters.refresh(), 60_000);
   }
 }

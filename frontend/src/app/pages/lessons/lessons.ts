@@ -18,6 +18,7 @@ import type {
   QuizResult,
   SubjectDetail,
 } from '../../core/api.types';
+import { Counters } from '../../core/counters';
 import { absorbInput, finaliseKana, isKana, romajiToKana } from '../../core/kana';
 import { Mnemonic } from '../../core/mnemonic';
 import { type ReadingGroup, readingGroups } from '../../core/readings';
@@ -50,6 +51,7 @@ type Phase = 'reading' | 'quiz';
 })
 export class LessonsPage {
   private readonly api = inject(Api);
+  private readonly counters = inject(Counters);
   private readonly field = viewChild<ElementRef<HTMLInputElement>>('answerField');
 
   protected readonly phase = signal<Phase>('reading');
@@ -108,6 +110,8 @@ export class LessonsPage {
       this.items.set(lessons.items);
       this.level.set(lessons.level);
       this.totalInLevel.set(lessons.total_in_level);
+      // What the badge counts, and the one number here that is already it.
+      this.counters.setLessons(lessons.total_in_level);
       this.totalAvailable.set(lessons.total_available);
       this.levels.set(lessons.levels);
       this.dailyLimit.set(lessons.daily_limit);
@@ -282,6 +286,7 @@ export class LessonsPage {
 
   /** Keep the open-lesson counters honest without a round trip. */
   private countDeclared(n: number): void {
+    this.counters.spendLessons(n);
     this.totalInLevel.update((value) => Math.max(0, value - n));
     this.totalAvailable.update((value) => Math.max(0, value - n));
     this.levels.update((entries) =>
