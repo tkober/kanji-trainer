@@ -19,6 +19,7 @@ import type {
   SubjectDetail,
 } from '../../core/api.types';
 import { Counters } from '../../core/counters';
+import { HoldFocus } from '../../core/hold-focus';
 import { absorbInput, finaliseKana, isKana, romajiToKana } from '../../core/kana';
 import { Mnemonic } from '../../core/mnemonic';
 import { type ReadingGroup, readingGroups } from '../../core/readings';
@@ -28,7 +29,7 @@ type Card = QueueItem;
 
 @Component({
   selector: 'app-review',
-  imports: [DatePipe, Mnemonic, RouterLink],
+  imports: [DatePipe, HoldFocus, Mnemonic, RouterLink],
   templateUrl: './review.html',
   styleUrl: './review.scss',
 })
@@ -91,14 +92,19 @@ export class Review {
    * it is not in the DOM yet and a focus call lands on nothing. The viewChild
    * signal updates once it *is* rendered, and reading the question here makes
    * the effect re-run for every new prompt.
+   *
+   * Feedback no longer hands the caret back. On a desktop that was invisible;
+   * on a phone the caret is the keyboard, and one that closes on every answer
+   * and has to be re-opened by tapping the field is the difference between
+   * reviewing on the sofa and not reviewing at all. Focus is cheapest to keep,
+   * so the field holds it from the first item to the last — see `HoldFocus`
+   * for the other half, and `onInput` for what stops a locked field being
+   * typed into.
    */
   private readonly keepFocus = effect(() => {
-    const input = this.field()?.nativeElement;
     this.question();
-    const answered = this.feedback() !== null;
-    if (input && !answered) {
-      input.focus();
-    }
+    this.feedback();
+    this.field()?.nativeElement.focus();
   });
 
   constructor() {
@@ -121,9 +127,18 @@ export class Review {
   }
 
   onInput(event: Event): void {
-    this.raw.set(
-      absorbInput((event.target as HTMLInputElement).value, this.display(), this.raw()),
-    );
+    const input = event.target as HTMLInputElement;
+    // The answer is frozen while its feedback is up, and frozen here rather
+    // than with `readonly`: a read-only field is one the on-screen keyboard
+    // retracts from, which is exactly the blur this screen is built to avoid.
+    // The keystroke is dropped and the box put back the way it was — the
+    // binding cannot do it, since the value it holds has not changed.
+    if (this.feedback()) {
+      input.value = this.display();
+      return;
+    }
+
+    this.raw.set(absorbInput(input.value, this.display(), this.raw()));
     // Editing withdraws the answer that was warned about; the next Enter is
     // checked afresh rather than submitting the old text.
     if (this.held()) {

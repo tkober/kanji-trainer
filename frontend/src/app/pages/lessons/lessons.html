@@ -144,8 +144,8 @@
       autocorrect="off"
       autocapitalize="off"
       spellcheck="false"
+      [attr.enterkeyhint]="feedback() ? 'next' : 'go'"
       [value]="display()"
-      [readOnly]="feedback() !== null"
       [class.correct]="feedback()?.correct === true"
       [class.wrong]="feedback()?.correct === false"
       (input)="onInput($event)"
@@ -173,12 +173,14 @@
         The quiz costs no SRS stage — wrong answers simply come round again.
       </p>
       <div class="row">
-        <button class="primary" (click)="advance()">Next (Enter)</button>
+        <button class="primary" appHoldFocus (click)="advance()">Next (Enter)</button>
       </div>
     </section>
   } @else {
     <div class="row actions">
-      <button class="primary" [disabled]="busy()" (click)="submit()">Answer (Enter)</button>
+      <button class="primary" appHoldFocus [disabled]="busy()" (click)="submit()">
+        Answer (Enter)
+      </button>
     </div>
   }
 }

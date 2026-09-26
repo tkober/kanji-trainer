@@ -55,8 +55,8 @@
       autocorrect="off"
       autocapitalize="off"
       spellcheck="false"
+      [attr.enterkeyhint]="feedback() ? 'next' : 'go'"
       [value]="display()"
-      [readOnly]="feedback() !== null"
       [class.correct]="feedback()?.correct === true"
       [class.wrong]="feedback()?.correct === false && feedback()?.retry !== true"
       [class.held]="held()"
@@ -136,11 +136,11 @@
       }
 
       <div class="row">
-        <button class="primary" (click)="next()">
+        <button class="primary" appHoldFocus (click)="next()">
           {{ result.retry ? 'Try again (Enter)' : 'Next (Enter)' }}
         </button>
         @if (!result.correct && !result.retry) {
-          <button (click)="resetCurrent()">Relearn from scratch</button>
+          <button appHoldFocus (click)="resetCurrent()">Relearn from scratch</button>
         }
       </div>
     </section>
@@ -151,10 +151,12 @@
       </p>
     }
     <div class="row actions">
-      <button class="primary" [disabled]="submitting()" (click)="submit()">
+      <button class="primary" appHoldFocus [disabled]="submitting()" (click)="submit()">
         {{ held() ? 'Submit anyway (Enter)' : 'Answer (Enter)' }}
       </button>
-      <button class="known" (click)="markKnown()" title="Alt+K">I know this</button>
+      <button class="known" appHoldFocus (click)="markKnown()" title="Alt+K">
+        I know this
+      </button>
     </div>
     <p class="muted hint-line">
       “I know this” retires the item immediately — no waiting on intervals.

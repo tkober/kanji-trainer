@@ -19,6 +19,7 @@ import type {
   SubjectDetail,
 } from '../../core/api.types';
 import { Counters } from '../../core/counters';
+import { HoldFocus } from '../../core/hold-focus';
 import { absorbInput, finaliseKana, isKana, romajiToKana } from '../../core/kana';
 import { Mnemonic } from '../../core/mnemonic';
 import { type ReadingGroup, readingGroups } from '../../core/readings';
@@ -45,7 +46,7 @@ type Phase = 'reading' | 'quiz';
  */
 @Component({
   selector: 'app-lessons',
-  imports: [Mnemonic, RouterLink],
+  imports: [HoldFocus, Mnemonic, RouterLink],
   templateUrl: './lessons.html',
   styleUrl: './lessons.scss',
 })
@@ -89,14 +90,13 @@ export class LessonsPage {
     return romajiToKana(value);
   });
 
-  /** See the identical effect in review.ts — same reason, same shape. */
+  /** See the identical effect in review.ts — same reason, same shape, and the
+   * same reason for holding the caret through the feedback: the quiz is typed
+   * on a phone too. */
   private readonly keepFocus = effect(() => {
-    const input = this.field()?.nativeElement;
     this.question();
-    const answered = this.feedback() !== null;
-    if (input && !answered) {
-      input.focus();
-    }
+    this.feedback();
+    this.field()?.nativeElement.focus();
   });
 
   constructor() {
@@ -162,9 +162,14 @@ export class LessonsPage {
   // --- quiz phase -------------------------------------------------------
 
   onInput(event: Event): void {
-    this.raw.set(
-      absorbInput((event.target as HTMLInputElement).value, this.display(), this.raw()),
-    );
+    const input = event.target as HTMLInputElement;
+    // Frozen while the feedback is up, and not with `readonly` — see the same
+    // handler in review.ts.
+    if (this.feedback()) {
+      input.value = this.display();
+      return;
+    }
+    this.raw.set(absorbInput(input.value, this.display(), this.raw()));
   }
 
   onKeydown(event: KeyboardEvent): void {

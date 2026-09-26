@@ -232,6 +232,16 @@ already-touched subject ids up front for exactly this.
 used where present, so an item due in two days is not pulled forward just
 because the import ran today.
 
+**The answer field keeps the caret for the whole item.** On a phone the caret
+*is* the on-screen keyboard: every blur closes it, and a `focus()` call that
+lands after the tap that caused it — after an answer round trip, after change
+detection — does not bring it back. So the field is never blurred rather than
+re-focused afterwards. Two halves hold that up, and reviewing on a phone breaks
+the moment either goes: the field is not locked with `readonly` while feedback
+is up (a read-only field is one the keyboard retracts from, so `onInput`
+discards the keystroke instead), and every button on the two answering screens
+carries `appHoldFocus`, which cancels the focus change `mousedown` would make.
+
 ## The import, in detail
 
 Three outcomes per item, decided by `classify()`:
