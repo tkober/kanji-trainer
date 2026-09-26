@@ -21,6 +21,13 @@
     <a routerLink="/browse" routerLinkActive="active">Items</a>
     <a routerLink="/settings" routerLinkActive="active">Settings</a>
   </nav>
+
+  @if (level() !== null) {
+    <a routerLink="/lessons" class="level" title="The lowest level with lessons left">
+      <span class="label">Level</span>
+      <span class="value">{{ level() }}</span>
+    </a>
+  }
 </header>
 
 <main>

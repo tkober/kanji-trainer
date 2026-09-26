@@ -60,6 +60,40 @@ nav a {
   }
 }
 
+// Pushed to the far right of the header, away from the nav it is not part of:
+// it says where the learner is rather than offering a place to go. Right by
+// `margin-left: auto` rather than by position, so it can never sit on top of
+// a nav that has wrapped.
+.level {
+  margin-left: auto;
+  display: inline-flex;
+  align-items: baseline;
+  gap: 0.35rem;
+  padding: 0.3rem 0.6rem;
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  background: var(--surface-alt);
+  text-decoration: none;
+
+  &:hover {
+    border-color: var(--accent);
+  }
+
+  .label {
+    color: var(--muted);
+    font-size: 0.75rem;
+    text-transform: uppercase;
+    letter-spacing: 0.04em;
+  }
+
+  .value {
+    color: var(--text);
+    font-weight: 700;
+    font-size: 1rem;
+    font-variant-numeric: tabular-nums;
+  }
+}
+
 .badge {
   background: var(--accent);
   color: #fff;
@@ -73,6 +107,20 @@ nav a {
 
 .muted-badge {
   background: var(--muted);
+}
+
+// On a phone the nav already wraps to two rows, and a right-aligned chip
+// below them costs a third for one number. Giving the nav a row of its own
+// puts the level back on the brand's line, which is empty to the right.
+@media (max-width: 640px) {
+  nav {
+    order: 1;
+    flex-basis: 100%;
+  }
+
+  .level {
+    order: 0;
+  }
 }
 
 main {
