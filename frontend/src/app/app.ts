@@ -14,6 +14,7 @@ export class App {
 
   protected readonly due = this.counters.due;
   protected readonly lessons = this.counters.lessons;
+  protected readonly level = this.counters.level;
 
   constructor() {
     void this.counters.refresh();

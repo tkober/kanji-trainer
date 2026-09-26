@@ -39,6 +39,7 @@ export class Dashboard {
       // costs nothing and spares the badge a poll's worth of staleness.
       this.counters.setDue(stats.due_now);
       this.counters.setLessons(stats.lessons_available);
+      this.counters.setLevel(stats.current_level);
       this.lastImport.set(lastImport);
       this.forecast.set(forecast);
       this.error.set(null);

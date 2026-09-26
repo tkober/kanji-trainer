@@ -1,15 +1,15 @@
-import { Injectable, inject, signal } from '@angular/core';
+import { Injectable, WritableSignal, inject, signal } from '@angular/core';
 
 import { Api } from './api';
 
-/** One badge number: what it is, and whether a poll may still overwrite it. */
-class Counter {
-  readonly value = signal(0);
+/** One header value: what it is, and whether a poll may still overwrite it. */
+class Tracked<T> {
+  readonly value: WritableSignal<T>;
 
   /**
-   * How many times a screen has set this number.
+   * How many times a screen has set this value.
    *
-   * A poll issued before an answer carries a count taken before it too, so
+   * A poll issued before an answer carries a value taken before it too, so
    * landing late it would put the stale number straight back — the bug this
    * file exists to fix, only rarer and harder to see. Comparing the count of
    * edits before and after the request says whether that happened. Each
@@ -17,30 +17,45 @@ class Counter {
    */
   private edits = 0;
 
+  constructor(initial: T) {
+    this.value = signal(initial);
+  }
+
   mark(): number {
     return this.edits;
   }
 
-  set(count: number): void {
+  set(value: T): void {
     this.edits += 1;
-    this.value.set(count);
+    this.value.set(value);
   }
 
-  spend(n: number): void {
+  update(change: (current: T) => T): void {
     this.edits += 1;
-    this.value.update((current) => Math.max(0, current - n));
+    this.value.update(change);
   }
 
-  /** Take a polled count, unless a screen has said something newer. */
-  settle(count: number, seen: number): void {
+  /** Take a polled value, unless a screen has said something newer. */
+  settle(value: T, seen: number): void {
     if (this.edits === seen) {
-      this.value.set(count);
+      this.value.set(value);
     }
   }
 }
 
+/** A badge number, which a screen can also subtract from without refetching. */
+class Counter extends Tracked<number> {
+  constructor() {
+    super(0);
+  }
+
+  spend(n: number): void {
+    this.update((current) => Math.max(0, current - n));
+  }
+}
+
 /**
- * The two numbers in the header, in one place.
+ * What the header shows, in one place: the two badges and the level.
  *
  * They are the app's only cross-screen state, and the only state that can go
  * stale with nothing happening: an item comes due on the clock, without a
@@ -58,17 +73,22 @@ export class Counters {
 
   private readonly dueCounter = new Counter();
   private readonly lessonCounter = new Counter();
+  private readonly levelValue = new Tracked<number | null>(null);
 
   readonly due = this.dueCounter.value.asReadonly();
   readonly lessons = this.lessonCounter.value.asReadonly();
+  /** The level the lesson queue is on; null when nothing is left to learn. */
+  readonly level = this.levelValue.value.asReadonly();
 
   async refresh(): Promise<void> {
     const dueSeen = this.dueCounter.mark();
     const lessonsSeen = this.lessonCounter.mark();
+    const levelSeen = this.levelValue.mark();
     try {
       const stats = await this.api.stats();
       this.dueCounter.settle(stats.due_now, dueSeen);
       this.lessonCounter.settle(stats.lessons_available, lessonsSeen);
+      this.levelValue.settle(stats.current_level, levelSeen);
     } catch {
       // A badge is not worth an error banner; the screens themselves report.
     }
@@ -82,6 +102,18 @@ export class Counters {
   /** Open lessons in the level the lesson screen serves, not everywhere. */
   setLessons(count: number): void {
     this.lessonCounter.set(count);
+  }
+
+  /**
+   * The lowest level with lessons left, from a response that already named it.
+   *
+   * Only `current_level` belongs here, never the level the lesson screen is
+   * *showing*: the picker can walk ahead to level 40 while level 3 is still
+   * open, and the header would then advertise a level the learner is not on
+   * until the next poll put it back.
+   */
+  setLevel(level: number | null): void {
+    this.levelValue.set(level);
   }
 
   /** `n` items just left the due set: answered through, declared or reset. */
