@@ -18,6 +18,10 @@ section + section {
   text-align: center;
   color: #fff;
   box-shadow: var(--shadow);
+  /* Lets `.characters` size itself off this card's own width (`cqi`) below,
+     rather than the viewport — a block-level card, so containment here does
+     not affect anything outside it. */
+  container-type: inline-size;
 
   &[data-type='radical'] {
     background: var(--radical);
@@ -34,8 +38,10 @@ section + section {
 }
 
 .characters {
-  font-size: clamp(3rem, 15vw, 5rem);
+  /* Shrinks a long item to fit before it wraps — see review.scss. */
+  font-size: max(2rem, min(clamp(3rem, 15vw, 5rem), calc(100cqi / var(--glyphs, 1) * 0.95)));
   line-height: 1.1;
+  overflow-wrap: anywhere;
 }
 
 img.characters {
