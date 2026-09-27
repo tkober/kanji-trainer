@@ -171,6 +171,24 @@ fetches what it needs, and the only cross-screen state is what the header
 shows — the two badges and the current level — which `Counters` holds and
 `app.ts` polls for once a minute.
 
+**The review queue's order is a setting, built in SQL, before the `LIMIT`.**
+`_review_order()` in `study.py` composes the `ORDER BY` from two independent
+choices — `review_item_order` (random / oldest due first / lowest SRS stage
+first / lowest level first) and `review_type_order` (mixed, or radicals-then-
+kanji-then-vocabulary) — because a fixed order lets the previous item cue the
+next one, and an SRS that can be recalled by position rather than by content
+is not testing recall in isolation. It has to happen before the page is cut
+down to `limit` items: a due backlog can run to the thousands, and shuffling
+only the fetched page would just shuffle the oldest slice of it. Ties are
+broken with `func.random()` rather than `subject_id` for every non-random
+order — after a WaniKani import, huge numbers of items share a due time, a
+stage or a level, and subject ids were assigned in WaniKani's own
+radicals-then-kanji-then-vocabulary order, which a `subject_id` tiebreak would
+quietly reproduce regardless of `review_type_order`. One key always leads,
+ahead of both settings: an item with a review in flight (`pending_meaning` or
+`pending_reading` set — a half-answered item from a closed tab) is served
+first, so it is picked up right away rather than lost somewhere in a shuffle.
+
 ## Invariants worth preserving
 
 **A queue item never carries its answers.** `SubjectSummary` and
@@ -350,8 +368,6 @@ week for no reason.
   characters. Damerau-Levenshtein would forgive the commonest typo; pinned by
   `test_a_transposition_in_a_short_meaning_is_not_forgiven` rather than left to
   surprise someone mid-session.
-- The review queue is served in due order and shuffled nowhere, so a long
-  backlog is always worked oldest-first.
 - `_apply_assignments` issues one UPDATE per assignment. At ~9.000 rows that is
   slow but bounded, and it only runs during an import.
 - No authentication. Single user, LAN only — the same assumption the other

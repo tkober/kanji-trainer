@@ -168,6 +168,31 @@
     it. The warning never reveals the right answer.
   </p>
 
+  <div class="row">
+    <label>
+      Item order
+      <select [(ngModel)]="reviewItemOrder">
+        <option ngValue="random">Random (default)</option>
+        <option ngValue="oldest_first">Oldest due first</option>
+        <option ngValue="lowest_stage_first">Lowest SRS stage first</option>
+        <option ngValue="lowest_level_first">Lowest level first</option>
+      </select>
+    </label>
+
+    <label>
+      Item types
+      <select [(ngModel)]="reviewTypeOrder">
+        <option ngValue="mixed">Mixed (default)</option>
+        <option ngValue="grouped">Radicals, then kanji, then vocabulary</option>
+      </select>
+    </label>
+  </div>
+  <p class="muted footnote">
+    Random and mixed are the defaults on purpose: a fixed order lets the previous item cue
+    the next one, so recall is never tested in isolation. Ties (common after an import, when
+    many items share a due time) are always broken randomly, whichever order is chosen.
+  </p>
+
   <p class="muted footnote">
     A batch is read in one go and quizzed in one go; 5 is WaniKani's default and about as
     much as fits between reading a mnemonic and being asked to produce it.
