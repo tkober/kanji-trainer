@@ -62,6 +62,8 @@ uv run uvicorn app.main:app --reload --port 8000
 uv run pytest               # needs Docker: testcontainers starts a Postgres
 TEST_DB=sqlite uv run pytest   # same suite against a temp SQLite file, no Docker
 uv run pytest tests/test_srs.py::test_falling_out_of_guru_counts_a_lapse
+uv run alembic revision --autogenerate -m "..."   # after changing a model in db.py
+uv run alembic upgrade head                       # apply migrations by hand, outside init_db
 
 cd frontend
 npm start                   # ng serve on :4200
@@ -81,9 +83,26 @@ as the other stacks: an **owner** role runs DDL in `init_db()` at startup, an
 `ALTER DEFAULT PRIVILEGES` (bootstrap SQL in `deploy/kanji_trainer/bootstrap/`),
 so no GRANT is issued from code.
 
-`migrate_schema()` is the hook for column additions — `create_all` only creates
-missing *tables*, so anything else has to go there, idempotent and append-only
-via `ADDED_COLUMNS`.
+Schema changes are Alembic revisions (`backend/alembic/versions/`), applied by
+`init_db()` on every startup via `upgrade head`. To change the schema: edit the
+model in `db.py`, then `cd backend && uv run alembic revision --autogenerate
+-m "..."` and hand-check the result — the same way 0001 (the full baseline)
+was checked against the models by hand. `env.py` runs either on the owner
+connection `init_db` already opened (`config.attributes["connection"]`, inside
+its transaction) or, from the CLI, on an engine it builds itself from the
+owner URL; `target_metadata = Base.metadata` is what makes `--autogenerate`
+and the `compare_metadata` guard in `tests/test_migrations.py` possible — a
+model change that ships without a matching revision fails that test.
+
+Every database that predates this change has its tables (from the old
+`create_all`) but no `alembic_version` row — that combination is what
+`_migrate_to_head()` reads as "pre-Alembic": it finishes the schema to exactly
+the 0001 baseline with `migrate_schema()`, the now-frozen bridge for column
+additions that `ADDED_COLUMNS` used to handle, then stamps `0001` so Alembic
+does not try to re-run DDL that already happened years ago. From there
+(and for a fresh database, or one already stamped) it is always `upgrade
+head`, so a revision added after 0002 is never skipped. `migrate_schema()` and
+`ADDED_COLUMNS` are frozen — nothing is ever added to that list again.
 
 `RuntimeConfig` (`runtime_config.py`) is what the request paths take, not raw
 settings: environment defaults with the `app_settings` row layered on top. A
@@ -122,7 +141,11 @@ that module knows which one is in use. What differs:
   quotes a string default as a literal, so SQLite stores the *text* `'false'`
   and reads it back as `True`.
 - **`migrate_schema()` reflects instead of `ADD COLUMN IF NOT EXISTS`**, which
-  SQLite does not have. Add to `ADDED_COLUMNS`, not to the SQL.
+  SQLite does not have — frozen now, and only reached by a pre-Alembic
+  database on its way to being stamped, see Persistence above.
+- **Alembic runs in batch mode on SQLite** (`render_as_batch=True` in
+  `env.py` when the dialect is `sqlite`): SQLite can't `ALTER` most things
+  directly, so batch mode rebuilds the table under the hood instead.
 - **`_upsert()`** picks the dialect's `insert`; both offer `on_conflict_*` with
   the same arguments but neither accepts the other's construct.
 - **Three PRAGMAs on every connection** (`_configure_sqlite_connection`):
