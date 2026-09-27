@@ -44,8 +44,8 @@
      content width. The previous clamp becomes the ceiling — a single kanji
      still renders at the old max size — and 2rem is the floor. The 0.95
      factor is a safety margin so rounding does not push the last glyph onto
-     a new line. Wrapping is left alone: once the floor is reached, a string
-     that still does not fit wraps, which is exactly what the issue wants.
+     a new line. Wrapping is left alone: only once the floor is reached does a
+     string that still does not fit wrap.
      `overflow-wrap: anywhere` covers a run with no break opportunity at all. */
   font-size: max(2rem, min(clamp(3.5rem, 18vw, 6rem), calc(100cqi / var(--glyphs, 1) * 0.95)));
   line-height: 1.1;
