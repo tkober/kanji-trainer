@@ -254,6 +254,43 @@ class Subject(Base):
     )
 
 
+class SubjectIllustration(Base):
+    """A radical's WaniKani mnemonic illustration, fetched lazily and cached.
+
+    WaniKani's API has no endpoint for these -- only the public subject page
+    (``https://www.wanikani.com/radicals/<slug>``) carries the
+    ``<wk-mnemonic-image>`` element, so :mod:`app.illustrations` fetches it the
+    first time a radical's detail is shown and stores the result here.
+
+    Deliberately its own table rather than columns on :class:`Subject`: the
+    importer upserts ``subjects`` wholesale on every (re-)import (see
+    ``importer._flush_subjects``) and must never touch this one, or importing
+    again would throw away every illustration fetched since -- and, unlike
+    ``subjects``, this table holds nothing WaniKani would consider "content" to
+    refresh; it is entirely this app's own cache.
+
+    ``svg IS NULL`` is itself meaningful: it means the page was checked, at
+    ``checked_at``, and carried no illustration -- WaniKani does not have art
+    for every radical yet, but keeps adding it, so such a row is re-checked
+    only after :data:`app.illustrations.RECHECK_AFTER_DAYS`. A row with
+    ``svg`` set is never re-fetched at all.
+    """
+
+    __tablename__ = "subject_illustrations"
+
+    subject_id: Mapped[int] = mapped_column(
+        ForeignKey("subjects.id", ondelete="CASCADE"), primary_key=True
+    )
+    #: The files.wanikani.com URL the SVG was fetched from. Kept for
+    #: debugging a bad fetch, not read back by the app.
+    source_url: Mapped[str | None] = mapped_column(Text, nullable=True)
+    #: The element's aria-label -- names the meaning, so it belongs on the
+    #: detail screens this illustration is shown on, never on a queue item.
+    alt: Mapped[str | None] = mapped_column(Text, nullable=True)
+    svg: Mapped[str | None] = mapped_column(Text, nullable=True)
+    checked_at: Mapped[datetime] = mapped_column(UtcDateTime, nullable=False)
+
+
 class Progress(Base):
     """What the learner has done with one subject. One row per subject.
 

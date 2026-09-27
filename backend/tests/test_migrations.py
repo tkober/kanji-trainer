@@ -74,6 +74,7 @@ async def test_legacy_database_is_bridged_without_losing_data() -> None:
     engine = _new_engine(get_settings().owner_database_url)
     try:
         async with engine.connect() as conn:
+            tables = await conn.run_sync(lambda c: set(inspect(c).get_table_names()))
             columns = await conn.run_sync(
                 lambda c: {col["name"] for col in inspect(c).get_columns("app_settings")}
             )
@@ -83,6 +84,7 @@ async def test_legacy_database_is_bridged_without_losing_data() -> None:
     finally:
         await engine.dispose()
 
+    assert "subject_illustrations" in tables
     assert "lesson_batch_size" in columns, "migrate_schema should have added the missing column"
     assert version == _head_revision()
 

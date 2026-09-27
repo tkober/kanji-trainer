@@ -6,6 +6,7 @@ import { Api } from '../../core/api';
 import type { Item, ObjectType } from '../../core/api.types';
 import { Mnemonic } from '../../core/mnemonic';
 import { type ReadingGroup, readingGroups } from '../../core/readings';
+import { RadicalIllustration } from '../../shared/radical-illustration/radical-illustration';
 
 const PAGE_SIZE = 100;
 
@@ -19,7 +20,7 @@ const PAGE_SIZE = 100;
  */
 @Component({
   selector: 'app-browse',
-  imports: [DatePipe, FormsModule, Mnemonic],
+  imports: [DatePipe, FormsModule, Mnemonic, RadicalIllustration],
   templateUrl: './browse.html',
   styleUrl: './browse.scss',
 })

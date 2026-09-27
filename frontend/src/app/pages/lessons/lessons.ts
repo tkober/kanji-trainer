@@ -24,6 +24,7 @@ import { HoldFocus } from '../../core/hold-focus';
 import { absorbInput, finaliseKana, isKana, romajiToKana } from '../../core/kana';
 import { Mnemonic } from '../../core/mnemonic';
 import { type ReadingGroup, readingGroups } from '../../core/readings';
+import { RadicalIllustration } from '../../shared/radical-illustration/radical-illustration';
 
 /** One item in the quiz, with the questions it still owes. */
 interface QuizCard {
@@ -47,7 +48,7 @@ type Phase = 'reading' | 'quiz';
  */
 @Component({
   selector: 'app-lessons',
-  imports: [HoldFocus, Mnemonic, RouterLink],
+  imports: [HoldFocus, Mnemonic, RadicalIllustration, RouterLink],
   templateUrl: './lessons.html',
   styleUrl: './lessons.scss',
 })

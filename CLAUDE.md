@@ -188,6 +188,18 @@ rotation: its response names the expected answer, which is exactly what
 through the `import_runs` row, which the UI polls. A synchronous import of
 ~9.000 subjects would hit nginx's read timeout long before it finished.
 
+**Radical mnemonic illustrations are not in the WaniKani API**, only on the
+public subject page (`https://www.wanikani.com/radicals/<slug>`), so
+`app/illustrations.py` fetches one lazily -- the first time a radical's
+detail is actually shown -- and caches it in its own `subject_illustrations`
+table rather than in `subjects`. Its own table on purpose: the importer
+upserts `subjects` wholesale on every (re-)import, and a re-import must not
+throw away art already fetched. A stored `svg IS NULL` means "checked, found
+nothing yet" and is retried after 30 days, since WaniKani keeps adding art; a
+stored SVG never is. Never part of `SubjectSummary`/`SubjectDetail` or the
+review queue -- `app-radical-illustration` (frontend) only ever appears next
+to a mnemonic that is already on screen, never on a question.
+
 **Frontend state lives in component signals**; the app is zoneless, so anything
 the UI must react to has to be a signal. There is no shared store — each screen
 fetches what it needs, and the only cross-screen state is what the header

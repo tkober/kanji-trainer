@@ -1,0 +1,5 @@
+@if (available()) {
+  <div class="illustration">
+    <img [src]="svgUrl(subjectId())" [alt]="alt() ?? 'Mnemonic illustration'" />
+  </div>
+}

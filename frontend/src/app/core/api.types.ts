@@ -49,6 +49,12 @@ export interface SubjectDetail extends SubjectSummary {
   wanikani_url: string | null;
 }
 
+/** Never carries the SVG itself -- see `Api.illustration`. */
+export interface Illustration {
+  available: boolean;
+  alt: string | null;
+}
+
 export interface Progress {
   state: ItemState;
   srs_stage: number;
