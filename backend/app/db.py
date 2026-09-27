@@ -170,6 +170,12 @@ class AppSettings(Base):
     daily_lesson_limit: Mapped[int | None] = mapped_column(Integer, nullable=True)
     lesson_batch_size: Mapped[int | None] = mapped_column(Integer, nullable=True)
     soft_answer_enabled: Mapped[bool | None] = mapped_column(Boolean, nullable=True)
+    # Both validated against models.REVIEW_ITEM_ORDERS / REVIEW_TYPE_ORDERS on
+    # the way in (SettingsIn) and again on the way out of build_runtime_config,
+    # so a value written by an older or newer version of this app can never
+    # break the review screen.
+    review_item_order: Mapped[str | None] = mapped_column(String, nullable=True)
+    review_type_order: Mapped[str | None] = mapped_column(String, nullable=True)
 
     updated_at: Mapped[datetime] = mapped_column(
         UtcDateTime, nullable=False, server_default=func.now()
@@ -527,6 +533,8 @@ async def _wait_for_database(engine: AsyncEngine) -> None:
 ADDED_COLUMNS: tuple[tuple[str, str, str], ...] = (
     ("app_settings", "lesson_batch_size", "INTEGER"),
     ("app_settings", "soft_answer_enabled", "BOOLEAN"),
+    ("app_settings", "review_item_order", "TEXT"),
+    ("app_settings", "review_type_order", "TEXT"),
 )
 
 

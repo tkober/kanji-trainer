@@ -57,6 +57,15 @@ class Settings(BaseSettings):
     # knowing the item -- and at three characters there is no typo tolerance
     # at all, so "en" for "end" is simply a demotion.
     soft_answer_enabled: bool = True
+    # How the queue orders items that are equally due. Random by default: a
+    # fixed order lets the previous item cue the next one (radicals, then
+    # kanji, then vocabulary is WaniKani's own insertion order), so recall
+    # stops being tested in isolation. See models.REVIEW_ITEM_ORDERS.
+    review_item_order: str = "random"
+    # Whether radicals/kanji/vocabulary come as separate blocks or interleaved.
+    # Mixed by default, for the same reason as review_item_order above.
+    # See models.REVIEW_TYPE_ORDERS.
+    review_type_order: str = "mixed"
 
     # --- Answer checking ---
     # Allowed Levenshtein distance for a meaning, per this many characters of

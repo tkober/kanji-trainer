@@ -19,6 +19,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 
 from .config import Settings, get_settings
 from .db import AppSettings, load_settings
+from .models import REVIEW_ITEM_ORDERS, REVIEW_TYPE_ORDERS
 
 
 @dataclass(frozen=True)
@@ -34,6 +35,10 @@ class RuntimeConfig:
     daily_lesson_limit: int
     lesson_batch_size: int
     soft_answer_enabled: bool
+    #: One of REVIEW_ITEM_ORDERS, guaranteed by _pick_choice below.
+    review_item_order: str
+    #: One of REVIEW_TYPE_ORDERS, guaranteed by _pick_choice below.
+    review_type_order: str
 
     # --- environment only (infrastructure, not user business) ---
     wanikani_api_base: str
@@ -67,6 +72,21 @@ def _parse_intervals(raw: str | None, fallback: tuple[int, ...]) -> tuple[int, .
     return tuple(values[:10])
 
 
+def _pick_choice(stored: str | None, env_value: str, allowed: tuple[str, ...]) -> str:
+    """Pick a review-order value, never returning anything outside ``allowed``.
+
+    Same spirit as ``_parse_intervals``: a bad value -- a stale option from a
+    removed feature, or a typo in the environment -- must not be able to break
+    the review screen. The stored override wins when it is valid; otherwise
+    the environment value is used if valid, else the first (default) option.
+    """
+    if stored in allowed:
+        return stored  # type: ignore[return-value]
+    if env_value in allowed:
+        return env_value
+    return allowed[0]
+
+
 def build_runtime_config(row: AppSettings | None, env: Settings) -> RuntimeConfig:
     """Merge the settings row onto the environment defaults."""
     token = ((row.wanikani_api_token if row else None) or "").strip()
@@ -90,6 +110,12 @@ def build_runtime_config(row: AppSettings | None, env: Settings) -> RuntimeConfi
             env.soft_answer_enabled
             if row is None or row.soft_answer_enabled is None
             else row.soft_answer_enabled
+        ),
+        review_item_order=_pick_choice(
+            row.review_item_order if row else None, env.review_item_order, REVIEW_ITEM_ORDERS
+        ),
+        review_type_order=_pick_choice(
+            row.review_type_order if row else None, env.review_type_order, REVIEW_TYPE_ORDERS
         ),
         wanikani_api_base=env.wanikani_api_base,
         wanikani_revision=env.wanikani_revision,
