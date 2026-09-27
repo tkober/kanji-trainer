@@ -18,6 +18,10 @@ section + section {
   text-align: center;
   color: #fff;
   box-shadow: var(--shadow);
+  /* Lets `.characters` size itself off this card's own width (`cqi`) below,
+     rather than the viewport — a block-level card, so containment here does
+     not affect anything outside it. */
+  container-type: inline-size;
 
   &[data-type='radical'] {
     background: var(--radical);
@@ -34,8 +38,19 @@ section + section {
 }
 
 .characters {
-  font-size: clamp(3rem, 15vw, 5rem);
+  /* WaniKani glyphs (kanji and kana, including small っ) are full-width, so a
+     string of N of them needs about N em of inline space: `--glyphs` (set per
+     item in the template, see glyphCount()) turns that into `100cqi /
+     --glyphs`, the font size at which the string exactly fills the card's
+     content width. The previous clamp becomes the ceiling — a single kanji
+     still renders at the old max size — and 2rem is the floor. The 0.95
+     factor is a safety margin so rounding does not push the last glyph onto
+     a new line. Wrapping is left alone: once the floor is reached, a string
+     that still does not fit wraps, which is exactly what the issue wants.
+     `overflow-wrap: anywhere` covers a run with no break opportunity at all. */
+  font-size: max(2rem, min(clamp(3rem, 15vw, 5rem), calc(100cqi / var(--glyphs, 1) * 0.95)));
   line-height: 1.1;
+  overflow-wrap: anywhere;
 }
 
 img.characters {

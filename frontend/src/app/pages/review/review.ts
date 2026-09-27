@@ -19,6 +19,7 @@ import type {
   SubjectDetail,
 } from '../../core/api.types';
 import { Counters } from '../../core/counters';
+import { glyphCount } from '../../core/glyphs';
 import { HoldFocus } from '../../core/hold-focus';
 import { absorbInput, finaliseKana, isKana, romajiToKana } from '../../core/kana';
 import { Mnemonic } from '../../core/mnemonic';
@@ -335,6 +336,11 @@ export class Review {
       vocabulary: 'Vocabulary',
       kana_vocabulary: 'Vocabulary (kana)',
     }[type];
+  }
+
+  /** Bound to `.characters` as `--glyphs`, so its font shrinks to fit the card. */
+  protected glyphCount(text: string): number {
+    return glyphCount(text);
   }
 
   protected readings(subject: SubjectDetail): ReadingGroup[] {
