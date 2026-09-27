@@ -10,10 +10,26 @@ not an SRS.
 from __future__ import annotations
 
 from datetime import datetime
+from typing import Literal
 
 from pydantic import BaseModel, ConfigDict, Field
 
 from .srs import QuestionType
+
+# The allowed review-order values, defined once so runtime_config.py (falling
+# back on a bad stored or env value) and the API schemas below (rejecting one
+# with a 422) agree on what "valid" means. srs.py stays dependency-free on
+# purpose, so these live here rather than there.
+REVIEW_ITEM_ORDERS: tuple[str, ...] = (
+    "random",
+    "oldest_first",
+    "lowest_stage_first",
+    "lowest_level_first",
+)
+ReviewItemOrder = Literal["random", "oldest_first", "lowest_stage_first", "lowest_level_first"]
+
+REVIEW_TYPE_ORDERS: tuple[str, ...] = ("mixed", "grouped")
+ReviewTypeOrder = Literal["mixed", "grouped"]
 
 
 class Health(BaseModel):
@@ -235,6 +251,8 @@ class SettingsOut(BaseModel):
     daily_lesson_limit: int
     lesson_batch_size: int
     soft_answer_enabled: bool
+    review_item_order: ReviewItemOrder
+    review_type_order: ReviewTypeOrder
 
 
 class SettingsIn(BaseModel):
@@ -247,6 +265,8 @@ class SettingsIn(BaseModel):
     daily_lesson_limit: int | None = Field(default=None, ge=0)
     lesson_batch_size: int | None = Field(default=None, ge=1, le=100)
     soft_answer_enabled: bool | None = None
+    review_item_order: ReviewItemOrder | None = None
+    review_type_order: ReviewTypeOrder | None = None
 
 
 class WaniKaniAccount(BaseModel):

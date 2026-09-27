@@ -2,7 +2,13 @@ import { Component, OnDestroy, inject, signal } from '@angular/core';
 import { FormsModule } from '@angular/forms';
 
 import { Api } from '../../core/api';
-import type { ImportRun, Settings, WaniKaniAccount } from '../../core/api.types';
+import type {
+  ImportRun,
+  ReviewItemOrder,
+  ReviewTypeOrder,
+  Settings,
+  WaniKaniAccount,
+} from '../../core/api.types';
 
 @Component({
   selector: 'app-settings',
@@ -27,6 +33,8 @@ export class SettingsPage implements OnDestroy {
   protected dailyLimit = 0;
   protected batchSize = 5;
   protected softAnswer = true;
+  protected reviewItemOrder: ReviewItemOrder = 'random';
+  protected reviewTypeOrder: ReviewTypeOrder = 'mixed';
   protected remapExisting = false;
 
   private poller: ReturnType<typeof setInterval> | null = null;
@@ -45,6 +53,8 @@ export class SettingsPage implements OnDestroy {
       this.dailyLimit = settings.daily_lesson_limit;
       this.batchSize = settings.lesson_batch_size;
       this.softAnswer = settings.soft_answer_enabled;
+      this.reviewItemOrder = settings.review_item_order;
+      this.reviewTypeOrder = settings.review_type_order;
       this.run.set(run);
       if (run?.status === 'running') {
         this.watch(run.id);
@@ -75,6 +85,8 @@ export class SettingsPage implements OnDestroy {
         daily_lesson_limit: this.dailyLimit,
         lesson_batch_size: this.batchSize,
         soft_answer_enabled: this.softAnswer,
+        review_item_order: this.reviewItemOrder,
+        review_type_order: this.reviewTypeOrder,
       },
       'Settings saved.',
     );

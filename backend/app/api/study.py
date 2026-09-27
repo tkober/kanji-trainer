@@ -5,7 +5,7 @@ from __future__ import annotations
 from datetime import datetime, timezone
 
 from fastapi import APIRouter, Depends, HTTPException, Query
-from sqlalchemy import func, select
+from sqlalchemy import ColumnElement, case, func, or_, select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from .. import srs
@@ -24,7 +24,7 @@ from ..models import (
     QuizOut,
     StartLessonsIn,
 )
-from ..runtime_config import load_runtime_config
+from ..runtime_config import RuntimeConfig, load_runtime_config
 from ..serialize import subject_detail, subject_summary
 from ..srs import ItemState, QuestionType
 
@@ -47,12 +47,65 @@ def _questions(progress: Progress, subject: Subject) -> list[QuestionType]:
 # --- reviews ---------------------------------------------------------------
 
 
+def _review_order(config: RuntimeConfig) -> list[ColumnElement]:
+    """Build the queue's ORDER BY, most to least important.
+
+    A fixed order breaks isolated SRS recall -- a review right after another
+    one of the same kind lets the first cue the second, and after a WaniKani
+    import most items share a due time and the leftover subject_id tiebreak
+    would silently reproduce WaniKani's own radicals-kanji-vocabulary
+    insertion order. So sorting is configurable and happens here, in SQL,
+    before the LIMIT: the page is at most a few hundred rows out of possibly
+    thousands due, and shuffling only the fetched page would just shuffle the
+    oldest backlog.
+
+    Leading key always: an item with a review in flight (closed tab,
+    half-answered) is due *now*, regardless of order settings -- losing track
+    of it would be worse than any ordering preference.
+    """
+    order: list[ColumnElement] = [
+        case(
+            (
+                or_(Progress.pending_meaning.is_not(None), Progress.pending_reading.is_not(None)),
+                0,
+            ),
+            else_=1,
+        )
+    ]
+
+    if config.review_type_order == "grouped":
+        order.append(
+            case(
+                (Subject.object_type == "radical", 0),
+                (Subject.object_type == "kanji", 1),
+                else_=2,  # vocabulary and kana_vocabulary together
+            )
+        )
+
+    if config.review_item_order == "oldest_first":
+        order.append(Progress.next_review_at)
+    elif config.review_item_order == "lowest_stage_first":
+        order.append(Progress.srs_stage)
+    elif config.review_item_order == "lowest_level_first":
+        order.append(Subject.level)
+    # "random" adds no key of its own here -- the tiebreak below is func.random()
+    # regardless, which is exactly what "random" order means.
+
+    # Every order ends on a random tiebreak, because ties are the common case
+    # after an import: hundreds of items share a due time, a stage or a level.
+    # A subject_id tiebreak would work too, but subject ids were assigned in
+    # WaniKani's own type order, which is exactly the grouping this function
+    # exists to make optional -- so break ties randomly instead.
+    order.append(func.random())
+    return order
+
+
 @router.get("/reviews", response_model=Queue)
 async def review_queue(
     limit: int = Query(default=50, ge=1, le=500),
     session: AsyncSession = Depends(get_session),
 ) -> Queue:
-    """Items that are due, soonest first."""
+    """Items that are due, ordered per the review-order settings."""
     config = await load_runtime_config(session)
     cutoff = srs.due_cutoff(datetime.now(timezone.utc), config.review_grace_minutes)
 
@@ -67,7 +120,7 @@ async def review_queue(
         select(Progress, Subject)
         .join(Subject, Subject.id == Progress.subject_id)
         .where(*due)
-        .order_by(Progress.next_review_at, Progress.subject_id)
+        .order_by(*_review_order(config))
         .limit(limit)
     )
 

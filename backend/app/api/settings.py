@@ -49,6 +49,8 @@ async def _current(session: AsyncSession) -> SettingsOut:
         daily_lesson_limit=config.daily_lesson_limit,
         lesson_batch_size=config.lesson_batch_size,
         soft_answer_enabled=config.soft_answer_enabled,
+        review_item_order=config.review_item_order,
+        review_type_order=config.review_type_order,
     )
 
 
@@ -80,6 +82,8 @@ async def write_settings(
         "daily_lesson_limit",
         "lesson_batch_size",
         "soft_answer_enabled",
+        "review_item_order",
+        "review_type_order",
     ):
         if name in fields:
             values[name] = fields[name]

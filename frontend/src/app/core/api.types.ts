@@ -9,6 +9,10 @@ export type ObjectType = 'radical' | 'kanji' | 'vocabulary' | 'kana_vocabulary';
 export type QuestionType = 'meaning' | 'reading';
 export type ItemState = 'new' | 'learning' | 'known' | 'suspended';
 
+/** Mirrors backend/app/models.py REVIEW_ITEM_ORDERS / REVIEW_TYPE_ORDERS. */
+export type ReviewItemOrder = 'random' | 'oldest_first' | 'lowest_stage_first' | 'lowest_level_first';
+export type ReviewTypeOrder = 'mixed' | 'grouped';
+
 /** What the review queue is allowed to carry: the prompt, never the answer. */
 export interface SubjectSummary {
   id: number;
@@ -143,6 +147,8 @@ export interface Settings {
   daily_lesson_limit: number;
   lesson_batch_size: number;
   soft_answer_enabled: boolean;
+  review_item_order: ReviewItemOrder;
+  review_type_order: ReviewTypeOrder;
 }
 
 export interface SettingsPatch {
@@ -153,6 +159,8 @@ export interface SettingsPatch {
   daily_lesson_limit?: number;
   lesson_batch_size?: number;
   soft_answer_enabled?: boolean;
+  review_item_order?: ReviewItemOrder;
+  review_type_order?: ReviewTypeOrder;
 }
 
 export interface WaniKaniAccount {
