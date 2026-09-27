@@ -24,13 +24,14 @@ import { HoldFocus } from '../../core/hold-focus';
 import { absorbInput, finaliseKana, isKana, romajiToKana } from '../../core/kana';
 import { Mnemonic } from '../../core/mnemonic';
 import { type ReadingGroup, readingGroups } from '../../core/readings';
+import { RadicalIllustration } from '../../shared/radical-illustration/radical-illustration';
 
 /** A queue entry plus what it still owes. */
 type Card = QueueItem;
 
 @Component({
   selector: 'app-review',
-  imports: [DatePipe, HoldFocus, Mnemonic, RouterLink],
+  imports: [DatePipe, HoldFocus, Mnemonic, RadicalIllustration, RouterLink],
   templateUrl: './review.html',
   styleUrl: './review.scss',
 })

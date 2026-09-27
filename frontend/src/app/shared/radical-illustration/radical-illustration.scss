@@ -1,0 +1,22 @@
+:host {
+  display: block;
+}
+
+.illustration {
+  display: flex;
+  justify-content: center;
+  margin: 0.75rem 0;
+
+  img {
+    max-width: 12rem;
+    max-height: 12rem;
+    /* WaniKani draws these as dark line art with no background, meant for a
+       white page. The app's surface can be dark, so a fixed light backdrop
+       — not `var(--surface)`, which would go dark right along with it — is
+       what keeps the art visible instead of merging into the card. */
+    background: #ffffff;
+    border-radius: var(--radius);
+    padding: 0.5rem;
+    box-shadow: var(--shadow);
+  }
+}

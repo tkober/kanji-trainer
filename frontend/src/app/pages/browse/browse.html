@@ -221,6 +221,11 @@
         </dd>
       </dl>
 
+      <app-radical-illustration
+        [subjectId]="item.subject.id"
+        [objectType]="item.subject.object_type"
+      />
+
       @if (item.subject.wanikani_url; as url) {
         <p class="source">
           <a [href]="url" target="_blank" rel="noopener">Open the original on WaniKani ↗</a>

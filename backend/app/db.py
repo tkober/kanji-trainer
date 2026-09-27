@@ -12,8 +12,9 @@ A ``sqlite://`` DB_URL runs the same schema out of a local file instead, for a
 machine that has no Postgres to point at. Everything that differs between the
 two backends is collected here rather than sprinkled through the request paths:
 the column types (:data:`JSONColumn`, :class:`UtcDateTime`), the upsert
-(:func:`_upsert`), the schema migration and the connection setup. Nothing above
-this module needs to know which one is in use.
+(:func:`_upsert`), the schema migration (Alembic, driven from
+:func:`_migrate_to_head`) and the connection setup. Nothing above this module
+needs to know which one is in use.
 """
 
 from __future__ import annotations
@@ -22,8 +23,11 @@ import asyncio
 import logging
 from collections.abc import AsyncIterator
 from datetime import datetime, timezone
+from pathlib import Path
 from typing import Any
 
+from alembic import command as alembic_command
+from alembic.config import Config as AlembicConfig
 from sqlalchemy import (
     JSON,
     Boolean,
@@ -250,6 +254,43 @@ class Subject(Base):
     )
 
 
+class SubjectIllustration(Base):
+    """A radical's WaniKani mnemonic illustration, fetched lazily and cached.
+
+    WaniKani's API has no endpoint for these -- only the public subject page
+    (``https://www.wanikani.com/radicals/<slug>``) carries the
+    ``<wk-mnemonic-image>`` element, so :mod:`app.illustrations` fetches it the
+    first time a radical's detail is shown and stores the result here.
+
+    Deliberately its own table rather than columns on :class:`Subject`: the
+    importer upserts ``subjects`` wholesale on every (re-)import (see
+    ``importer._flush_subjects``) and must never touch this one, or importing
+    again would throw away every illustration fetched since -- and, unlike
+    ``subjects``, this table holds nothing WaniKani would consider "content" to
+    refresh; it is entirely this app's own cache.
+
+    ``svg IS NULL`` is itself meaningful: it means the page was checked, at
+    ``checked_at``, and carried no illustration -- WaniKani does not have art
+    for every radical yet, but keeps adding it, so such a row is re-checked
+    only after :data:`app.illustrations.RECHECK_AFTER_DAYS`. A row with
+    ``svg`` set is never re-fetched at all.
+    """
+
+    __tablename__ = "subject_illustrations"
+
+    subject_id: Mapped[int] = mapped_column(
+        ForeignKey("subjects.id", ondelete="CASCADE"), primary_key=True
+    )
+    #: The files.wanikani.com URL the SVG was fetched from. Kept for
+    #: debugging a bad fetch, not read back by the app.
+    source_url: Mapped[str | None] = mapped_column(Text, nullable=True)
+    #: The element's aria-label -- names the meaning, so it belongs on the
+    #: detail screens this illustration is shown on, never on a queue item.
+    alt: Mapped[str | None] = mapped_column(Text, nullable=True)
+    svg: Mapped[str | None] = mapped_column(Text, nullable=True)
+    checked_at: Mapped[datetime] = mapped_column(UtcDateTime, nullable=False)
+
+
 class Progress(Base):
     """What the learner has done with one subject. One row per subject.
 
@@ -442,7 +483,7 @@ async def get_session() -> AsyncIterator[AsyncSession]:
 
 
 async def init_db() -> None:
-    """Create the schema and ensure the settings row (run on startup).
+    """Bring the schema to Alembic's head and ensure the settings row.
 
     DDL requires the owner role, so this opens a short-lived owner connection.
     """
@@ -452,13 +493,76 @@ async def init_db() -> None:
     try:
         await _wait_for_database(owner_engine)
         async with owner_engine.begin() as conn:
-            await conn.run_sync(Base.metadata.create_all)
-            await migrate_schema(conn)
+            await _migrate_to_head(conn)
         async with async_sessionmaker(owner_engine, expire_on_commit=False)() as session:
             await ensure_settings_row(session)
             await session.commit()
     finally:
         await owner_engine.dispose()
+
+
+async def _migrate_to_head(conn: AsyncConnection) -> None:
+    """Bring the schema up to Alembic's head, bridging a pre-Alembic database.
+
+    Three cases, told apart by what is already there:
+
+    * **App tables, no ``alembic_version``** -- every database that existed
+      before this change, the live one included: `create_all` made the tables
+      long ago, but nothing ever recorded a revision. `migrate_schema` (the
+      frozen bridge below) finishes it to exactly the 0001 baseline first --
+      an older deployment may be missing a column from `ADDED_COLUMNS` that
+      0001 assumes is already there -- and then it is stamped "0001" so
+      Alembic considers it caught up to the baseline without re-running DDL
+      that already happened.
+    * **Neither** -- a fresh database. `upgrade head` alone creates 0001
+      onward from nothing.
+    * **`alembic_version` already present** -- a database this code has
+      already brought up to date once. `upgrade head` is then a no-op unless
+      a revision shipped since.
+
+    All three end the same way: `upgrade head`, so a revision added after 0002
+    is never skipped.
+    """
+    existing = await conn.run_sync(lambda sync_conn: set(inspect(sync_conn).get_table_names()))
+    has_app_tables = bool(existing & set(Base.metadata.tables))
+    has_alembic_version = "alembic_version" in existing
+
+    if has_app_tables and not has_alembic_version:
+        log.info("Pre-Alembic database detected; bridging it to the 0001 baseline.")
+        await migrate_schema(conn)
+        await conn.run_sync(_alembic_stamp, "0001")
+
+    await conn.run_sync(_alembic_upgrade_head)
+
+
+def _alembic_config() -> AlembicConfig:
+    """Alembic's config, with the script location resolved from this module's
+    own path rather than from the process's working directory -- the
+    Dockerfile need not `WORKDIR` into `backend/` for this to find
+    `alembic.ini` and `alembic/`.
+    """
+    backend_root = Path(__file__).resolve().parent.parent
+    config = AlembicConfig(str(backend_root / "alembic.ini"))
+    config.set_main_option("script_location", str(backend_root / "alembic"))
+    return config
+
+
+def _alembic_stamp(sync_conn: Any, revision: str) -> None:
+    """Record a revision as applied without running its migration.
+
+    Runs on the connection `init_db` already opened (see the `run_sync` call
+    site) rather than opening a second one -- ``alembic/env.py`` picks it up
+    from ``config.attributes["connection"]``.
+    """
+    config = _alembic_config()
+    config.attributes["connection"] = sync_conn
+    alembic_command.stamp(config, revision)
+
+
+def _alembic_upgrade_head(sync_conn: Any) -> None:
+    config = _alembic_config()
+    config.attributes["connection"] = sync_conn
+    alembic_command.upgrade(config, "head")
 
 
 def _prepare_sqlite_directory(path: Any) -> None:
@@ -527,9 +631,13 @@ async def _wait_for_database(engine: AsyncEngine) -> None:
             await asyncio.sleep(settings.db_connect_delay_seconds)
 
 
-# Columns added after their table first shipped. Append-only: an existing
-# database carries real review history, so a line here is never edited or
-# removed, only added to.
+# Frozen: this list is exactly what the 0001 Alembic baseline assumes is
+# already there, and a database new enough to reach 0001 through
+# `upgrade head` never runs this function at all. It stays only as the bridge
+# for a pre-Alembic database that predates one of these columns -- see
+# `_migrate_to_head`. Every schema change from here on is an Alembic revision
+# under `alembic/versions/` (`uv run alembic revision --autogenerate -m "..."`),
+# never a new line here.
 ADDED_COLUMNS: tuple[tuple[str, str, str], ...] = (
     ("app_settings", "lesson_batch_size", "INTEGER"),
     ("app_settings", "soft_answer_enabled", "BOOLEAN"),
@@ -540,6 +648,13 @@ ADDED_COLUMNS: tuple[tuple[str, str, str], ...] = (
 
 async def migrate_schema(conn: AsyncConnection) -> None:
     """Add columns that ``create_all`` cannot: it only creates missing *tables*.
+
+    Frozen, and only ever called from the pre-Alembic bridge in
+    ``_migrate_to_head``: a database old enough to need this predates
+    ``alembic_version`` entirely, so it has to be completed to the 0001
+    baseline (which assumes every ``ADDED_COLUMNS`` entry already applied)
+    before it can be stamped and handed to Alembic. Nothing adds to this list
+    anymore -- see the comment on ``ADDED_COLUMNS``.
 
     Idempotence comes from asking which columns exist rather than from
     ``ADD COLUMN IF NOT EXISTS``, which SQLite does not have. Reflecting first

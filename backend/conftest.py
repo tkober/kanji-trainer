@@ -92,6 +92,8 @@ def _bootstrap_roles(container: object) -> None:
 @pytest_asyncio.fixture(autouse=True)
 async def fresh_schema(database_url: str) -> AsyncIterator[None]:
     """Drop and recreate the schema around every test."""
+    from sqlalchemy import text
+
     from app.config import get_settings
     from app.db import Base, _new_engine, init_db, reset_engines
 
@@ -99,6 +101,11 @@ async def fresh_schema(database_url: str) -> AsyncIterator[None]:
     engine = _new_engine(get_settings().owner_database_url)
     async with engine.begin() as conn:
         await conn.run_sync(Base.metadata.drop_all)
+        # Base.metadata knows nothing about Alembic's own bookkeeping table,
+        # so it survives drop_all -- leaving it around would make every test
+        # look like an already-migrated database instead of a fresh one, and
+        # skip exactly the code path test_migrations.py exists to guard.
+        await conn.execute(text("DROP TABLE IF EXISTS alembic_version"))
     await engine.dispose()
 
     await init_db()

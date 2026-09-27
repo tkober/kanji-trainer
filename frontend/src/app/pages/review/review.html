@@ -129,6 +129,14 @@
               <dt>Reading mnemonic</dt>
               <dd [innerHTML]="subject.reading_mnemonic | mnemonic"></dd>
             }
+          </dl>
+
+          <app-radical-illustration
+            [subjectId]="subject.id"
+            [objectType]="subject.object_type"
+          />
+
+          <dl>
             @if (subject.wanikani_url; as url) {
               <dt>Source</dt>
               <dd>

@@ -25,6 +25,11 @@ class Settings(BaseSettings):
     # afterwards.
     wanikani_api_token: str = ""
     wanikani_api_base: str = "https://api.wanikani.com/v2"
+    # The public subject pages the API does not expose (radical mnemonic
+    # illustrations -- see app/illustrations.py) live under here. Configurable
+    # so tests never touch the real site: pointing this at an httpx mock
+    # transport's fake base is enough to keep every test offline.
+    wanikani_site_base: str = "https://www.wanikani.com"
     # Revision pin. WaniKani promises not to break a revision, so an
     # unattended import cannot be surprised by a schema change.
     wanikani_revision: str = "20170710"

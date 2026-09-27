@@ -89,6 +89,11 @@
         }
       </dl>
 
+      <app-radical-illustration
+        [subjectId]="item.subject.id"
+        [objectType]="item.subject.object_type"
+      />
+
       <div class="row nav">
         <button [disabled]="index() === 0" (click)="previous()">Back</button>
         @if (onLastItem()) {

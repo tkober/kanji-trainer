@@ -5,6 +5,7 @@ import { firstValueFrom } from 'rxjs';
 import type {
   AnswerResult,
   ImportRun,
+  Illustration,
   Item,
   Forecast,
   ItemPage,
@@ -103,6 +104,12 @@ export class Api {
 
   item(subjectId: number): Promise<Item> {
     return this.get(`/api/items/${subjectId}`);
+  }
+
+  /** Triggers the lazy fetch on the backend if nothing fresh is cached yet.
+   * Never fetches from wanikani.com itself -- see `app.illustrations`. */
+  illustration(subjectId: number): Promise<Illustration> {
+    return this.get(`/api/items/${subjectId}/illustration`);
   }
 
   /** "I know this." The reason this app exists. */

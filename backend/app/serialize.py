@@ -9,6 +9,7 @@ from __future__ import annotations
 
 from urllib.parse import quote
 
+from .config import get_settings
 from .db import Progress, Subject
 from .models import ProgressOut, SubjectDetail, SubjectSummary
 from .srs import stage_name
@@ -47,11 +48,20 @@ def wanikani_url(subject: Subject) -> str | None:
     It belongs to the detail and not to :func:`subject_summary`: that page
     names the meaning, so a queue item carrying the link would carry the
     answer.
+
+    Built from :data:`app.config.Settings.wanikani_site_base` rather than a
+    literal ``https://www.wanikani.com`` -- the same page is where
+    :mod:`app.illustrations` fetches a radical's mnemonic illustration from,
+    and that module reuses this function rather than building the URL a
+    second time.
     """
     if subject.wanikani_id is None or not subject.slug:
         return None
     path = _WANIKANI_PATHS.get(subject.object_type)
-    return None if path is None else f"https://www.wanikani.com/{path}/{quote(subject.slug)}"
+    if path is None:
+        return None
+    site_base = get_settings().wanikani_site_base.rstrip("/")
+    return f"{site_base}/{path}/{quote(subject.slug)}"
 
 
 def subject_detail(subject: Subject) -> SubjectDetail:

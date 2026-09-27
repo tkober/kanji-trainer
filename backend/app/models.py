@@ -69,6 +69,15 @@ class SubjectDetail(SubjectSummary):
     wanikani_url: str | None = None
 
 
+class IllustrationOut(BaseModel):
+    """Whether a radical's mnemonic illustration is there to show, and its
+    alt text -- never the SVG itself, which has its own endpoint so it can be
+    cached and referenced from an ``<img src>`` directly."""
+
+    available: bool
+    alt: str | None = None
+
+
 class ProgressOut(BaseModel):
     model_config = ConfigDict(from_attributes=True)
 
