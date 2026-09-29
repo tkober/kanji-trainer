@@ -6,7 +6,7 @@
       <select [value]="level() ?? ''" (change)="pickLevel($event)">
         @for (entry of levels(); track entry.level) {
           <option [value]="entry.level">
-            Level {{ entry.level }} — {{ entry.open_count }} left
+            Level {{ entry.level }} — {{ entry.open_count > 0 ? entry.open_count + ' left' : 'done' }}
           </option>
         }
       </select>
@@ -20,28 +20,121 @@
 
 @if (loading()) {
   <p class="muted">Loading …</p>
-} @else if (items().length === 0) {
-  <section class="card empty">
-    <h2>No lessons left</h2>
-    @if (dailyLimit() > 0 && totalAvailable() > 0) {
-      <p class="muted">
-        {{ totalAvailable() }} would still be available, but your daily limit of
-        {{ dailyLimit() }} is reached. You can change the limit in Settings.
-      </p>
-    } @else if (totalAvailable() > 0) {
-      <p class="muted">
-        Nothing left in this level. {{ totalAvailable() }} items are still waiting in other
-        levels.
-      </p>
-    } @else {
-      <p class="muted">Everything learned. Import new content or do some reviews.</p>
+} @else if (phase() === 'select') {
+  @if (tiles().length === 0) {
+    <section class="card empty">
+      <h2>No lessons left</h2>
+      @if (totalAvailable() > 0) {
+        <p class="muted">
+          Nothing to learn in this level. {{ totalAvailable() }} items are still waiting in
+          other levels.
+        </p>
+      } @else {
+        <p class="muted">Everything learned. Import new content or do some reviews.</p>
+      }
+      <a routerLink="/review"><button class="primary">Go to reviews</button></a>
+    </section>
+  } @else {
+    <div class="legend">
+      <span class="key"><span class="swatch" data-band="lesson"></span>Lesson</span>
+      <span class="key"><span class="swatch" data-band="apprentice"></span>Apprentice (1–4)</span>
+      <span class="key"><span class="swatch" data-band="guru"></span>Guru (5–6)</span>
+      <span class="key"><span class="swatch" data-band="master"></span>Master (7)</span>
+      <span class="key"><span class="swatch" data-band="enlightened"></span>Enlightened (8)</span>
+      <span class="key"><span class="swatch" data-band="burned"></span>Burned (9)</span>
+    </div>
+
+    @if (totalInLevel() === 0) {
+      <p class="muted note">Nothing left to learn in this level.</p>
     }
-    <a routerLink="/review"><button class="primary">Go to reviews</button></a>
-  </section>
+    @if (remainingToday() !== null) {
+      <p class="muted note">Daily limit: {{ remainingToday() }} lessons left today.</p>
+    }
+
+    @for (group of groups(); track group.key) {
+      @if (group.tiles.length > 0) {
+        <section class="group">
+          <div class="group-head">
+            <h2>{{ group.label }} <span class="muted count">({{ group.tiles.length }})</span></h2>
+            <div class="group-actions">
+              <button type="button" (click)="selectAllIn(group.tiles)">Select all</button>
+              <button type="button" (click)="noneIn(group.tiles)">None</button>
+            </div>
+          </div>
+          <div class="tile-grid">
+            @for (tile of group.tiles; track tile.subject.id) {
+              @if (tile.state === 'new') {
+                <button
+                  type="button"
+                  class="tile"
+                  [attr.data-band]="band(tile.srs_stage)"
+                  [class.selected]="isSelected(tile.subject.id)"
+                  [disabled]="!isSelected(tile.subject.id) && capReached()"
+                  [attr.aria-pressed]="isSelected(tile.subject.id)"
+                  [title]="tileLabel(tile)"
+                  [attr.aria-label]="tileLabel(tile)"
+                  (click)="toggleTile(tile)"
+                >
+                  @if (tile.subject.characters) {
+                    <span class="jp">{{ tile.subject.characters }}</span>
+                  } @else if (tile.subject.character_image_url) {
+                    <img [src]="tile.subject.character_image_url" [alt]="tile.subject.slug" />
+                  }
+                  @if (isSelected(tile.subject.id)) {
+                    <span class="badge" aria-hidden="true">✓</span>
+                  }
+                </button>
+              } @else {
+                <span
+                  class="tile static"
+                  [attr.data-band]="band(tile.srs_stage)"
+                  [class.known]="tile.state === 'known'"
+                  [class.suspended]="tile.state === 'suspended'"
+                  [title]="tileLabel(tile)"
+                  [attr.aria-label]="tileLabel(tile)"
+                >
+                  @if (tile.subject.characters) {
+                    <span class="jp">{{ tile.subject.characters }}</span>
+                  } @else if (tile.subject.character_image_url) {
+                    <img [src]="tile.subject.character_image_url" [alt]="tile.subject.slug" />
+                  }
+                  @if (tile.state === 'known') {
+                    <span class="badge" aria-hidden="true">✓</span>
+                  }
+                </span>
+              }
+            }
+          </div>
+        </section>
+      }
+    }
+
+    <section class="action-bar">
+      <span class="selected-count">{{ selectedCount() }} selected</span>
+      <label class="check">
+        <input type="checkbox" [checked]="batching()" (change)="toggleBatching($event)" />
+        In batches of {{ batchSize() }}
+      </label>
+      <span class="spacer"></span>
+      <button
+        class="known"
+        [disabled]="selectedCount() === 0 || busy()"
+        (click)="markSelectedKnown()"
+      >
+        I already know these {{ selectedCount() }}
+      </button>
+      <button class="primary" [disabled]="selectedCount() === 0 || busy()" (click)="startSelected()">
+        Start lessons ({{ selectedCount() }})
+      </button>
+    </section>
+  }
 } @else if (phase() === 'reading') {
   <p class="muted count">
-    Level {{ level() }}: {{ items().length }} in this batch, {{ totalInLevel() }} left in the
-    level<span class="dim"> · {{ totalAvailable() }} in total</span>
+    @if (totalChunks() > 1) {
+      Batch {{ chunkIndex() + 1 }} of {{ totalChunks() }} · {{ items().length }} in this batch
+    } @else {
+      {{ items().length }} in this batch
+    }
   </p>
 
   @if (current(); as item) {
@@ -112,17 +205,23 @@
 
   <section class="card batch">
     <div class="row">
-      <button class="known" [disabled]="busy()" (click)="markBatchKnown()">
+      <button class="known" [disabled]="busy()" (click)="markChunkKnown()">
         I already know all {{ items().length }}
       </button>
+      <button [disabled]="busy()" (click)="backToSelection()">Back to selection</button>
     </div>
     <p class="muted footnote">
-      The fast way through levels you have finished once before: the items go straight to
-      “known”, with no quiz and without ever entering the review queue.
+      The fast way through items you already know from elsewhere: they go straight to “known”,
+      with no quiz and without ever entering the review queue. “Back to selection” abandons any
+      batch not yet committed; batches already started stay started.
     </p>
   </section>
 } @else if (card(); as card) {
   <div class="progress">
+    @if (totalChunks() > 1) {
+      <span>Batch {{ chunkIndex() + 1 }} of {{ totalChunks() }}</span>
+      <span class="muted">·</span>
+    }
     <span>{{ passed() }} / {{ items().length }} done</span>
     <span class="muted">·</span>
     <span class="muted">{{ queue().length }} left in this quiz</span>

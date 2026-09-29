@@ -1,9 +1,13 @@
-"""The lesson queue's level scoping, and the quiz that gates the SRS.
+"""The lesson selection view, and the quiz that gates the SRS.
 
 Both exist because of a concrete failure: importing a reset WaniKani account
 made every one of ~9.400 items a lesson, so the screen reported "9.321 offen"
 and offered no way to act on it — and the batch went straight into the SRS
 without the learner ever having produced a single answer.
+
+The selection view goes one step further than a queue: it shows the whole
+level, learned items included, tiled by SRS stage, so the learner picks
+exactly what to work on rather than taking whatever came off the top.
 """
 
 from __future__ import annotations
@@ -12,7 +16,15 @@ from app.db import Progress, Subject
 from app.srs import ItemState
 
 
-async def seed(session, *, level: int, slug: str, wanikani_id: int) -> int:
+async def seed(
+    session,
+    *,
+    level: int,
+    slug: str,
+    wanikani_id: int,
+    state: str = ItemState.NEW.value,
+    srs_stage: int = 0,
+) -> int:
     subject = Subject(
         wanikani_id=wanikani_id,
         object_type="kanji",
@@ -28,7 +40,7 @@ async def seed(session, *, level: int, slug: str, wanikani_id: int) -> int:
     )
     session.add(subject)
     await session.flush()
-    session.add(Progress(subject_id=subject.id, state=ItemState.NEW.value))
+    session.add(Progress(subject_id=subject.id, state=state, srs_stage=srs_stage))
     await session.commit()
     return subject.id
 
@@ -48,7 +60,7 @@ async def test_the_queue_serves_the_lowest_level_that_still_has_lessons(client, 
     # The collection-wide figure is still reported, as context rather than as
     # a to-do list.
     assert body["total_available"] == 3
-    assert [item["subject"]["level"] for item in body["items"]] == [3]
+    assert [tile["subject"]["level"] for tile in body["tiles"]] == [3]
 
 
 async def test_a_level_can_be_asked_for_directly(client, session):
@@ -58,40 +70,80 @@ async def test_a_level_can_be_asked_for_directly(client, session):
     body = (await client.get("/api/lessons", params={"level": 40})).json()
 
     assert body["level"] == 40
-    assert [item["subject"]["level"] for item in body["items"]] == [40]
+    assert [tile["subject"]["level"] for tile in body["tiles"]] == [40]
 
 
-async def test_every_open_level_is_listed_for_the_picker(client, session):
+async def test_tiles_include_the_whole_level_not_just_the_open_items(client, session):
+    """A tile carries no answers, whatever state the item is in -- see the
+    invariant that a queue item (and this is the same shape) must not leak
+    meanings or readings for something already in the review rotation."""
+    new_id = await seed(session, level=3, slug="上", wanikani_id=1)
+    learning_id = await seed(
+        session, level=3, slug="下", wanikani_id=2, state=ItemState.LEARNING.value, srs_stage=3
+    )
+    known_id = await seed(
+        session, level=3, slug="左", wanikani_id=3, state=ItemState.KNOWN.value, srs_stage=9
+    )
+
+    body = (await client.get("/api/lessons", params={"level": 3})).json()
+
+    by_id = {tile["subject"]["id"]: tile for tile in body["tiles"]}
+    assert set(by_id) == {new_id, learning_id, known_id}
+    assert by_id[new_id]["state"] == "new"
+    assert by_id[new_id]["srs_stage"] == 0
+    assert by_id[learning_id]["state"] == "learning"
+    assert by_id[learning_id]["srs_stage"] == 3
+    assert by_id[known_id]["state"] == "known"
+    assert by_id[known_id]["srs_stage"] == 9
+    # Only open in the level, not the whole level, is the number for the
+    # picker and the header.
+    assert body["total_in_level"] == 1
+
+    for tile in body["tiles"]:
+        assert "meanings" not in tile["subject"]
+        assert "readings" not in tile["subject"]
+
+
+async def test_every_level_with_any_subject_is_listed_including_finished_ones(client, session):
     await seed(session, level=3, slug="下", wanikani_id=2)
     await seed(session, level=3, slug="右", wanikani_id=4)
-    await seed(session, level=40, slug="左", wanikani_id=3)
+    await seed(
+        session, level=5, slug="左", wanikani_id=3, state=ItemState.KNOWN.value, srs_stage=9
+    )
+    await seed(session, level=40, slug="上", wanikani_id=1)
 
     body = (await client.get("/api/lessons")).json()
 
     assert body["levels"] == [
-        {"level": 3, "open_count": 2},
-        {"level": 40, "open_count": 1},
+        {"level": 3, "open_count": 2, "total_count": 2},
+        {"level": 5, "open_count": 0, "total_count": 1},
+        {"level": 40, "open_count": 1, "total_count": 1},
     ]
+    # The default level stays the lowest one that still has something open,
+    # not the lowest level overall (5 sits between 3 and 40 but is finished).
+    assert body["level"] == 3
 
 
 async def test_an_empty_collection_reports_no_level_rather_than_failing(client):
     body = (await client.get("/api/lessons")).json()
 
     assert body["level"] is None
-    assert body["items"] == []
+    assert body["tiles"] == []
     assert body["total_available"] == 0
 
 
-async def test_the_batch_size_is_configurable_and_defaults_to_five(client, session):
+async def test_the_batch_size_is_configurable(client, session):
     for n in range(8):
         await seed(session, level=1, slug=f"x{n}", wanikani_id=100 + n)
 
-    assert len((await client.get("/api/lessons")).json()["items"]) == 5
+    assert (await client.get("/api/lessons")).json()["batch_size"] == 5
 
     await client.put("/api/settings", json={"lesson_batch_size": 3})
     body = (await client.get("/api/lessons")).json()
-    assert len(body["items"]) == 3
     assert body["batch_size"] == 3
+    # The batch size no longer caps what the selection view shows -- that is
+    # a client-side chunking choice made once items are picked.
+    assert len(body["tiles"]) == 8
 
 
 async def test_the_badge_counts_the_current_level_not_the_collection(client, session):
@@ -104,6 +156,59 @@ async def test_the_badge_counts_the_current_level_not_the_collection(client, ses
     assert stats["lessons_available"] == 1
     # The collection-wide count stays available for the breakdown.
     assert stats["new_count"] == 2
+
+
+# --- remaining_today ---------------------------------------------------
+
+
+async def test_remaining_today_is_none_without_a_limit(client, session):
+    await seed(session, level=1, slug="上", wanikani_id=1)
+
+    body = (await client.get("/api/lessons")).json()
+
+    assert body["remaining_today"] is None
+
+
+async def test_remaining_today_decreases_after_starting_lessons(client, session):
+    first = await seed(session, level=1, slug="上", wanikani_id=1)
+    second = await seed(session, level=1, slug="下", wanikani_id=2)
+
+    await client.put("/api/settings", json={"daily_lesson_limit": 5})
+
+    before = (await client.get("/api/lessons")).json()
+    assert before["remaining_today"] == 5
+
+    await client.post("/api/lessons/start", json={"subject_ids": [first, second]})
+
+    after = (await client.get("/api/lessons")).json()
+    assert after["remaining_today"] == 3
+
+
+# --- GET /api/lessons/items ----------------------------------------------
+
+
+async def test_lessons_items_returns_detail_only_for_ids_still_new(client, session):
+    new_id = await seed(session, level=1, slug="上", wanikani_id=1)
+    learning_id = await seed(
+        session, level=1, slug="下", wanikani_id=2, state=ItemState.LEARNING.value, srs_stage=2
+    )
+
+    body = (
+        await client.get("/api/lessons/items", params={"ids": [new_id, learning_id]})
+    ).json()
+
+    assert [item["subject"]["id"] for item in body] == [new_id]
+    assert body[0]["subject"]["meanings"]
+    assert body[0]["srs_stage"] == 0
+
+
+async def test_lessons_items_rejects_more_than_200_ids(client):
+    response = await client.get("/api/lessons/items", params={"ids": list(range(1, 202))})
+    assert response.status_code == 422
+
+
+async def test_lessons_items_with_no_ids_returns_empty(client):
+    assert (await client.get("/api/lessons/items")).json() == []
 
 
 # --- the quiz --------------------------------------------------------------

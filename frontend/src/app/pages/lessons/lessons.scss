@@ -1,7 +1,42 @@
+/* Tile colours for the SRS-stage bands, ordinal (lesson < apprentice < guru <
+   master < enlightened < burned), validated with the data-viz palette
+   validator's --ordinal check against this app's light and dark surfaces.
+   Identity never rests on colour alone: every tile also carries a
+   title/aria-label naming its stage, and the legend row repeats the names in
+   text next to the swatch. */
 :host {
   display: block;
-  max-width: 640px;
+  max-width: 900px;
   margin: 0 auto;
+
+  --band-apprentice: #86b6ef;
+  --band-guru: #5598e7;
+  --band-master: #2a78d6;
+  --band-enlightened: #1c5cab;
+  --band-burned: #104281;
+  /* Ink chosen per band so the glyph stays readable on its fill -- literal
+     colours rather than `--text`, which flips with the colour scheme and
+     would fight this table rather than follow it. */
+  --band-apprentice-ink: #1c2026;
+  --band-guru-ink: #1c2026;
+  --band-master-ink: #fff;
+  --band-enlightened-ink: #fff;
+  --band-burned-ink: #fff;
+}
+
+@media (prefers-color-scheme: dark) {
+  :host {
+    --band-apprentice: #1c5cab;
+    --band-guru: #2a78d6;
+    --band-master: #5598e7;
+    --band-enlightened: #86b6ef;
+    --band-burned: #b7d3f6;
+    --band-apprentice-ink: #fff;
+    --band-guru-ink: #fff;
+    --band-master-ink: #fff;
+    --band-enlightened-ink: #1c2026;
+    --band-burned-ink: #1c2026;
+  }
 }
 
 .count {
@@ -98,6 +133,210 @@ img.characters {
     max-width: 52ch;
     margin: 0.5rem auto 1rem;
   }
+}
+
+/* --- selection phase ----------------------------------------------------- */
+
+.legend {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.75rem 1.25rem;
+  font-size: 0.85rem;
+  color: var(--muted);
+  margin-bottom: 1rem;
+}
+
+.key {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.4rem;
+}
+
+.swatch {
+  display: inline-block;
+  width: 12px;
+  height: 12px;
+  border-radius: 3px;
+  border: 1px solid var(--border);
+
+  &[data-band='lesson'] {
+    background: var(--surface);
+  }
+
+  &[data-band='apprentice'] { background: var(--band-apprentice); }
+  &[data-band='guru'] { background: var(--band-guru); }
+  &[data-band='master'] { background: var(--band-master); }
+  &[data-band='enlightened'] { background: var(--band-enlightened); }
+  &[data-band='burned'] { background: var(--band-burned); }
+}
+
+.note {
+  margin-top: 0;
+}
+
+.group + .group {
+  margin-top: 1.25rem;
+}
+
+.group-head {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 0.75rem;
+  flex-wrap: wrap;
+  margin-bottom: 0.5rem;
+
+  h2 {
+    margin: 0;
+    font-size: 1rem;
+  }
+
+  .count {
+    font-size: 0.85rem;
+    font-weight: 400;
+  }
+}
+
+.group-actions {
+  display: flex;
+  gap: 0.4rem;
+
+  button {
+    padding: 0.25rem 0.6rem;
+    font-size: 0.8rem;
+  }
+}
+
+.tile-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(52px, 1fr));
+  gap: 0.5rem;
+}
+
+.tile {
+  position: relative;
+  aspect-ratio: 1;
+  min-width: 44px;
+  min-height: 44px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: var(--radius);
+  border: 1px solid var(--border);
+  background: var(--surface);
+  color: var(--text);
+  font-family: inherit;
+  padding: 0;
+  cursor: pointer;
+
+  img {
+    width: 60%;
+    height: 60%;
+    object-fit: contain;
+  }
+
+  &[data-band='apprentice'] {
+    background: var(--band-apprentice);
+    color: var(--band-apprentice-ink);
+    border-color: transparent;
+  }
+
+  &[data-band='guru'] {
+    background: var(--band-guru);
+    color: var(--band-guru-ink);
+    border-color: transparent;
+  }
+
+  &[data-band='master'] {
+    background: var(--band-master);
+    color: var(--band-master-ink);
+    border-color: transparent;
+  }
+
+  &[data-band='enlightened'] {
+    background: var(--band-enlightened);
+    color: var(--band-enlightened-ink);
+    border-color: transparent;
+  }
+
+  &[data-band='burned'] {
+    background: var(--band-burned);
+    color: var(--band-burned-ink);
+    border-color: transparent;
+  }
+
+  &.static {
+    cursor: default;
+  }
+
+  &.suspended {
+    opacity: 0.45;
+  }
+
+  &:disabled {
+    cursor: not-allowed;
+    opacity: 0.5;
+  }
+}
+
+button.tile {
+  /* Selection never rests on colour alone: a thick outline plus the badge
+     below both carry it, so the state reads the same in greyscale. */
+  &.selected {
+    outline: 3px solid var(--accent);
+    outline-offset: -3px;
+  }
+
+  &:focus-visible {
+    outline: 3px solid var(--accent);
+    outline-offset: 1px;
+  }
+}
+
+.badge {
+  position: absolute;
+  bottom: -4px;
+  right: -4px;
+  width: 18px;
+  height: 18px;
+  border-radius: 50%;
+  background: var(--ok);
+  color: #fff;
+  font-size: 0.7rem;
+  line-height: 18px;
+  text-align: center;
+  border: 2px solid var(--surface);
+}
+
+.action-bar {
+  position: sticky;
+  bottom: 0;
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 0.75rem;
+  margin-top: 1.25rem;
+  padding: 0.75rem;
+  border-radius: var(--radius);
+  border: 1px solid var(--border);
+  background: var(--surface);
+  box-shadow: var(--shadow);
+}
+
+.selected-count {
+  font-weight: 600;
+}
+
+.spacer {
+  flex: 1;
+}
+
+.check {
+  display: flex;
+  align-items: center;
+  gap: 0.4rem;
+  font-size: 0.9rem;
+  color: var(--muted);
 }
 
 /* --- quiz phase --------------------------------------------------------- */

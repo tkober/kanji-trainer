@@ -174,15 +174,24 @@ by length); readings forgive nothing beyond kana folding and the romaji
 fallback. A reading one kana off is a *different reading*, and accepting it
 would drill the wrong word while reporting success.
 
-**Lessons are scoped to one level and gated by a quiz.** `GET /api/lessons`
-serves the lowest level that still has anything left, because the unscoped
+**Lessons are scoped to one level and gated by a quiz.** `GET /api/lessons` is
+a selection view: it defaults to the lowest level that still has anything
+left (else the lowest level with any subject at all), because the unscoped
 count after importing a reset account is "9.321 offen" — a number nobody can
-act on. There is still no *dependency* gate: pass `level` and you may learn
-level 40 with level 3 untouched. `POST /api/lessons/quiz` checks an answer
-against `answers.py` and touches nothing, so a batch reaches Apprentice I only
-after every item has been produced once. It refuses items already in the
-rotation: its response names the expected answer, which is exactly what
-`GET /api/reviews` withholds.
+act on. It returns every item of that level as a tile — learned, known and
+suspended ones included, not just the open ones — so the learner sees the
+whole level and picks exactly which open items to work on, rather than
+receiving a fixed batch in a fixed order. A tile is a `SubjectSummary`, never
+a `SubjectDetail`: it carries a state and an SRS stage for colour-coding, never
+an answer. There is still no *dependency* gate: pass `level` and you may learn
+level 40 with level 3 untouched. Once items are picked, `GET /api/lessons/items`
+fetches their detail — silently dropping any id no longer `NEW`, same reasoning
+as the quiz's 409 below — and the frontend optionally chunks the result into
+batches of `lesson_batch_size` for the read-then-quiz flow, one chunk at a
+time. `POST /api/lessons/quiz` checks an answer against `answers.py` and
+touches nothing, so a chunk reaches Apprentice I only after every item in it
+has been produced once. It refuses items already in the rotation: its response
+names the expected answer, which is exactly what `GET /api/reviews` withholds.
 
 **`importer.py`** runs in the background (`asyncio.create_task`) and reports
 through the `import_runs` row, which the UI polls. A synchronous import of
@@ -403,9 +412,9 @@ week for no reason.
 - No dependency gating: nothing waits for its radicals to reach Guru first.
   Deliberate (the learner may jump ahead); the level scope is what keeps the
   queue meaningful instead.
-- The lesson quiz lives in the browser, and the batch is committed in one call
-  after it passes. Closing the tab mid-quiz loses the quiz, not the lesson —
-  acceptable, because failing it costs nothing either.
+- The lesson quiz lives in the browser, and each chunk is committed in one
+  call after it passes. Closing the tab mid-quiz loses the quiz, not the
+  lesson — acceptable, because failing it costs nothing either.
 - Meaning tolerance uses plain Levenshtein, so a transposition ("abvoe" for
   "Above") costs two edits and is rejected on any answer under eight
   characters. Damerau-Levenshtein would forgive the commonest typo; pinned by
