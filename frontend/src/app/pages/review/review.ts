@@ -24,6 +24,7 @@ import { HoldFocus } from '../../core/hold-focus';
 import { absorbInput, finaliseKana, isKana, romajiToKana } from '../../core/kana';
 import { Mnemonic } from '../../core/mnemonic';
 import { type ReadingGroup, readingGroups } from '../../core/readings';
+import { type Hotkey, Hotkeys } from '../../shared/hotkeys/hotkeys';
 import { RadicalIllustration } from '../../shared/radical-illustration/radical-illustration';
 
 /** A queue entry plus what it still owes. */
@@ -31,7 +32,7 @@ type Card = QueueItem;
 
 @Component({
   selector: 'app-review',
-  imports: [DatePipe, HoldFocus, Mnemonic, RadicalIllustration, RouterLink],
+  imports: [DatePipe, HoldFocus, Hotkeys, Mnemonic, RadicalIllustration, RouterLink],
   templateUrl: './review.html',
   styleUrl: './review.scss',
 })
@@ -62,6 +63,26 @@ export class Review {
    */
   protected readonly held = signal(false);
   protected readonly shake = signal(false);
+
+  /**
+   * Whether the "Show item" details block is expanded.
+   *
+   * Controlled rather than left to the `<details>` element itself, because
+   * `F` needs to toggle it from `onKeydown` and the element must start
+   * collapsed again on the next item — a plain uncontrolled `<details>` has
+   * no signal to reset.
+   */
+  protected readonly showItem = signal(false);
+  protected readonly hotkeysOpen = signal(false);
+
+  /** Rows for the `app-hotkeys` flyout, in the order they read best. */
+  protected readonly hotkeys: Hotkey[] = [
+    { keys: ['Enter'], label: 'Submit answer / next item' },
+    { keys: ['Esc'], label: 'Edit a held answer' },
+    { keys: ['Alt', 'K'], label: 'I know this' },
+    { keys: ['F'], label: 'Show item info (after answering)' },
+    { keys: ['?'], label: 'Toggle this menu (after answering)' },
+  ];
 
   protected readonly answered = signal(0);
   protected readonly correct = signal(0);
@@ -161,6 +182,15 @@ export class Review {
       return;
     }
 
+    // A held answer takes priority over the flyout: correcting a slip is the
+    // more urgent thing Escape can do, so the flyout only closes on its own
+    // once nothing is held.
+    if (event.key === 'Escape' && this.hotkeysOpen()) {
+      event.preventDefault();
+      this.hotkeysOpen.set(false);
+      return;
+    }
+
     if (event.key === 'Enter') {
       event.preventDefault();
       if (this.feedback()) {
@@ -175,7 +205,33 @@ export class Review {
     if (event.altKey && event.key.toLowerCase() === 'k') {
       event.preventDefault();
       void this.markKnown();
+      return;
     }
+
+    // Bare-key shortcuts below fire only once feedback is on screen. Before
+    // that the field has focus and every keystroke is part of the answer —
+    // `onInput` only starts discarding keystrokes once feedback is set, so a
+    // bare key here would otherwise land in the answer, not trigger anything.
+    const result = this.feedback();
+    if (!result || event.ctrlKey || event.altKey || event.metaKey || event.isComposing) {
+      return;
+    }
+
+    if (event.key.toLowerCase() === 'f' && result.subject) {
+      event.preventDefault();
+      this.showItem.update((open) => !open);
+      return;
+    }
+
+    if (event.key === '?') {
+      event.preventDefault();
+      this.hotkeysOpen.update((open) => !open);
+    }
+  }
+
+  /** Keeps `showItem` in sync when the `<summary>` is clicked directly. */
+  protected onShowItemToggle(event: Event): void {
+    this.showItem.set((event.target as HTMLDetailsElement).open);
   }
 
   async submit(): Promise<void> {
@@ -245,6 +301,7 @@ export class Review {
     if (result.retry) {
       // Same question, same item, nothing consumed — just ask again.
       this.feedback.set(null);
+      this.showItem.set(false);
       this.raw.set('');
       this.focus();
       return;
@@ -259,6 +316,7 @@ export class Review {
 
     this.queue.set(rest);
     this.feedback.set(null);
+    this.showItem.set(false);
     this.raw.set('');
     this.held.set(false);
     this.continueRound();
@@ -296,6 +354,7 @@ export class Review {
       await this.api.markKnown([card.subject.id]);
       this.queue.set(this.queue().slice(1));
       this.feedback.set(null);
+      this.showItem.set(false);
       this.raw.set('');
       this.held.set(false);
       this.counters.spendDue();
@@ -315,6 +374,7 @@ export class Review {
       await this.api.resetItems([card.subject.id]);
       this.queue.set(this.queue().slice(1));
       this.feedback.set(null);
+      this.showItem.set(false);
       this.raw.set('');
       this.held.set(false);
       // Back to Apprentice I is four hours out, so this one has left the due

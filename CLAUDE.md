@@ -294,6 +294,14 @@ the moment either goes: the field is not locked with `readonly` while feedback
 is up (a read-only field is one the keyboard retracts from, so `onInput`
 discards the keystroke instead), and every button on the two answering screens
 carries `appHoldFocus`, which cancels the focus change `mousedown` would make.
+The same reasoning extends to the review screen's bare-key shortcuts (`F`,
+`?`): `Review.onKeydown` only acts on them while feedback is on screen, since
+before that the field has focus and every keystroke belongs to the answer —
+`onInput` does not start discarding keystrokes until then either. `app-hotkeys`
+(the shortcut reference flyout) is hidden outright on a device without a fine
+pointer and hover, since a phone has no hardware keyboard for it to remind
+anyone about, and a button floating over the answer area there would only be
+clutter.
 
 ## The import, in detail
 

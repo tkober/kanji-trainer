@@ -107,8 +107,8 @@
       }
 
       @if (result.subject; as subject) {
-        <details>
-          <summary>Show item</summary>
+        <details [open]="showItem()" (toggle)="onShowItemToggle($event)">
+          <summary appHoldFocus>Show item <kbd>F</kbd></summary>
           <dl>
             <dt>Meanings</dt>
             <dd>{{ primaryMeanings(result) }}</dd>
@@ -175,3 +175,7 @@
     </p>
   }
 }
+
+<!-- Always present on this screen, not gated on a card being on screen: the
+     shortcuts it documents (Enter, Alt+K) work before an item even loads. -->
+<app-hotkeys [hotkeys]="hotkeys" [(open)]="hotkeysOpen" />
