@@ -237,7 +237,7 @@ async def test_lessons_offer_unlearned_items_and_starting_them_schedules_a_revie
 
     lessons = (await client.get("/api/lessons")).json()
     assert lessons["total_available"] == 1
-    assert lessons["items"][0]["subject"]["characters"] == "一"
+    assert lessons["tiles"][0]["subject"]["characters"] == "一"
 
     await client.post("/api/lessons/start", json={"subject_ids": [subject.id]})
 

@@ -9,6 +9,7 @@ import type {
   Item,
   Forecast,
   ItemPage,
+  LessonItem,
   Lessons,
   Queue,
   QuestionType,
@@ -52,16 +53,22 @@ export class Api {
     });
   }
 
-  /** One batch from a single level; omit `level` for the lowest open one. */
-  lessons(level?: number | null, limit?: number): Promise<Lessons> {
+  /** The selection view for one level; omit `level` for the lowest open one. */
+  lessons(level?: number | null): Promise<Lessons> {
     let params = new HttpParams();
     if (level !== undefined && level !== null) {
       params = params.set('level', level);
     }
-    if (limit !== undefined) {
-      params = params.set('limit', limit);
-    }
     return this.get('/api/lessons', params);
+  }
+
+  /** Detail for the given ids that are still lessons -- others come back omitted. */
+  lessonItems(subjectIds: number[]): Promise<LessonItem[]> {
+    let params = new HttpParams();
+    for (const id of subjectIds) {
+      params = params.append('ids', id);
+    }
+    return this.get('/api/lessons/items', params);
   }
 
   /** Check a lesson-quiz answer. Moves nothing — see the backend endpoint. */

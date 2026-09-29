@@ -176,18 +176,39 @@ class LessonItem(BaseModel):
 class LevelSummary(BaseModel):
     level: int
     open_count: int
+    #: Every subject in the level, learned or not -- what the picker needs to
+    #: say "done" instead of just "0 left" for a level with nothing open.
+    total_count: int
+
+
+class LessonTile(BaseModel):
+    """One item of the chosen level, for the learner to pick from.
+
+    Carries no answers -- same reasoning as ``QueueItem``: a tile for an item
+    already in the review rotation (``state == learning``) or known must not
+    leak meanings or readings, so this wraps ``SubjectSummary``, never
+    ``SubjectDetail``.
+    """
+
+    subject: SubjectSummary
+    state: str
+    srs_stage: int
 
 
 class Lessons(BaseModel):
-    """One batch of lessons, taken from a single level.
+    """The selection view: every level, and every item of the chosen one.
 
     Scoped to a level on purpose. Without it ``total_available`` is "every
     unlearned item in all sixty levels", which after an import of a reset
     account is a five-figure number that means nothing and cannot be acted on.
+
+    Unlike a queue, this is not a batch to work through in order -- it is the
+    whole level, tiled, so the learner can select exactly the items they want
+    and start a run with those. Batching by ``batch_size`` happens client-side
+    once a selection is made, against ``GET /api/lessons/items``.
     """
 
-    items: list[LessonItem]
-    #: Which level the batch came from; None when nothing is left anywhere.
+    #: Which level is shown; None when the collection has no subjects at all.
     level: int | None = None
     #: Open lessons in that level -- the number worth showing.
     total_in_level: int = 0
@@ -196,8 +217,15 @@ class Lessons(BaseModel):
     #: 0 when no limit is configured.
     daily_limit: int
     batch_size: int
-    #: Every level that still has lessons, for the level picker.
+    #: Every level that has any subject, for the picker -- including levels
+    #: fully learned, which report ``open_count == 0``.
     levels: list[LevelSummary] = Field(default_factory=list)
+    #: Every item of the chosen level, in every state. No answers -- see
+    #: `LessonTile`.
+    tiles: list[LessonTile] = Field(default_factory=list)
+    #: Lessons still allowed today under the daily limit; None when no limit
+    #: is configured.
+    remaining_today: int | None = None
 
 
 class StartLessonsIn(BaseModel):

@@ -118,11 +118,19 @@ export interface LessonItem {
 export interface LevelSummary {
   level: number;
   open_count: number;
+  /** Every subject in the level, learned or not. */
+  total_count: number;
+}
+
+/** One item of the chosen level, for the picker. No answers — see `LessonTile`. */
+export interface LessonTile {
+  subject: SubjectSummary;
+  state: ItemState;
+  srs_stage: number;
 }
 
 export interface Lessons {
-  items: LessonItem[];
-  /** Which level this batch came from; null when nothing is left anywhere. */
+  /** Which level is shown; null when the collection has no subjects at all. */
   level: number | null;
   /** Open lessons in that level — the number worth showing. */
   total_in_level: number;
@@ -130,7 +138,12 @@ export interface Lessons {
   total_available: number;
   daily_limit: number;
   batch_size: number;
+  /** Every level that has any subject, including fully learned ones. */
   levels: LevelSummary[];
+  /** Every item of the chosen level, in every state. No answers. */
+  tiles: LessonTile[];
+  /** Lessons still allowed today under the daily limit; null when unlimited. */
+  remaining_today: number | null;
 }
 
 /** A lesson-quiz verdict. Carries no SRS fields, because it moves nothing. */

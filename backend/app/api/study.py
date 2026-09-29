@@ -15,6 +15,7 @@ from ..models import (
     AnswerIn,
     AnswerOut,
     LessonItem,
+    LessonTile,
     Lessons,
     LevelSummary,
     OverrideResult,
@@ -271,16 +272,27 @@ def _still_open(
 # --- lessons ---------------------------------------------------------------
 
 
-async def _open_levels(session: AsyncSession) -> list[LevelSummary]:
-    """Every level that still has unlearned items, with how many."""
+async def _level_summaries(session: AsyncSession) -> list[LevelSummary]:
+    """Every level that has any subject, open and total counts both.
+
+    Every level, not just the ones with something left, so the picker can say
+    "Level 5 — done" for a level fully learned rather than dropping it from
+    the list -- which used to read as "nothing was ever imported there".
+    """
     rows = await session.execute(
-        select(Subject.level, func.count())
+        select(
+            Subject.level,
+            func.count().label("total"),
+            func.sum(case((Progress.state == ItemState.NEW.value, 1), else_=0)).label("open"),
+        )
         .join(Progress, Progress.subject_id == Subject.id)
-        .where(Progress.state == ItemState.NEW.value)
         .group_by(Subject.level)
         .order_by(Subject.level)
     )
-    return [LevelSummary(level=level, open_count=count) for level, count in rows]
+    return [
+        LevelSummary(level=level, open_count=int(open_ or 0), total_count=total)
+        for level, total, open_ in rows
+    ]
 
 
 async def lowest_open_level(session: AsyncSession) -> int | None:
@@ -307,56 +319,97 @@ async def _lessons_started_today(session: AsyncSession) -> int:
 @router.get("/lessons", response_model=Lessons)
 async def lesson_queue(
     level: int | None = Query(default=None, ge=1),
-    limit: int | None = Query(default=None, ge=1, le=200),
     session: AsyncSession = Depends(get_session),
 ) -> Lessons:
-    """One batch of lessons from a single level, in WaniKani's teaching order.
+    """The selection view: every level, and every item of the chosen one.
 
     Scoped to a level, defaulting to the lowest one that still has anything
-    left. There is still no *gate* — pass ``level`` and you may learn level 40
-    while level 3 is untouched, which is the freedom WaniKani does not give.
-    What is gone is the unscoped count: "9.321 offen" is a number nobody can
-    act on, and it buries the five items that actually come next.
+    left, else the lowest level with any subject at all. There is still no
+    *gate* — pass ``level`` and you may learn level 40 while level 3 is
+    untouched, which is the freedom WaniKani does not give.
+
+    Tiles cover the whole level, learned and known and suspended items
+    included, so the learner sees what they already have alongside what is
+    still open rather than a queue that only ever shows the new stuff. The
+    learner picks which of the open ones to work on; ``GET /lessons/items``
+    fetches the detail for exactly those, and ``POST /lessons/start`` commits
+    them once they have passed the quiz.
     """
     config = await load_runtime_config(session)
     new_only = Progress.state == ItemState.NEW.value
 
     total = await session.scalar(select(func.count()).select_from(Progress).where(new_only)) or 0
-    levels = await _open_levels(session)
+    levels = await _level_summaries(session)
 
-    chosen = level if level is not None else (levels[0].level if levels else None)
+    chosen = level
+    if chosen is None:
+        chosen = await lowest_open_level(session)
+    if chosen is None:
+        chosen = levels[0].level if levels else None
+
     in_level = next((entry.open_count for entry in levels if entry.level == chosen), 0)
 
-    batch = limit or config.lesson_batch_size
-    remaining = batch
-    if config.daily_lesson_limit:
-        remaining = max(
-            0, min(batch, config.daily_lesson_limit - await _lessons_started_today(session))
-        )
-
-    items: list[LessonItem] = []
-    if chosen is not None and remaining > 0:
+    tiles: list[LessonTile] = []
+    if chosen is not None:
         rows = await session.execute(
             select(Progress, Subject)
             .join(Subject, Subject.id == Progress.subject_id)
-            .where(new_only, Subject.level == chosen)
+            .where(Subject.level == chosen)
             .order_by(Subject.sort_order, Subject.id)
-            .limit(remaining)
         )
-        items = [
-            LessonItem(subject=subject_detail(subject), srs_stage=progress.srs_stage)
+        tiles = [
+            LessonTile(subject=subject_summary(subject), state=progress.state, srs_stage=progress.srs_stage)
             for progress, subject in rows
         ]
 
+    remaining_today = None
+    if config.daily_lesson_limit:
+        remaining_today = max(
+            0, config.daily_lesson_limit - await _lessons_started_today(session)
+        )
+
     return Lessons(
-        items=items,
         level=chosen,
         total_in_level=in_level,
         total_available=total,
         daily_limit=config.daily_lesson_limit,
-        batch_size=batch,
+        batch_size=config.lesson_batch_size,
         levels=levels,
+        tiles=tiles,
+        remaining_today=remaining_today,
     )
+
+
+@router.get("/lessons/items", response_model=list[LessonItem])
+async def lesson_items(
+    ids: list[int] = Query(default=[]),
+    session: AsyncSession = Depends(get_session),
+) -> list[LessonItem]:
+    """Detail for the given ids that are still lessons -- others silently omitted.
+
+    Declared ahead of ``/lessons/quiz`` and ``/lessons/start`` so a future
+    path parameter under ``/lessons`` cannot shadow it. Same reasoning as the
+    quiz's 409: a tile carries no answers, and handing back detail for an item
+    already in the review rotation would be a way to read exactly what
+    `GET /api/reviews` withholds -- so an id that is not currently a lesson is
+    dropped rather than reported as an error, since the caller cannot always
+    tell in advance (another tab may have started it in the meantime).
+    """
+    if len(ids) > 200:
+        raise HTTPException(status_code=422, detail="At most 200 ids per request.")
+    if not ids:
+        return []
+
+    rows = await session.execute(
+        select(Progress, Subject)
+        .join(Subject, Subject.id == Progress.subject_id)
+        .where(Subject.id.in_(ids), Progress.state == ItemState.NEW.value)
+        .order_by(Subject.sort_order, Subject.id)
+    )
+    return [
+        LessonItem(subject=subject_detail(subject), srs_stage=progress.srs_stage)
+        for progress, subject in rows
+    ]
 
 
 def _midnight() -> datetime:
