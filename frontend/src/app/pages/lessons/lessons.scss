@@ -211,6 +211,15 @@ img.characters {
   display: grid;
   grid-template-columns: repeat(auto-fill, minmax(52px, 1fr));
   gap: 0.5rem;
+
+  /* Vocabulary only (see `groups()` in lessons.ts): a wrapping row sized to
+     each word instead of uniform squares, so アメリカ人 does not wrap onto a
+     second line inside a box built for 大. Radicals and kanji keep the grid
+     above untouched. */
+  &.flow {
+    display: flex;
+    flex-wrap: wrap;
+  }
 }
 
 .tile {
@@ -263,6 +272,19 @@ img.characters {
     background: var(--band-burned);
     color: var(--band-burned-ink);
     border-color: transparent;
+  }
+
+  /* `.tile-grid.flow` sizes the tile to its word: same tap-target floor and
+     height as the square tiles, but width follows the content, capped so a
+     long word shrinks to the container's width rather than overflow it --
+     wrapping is the last resort, not the default. */
+  .flow & {
+    aspect-ratio: auto;
+    width: auto;
+    max-width: 100%;
+    padding: 0 0.6rem;
+    white-space: nowrap;
+    overflow-wrap: anywhere;
   }
 
   &.static {
