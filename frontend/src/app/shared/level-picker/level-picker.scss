@@ -117,9 +117,20 @@
       text-align: right;
     }
 
-    [data-kind='radical'] { color: var(--radical); }
-    [data-kind='kanji'] { color: var(--kanji); }
-    [data-kind='vocabulary'] { color: var(--vocabulary); }
+    /* Text stays muted; the type colour is a dot beside it. #00a1f1 as text on
+       white is under 3:1, too faint for a 0.7rem label. */
+    [data-kind]::before {
+      content: '';
+      display: inline-block;
+      width: 0.45rem;
+      height: 0.45rem;
+      margin-right: 0.25rem;
+      border-radius: 50%;
+      background: var(--dot);
+    }
+    [data-kind='radical'] { --dot: var(--radical); }
+    [data-kind='kanji'] { --dot: var(--kanji); }
+    [data-kind='vocabulary'] { --dot: var(--vocabulary); }
   }
 }
 
