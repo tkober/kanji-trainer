@@ -26,6 +26,7 @@ import { HoldFocus } from '../../core/hold-focus';
 import { absorbInput, finaliseKana, isKana, romajiToKana } from '../../core/kana';
 import { Mnemonic } from '../../core/mnemonic';
 import { type ReadingGroup, readingGroups } from '../../core/readings';
+import { LevelPicker } from '../../shared/level-picker/level-picker';
 import { RadicalIllustration } from '../../shared/radical-illustration/radical-illustration';
 
 /** One item in the quiz, with the questions it still owes. */
@@ -111,7 +112,7 @@ function chunk<T>(items: T[], size: number): T[][] {
  */
 @Component({
   selector: 'app-lessons',
-  imports: [HoldFocus, Mnemonic, RadicalIllustration, RouterLink],
+  imports: [HoldFocus, LevelPicker, Mnemonic, RadicalIllustration, RouterLink],
   templateUrl: './lessons.html',
   styleUrl: './lessons.scss',
 })
@@ -248,9 +249,8 @@ export class LessonsPage {
     }
   }
 
-  pickLevel(event: Event): void {
-    const value = Number((event.target as HTMLSelectElement).value);
-    void this.load(Number.isFinite(value) ? value : null);
+  pickLevel(level: number): void {
+    void this.load(level);
   }
 
   // --- selection ----------------------------------------------------------

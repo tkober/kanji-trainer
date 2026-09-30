@@ -120,6 +120,10 @@ export interface LevelSummary {
   open_count: number;
   /** Every subject in the level, learned or not. */
   total_count: number;
+  /** Open counts by type -- vocabulary and kana_vocabulary combined. */
+  open_radicals: number;
+  open_kanji: number;
+  open_vocabulary: number;
 }
 
 /** One item of the chosen level, for the picker. No answers — see `LessonTile`. */

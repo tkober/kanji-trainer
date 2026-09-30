@@ -1,0 +1,193 @@
+/* The level picker: a custom listbox-button replacing the plain `<select>` so
+   the trigger can show open counts per type as coloured chips, which a native
+   `<option>` cannot render. Colours never carry meaning alone -- every chip
+   and column also has a text label (title / visually-hidden / header row). */
+:host {
+  position: relative;
+  display: inline-block;
+}
+
+.level-picker {
+  position: relative;
+}
+
+.visually-hidden {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  padding: 0;
+  margin: -1px;
+  overflow: hidden;
+  clip: rect(0, 0, 0, 0);
+  white-space: nowrap;
+  border: 0;
+}
+
+.trigger {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  font-size: 0.9rem;
+
+  .label {
+    font-weight: 600;
+    white-space: nowrap;
+  }
+
+  .done {
+    color: var(--ok);
+    font-weight: 600;
+    white-space: nowrap;
+  }
+
+  .caret {
+    flex-shrink: 0;
+    color: var(--muted);
+  }
+}
+
+.chips {
+  display: flex;
+  gap: 0.3rem;
+}
+
+.chip {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-width: 1.4rem;
+  height: 1.4rem;
+  padding: 0 0.35rem;
+  border-radius: 999px;
+  font-size: 0.75rem;
+  font-variant-numeric: tabular-nums;
+  color: var(--text);
+  border: 1px solid transparent;
+
+  &[data-kind='radical'] {
+    background: color-mix(in srgb, var(--radical) 22%, transparent);
+    border-color: color-mix(in srgb, var(--radical) 45%, transparent);
+  }
+
+  &[data-kind='kanji'] {
+    background: color-mix(in srgb, var(--kanji) 22%, transparent);
+    border-color: color-mix(in srgb, var(--kanji) 45%, transparent);
+  }
+
+  &[data-kind='vocabulary'] {
+    background: color-mix(in srgb, var(--vocabulary) 22%, transparent);
+    border-color: color-mix(in srgb, var(--vocabulary) 45%, transparent);
+  }
+}
+
+.panel {
+  position: absolute;
+  z-index: 30;
+  top: calc(100% + 0.35rem);
+  right: 0;
+  min-width: max-content;
+  width: max-content;
+  max-width: calc(100vw - 2rem);
+  max-height: min(60vh, 22rem);
+  overflow-y: auto;
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  box-shadow: var(--shadow);
+  padding: 0.35rem;
+}
+
+.col-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 1rem;
+  padding: 0.25rem 0.6rem;
+  font-size: 0.7rem;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+  color: var(--muted);
+
+  .col-head-counts {
+    display: flex;
+    gap: 0.75rem;
+
+    span {
+      width: 2.2rem;
+      text-align: right;
+    }
+
+    /* Text stays muted; the type colour is a dot beside it. #00a1f1 as text on
+       white is under 3:1, too faint for a 0.7rem label. */
+    [data-kind]::before {
+      content: '';
+      display: inline-block;
+      width: 0.45rem;
+      height: 0.45rem;
+      margin-right: 0.25rem;
+      border-radius: 50%;
+      background: var(--dot);
+    }
+    [data-kind='radical'] { --dot: var(--radical); }
+    [data-kind='kanji'] { --dot: var(--kanji); }
+    [data-kind='vocabulary'] { --dot: var(--vocabulary); }
+  }
+}
+
+.option {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 1rem;
+  min-height: 44px;
+  padding: 0.3rem 0.6rem;
+  border-radius: calc(var(--radius) - 4px);
+  cursor: pointer;
+  white-space: nowrap;
+
+  &:hover,
+  &.active {
+    background: var(--surface-alt);
+  }
+
+  &.current {
+    font-weight: 600;
+  }
+}
+
+.option-level {
+  display: flex;
+  align-items: center;
+  gap: 0.3rem;
+}
+
+.option-done {
+  color: var(--muted);
+  font-size: 0.85rem;
+}
+
+.option-counts {
+  display: flex;
+  gap: 0.75rem;
+  font-variant-numeric: tabular-nums;
+
+  .count {
+    width: 2.2rem;
+    text-align: right;
+
+    &.zero {
+      color: var(--muted);
+    }
+  }
+}
+
+@media (max-width: 480px) {
+  .trigger .label {
+    font-size: 0.85rem;
+  }
+
+  .panel {
+    right: 0;
+    left: auto;
+  }
+}

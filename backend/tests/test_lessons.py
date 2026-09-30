@@ -24,10 +24,11 @@ async def seed(
     wanikani_id: int,
     state: str = ItemState.NEW.value,
     srs_stage: int = 0,
+    object_type: str = "kanji",
 ) -> int:
     subject = Subject(
         wanikani_id=wanikani_id,
-        object_type="kanji",
+        object_type=object_type,
         level=level,
         slug=slug,
         characters=slug,
@@ -115,13 +116,63 @@ async def test_every_level_with_any_subject_is_listed_including_finished_ones(cl
     body = (await client.get("/api/lessons")).json()
 
     assert body["levels"] == [
-        {"level": 3, "open_count": 2, "total_count": 2},
-        {"level": 5, "open_count": 0, "total_count": 1},
-        {"level": 40, "open_count": 1, "total_count": 1},
+        {
+            "level": 3,
+            "open_count": 2,
+            "total_count": 2,
+            "open_radicals": 0,
+            "open_kanji": 2,
+            "open_vocabulary": 0,
+        },
+        {
+            "level": 5,
+            "open_count": 0,
+            "total_count": 1,
+            "open_radicals": 0,
+            "open_kanji": 0,
+            "open_vocabulary": 0,
+        },
+        {
+            "level": 40,
+            "open_count": 1,
+            "total_count": 1,
+            "open_radicals": 0,
+            "open_kanji": 1,
+            "open_vocabulary": 0,
+        },
     ]
     # The default level stays the lowest one that still has something open,
     # not the lowest level overall (5 sits between 3 and 40 but is finished).
     assert body["level"] == 3
+
+
+async def test_level_summaries_split_open_counts_by_type(client, session):
+    """`kana_vocabulary` counts as vocabulary, and a learned item of any type
+    does not count as open, whatever type it is."""
+    await seed(session, level=7, slug="radical1", wanikani_id=1, object_type="radical")
+    await seed(session, level=7, slug="上", wanikani_id=2, object_type="kanji")
+    await seed(session, level=7, slug="下", wanikani_id=3, object_type="kanji")
+    await seed(session, level=7, slug="vocab1", wanikani_id=4, object_type="vocabulary")
+    await seed(session, level=7, slug="kanavocab1", wanikani_id=5, object_type="kana_vocabulary")
+    await seed(
+        session,
+        level=7,
+        slug="radical2",
+        wanikani_id=6,
+        object_type="radical",
+        state=ItemState.KNOWN.value,
+        srs_stage=9,
+    )
+
+    body = (await client.get("/api/lessons")).json()
+    entry = next(level for level in body["levels"] if level["level"] == 7)
+
+    assert entry["open_radicals"] == 1
+    assert entry["open_kanji"] == 2
+    # vocabulary + kana_vocabulary together
+    assert entry["open_vocabulary"] == 2
+    assert entry["open_count"] == 5
+    assert entry["total_count"] == 6
 
 
 async def test_an_empty_collection_reports_no_level_rather_than_failing(client):
