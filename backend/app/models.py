@@ -179,6 +179,12 @@ class LevelSummary(BaseModel):
     #: Every subject in the level, learned or not -- what the picker needs to
     #: say "done" instead of just "0 left" for a level with nothing open.
     total_count: int
+    #: Open counts split by type, for the level picker -- vocabulary and
+    #: kana_vocabulary are combined under `open_vocabulary`, the same grouping
+    #: `_review_order`'s "grouped" type order and the lessons tile groups use.
+    open_radicals: int = 0
+    open_kanji: int = 0
+    open_vocabulary: int = 0
 
 
 class LessonTile(BaseModel):

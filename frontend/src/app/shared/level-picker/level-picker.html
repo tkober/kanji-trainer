@@ -1,0 +1,93 @@
+<div class="level-picker">
+  <button
+    #trigger
+    type="button"
+    class="trigger"
+    aria-haspopup="listbox"
+    [attr.aria-expanded]="open()"
+    [attr.aria-controls]="open() ? panelId : null"
+    [attr.aria-activedescendant]="open() && activeLevel() !== null ? optionId(activeLevel()!) : null"
+    (click)="toggle()"
+    (keydown)="onTriggerKeydown($event)"
+  >
+    <span class="label">Level {{ current()?.level ?? level() ?? '—' }}</span>
+    @if (current(); as entry) {
+      @if (isDone(entry)) {
+        <span class="done">done ✓</span>
+      } @else {
+        <span class="chips">
+          <span class="chip" data-kind="radical" [title]="entry.open_radicals + ' radicals open'">
+            <span class="visually-hidden">{{ entry.open_radicals }} radicals open</span>
+            <span aria-hidden="true">{{ entry.open_radicals }}</span>
+          </span>
+          <span class="chip" data-kind="kanji" [title]="entry.open_kanji + ' kanji open'">
+            <span class="visually-hidden">{{ entry.open_kanji }} kanji open</span>
+            <span aria-hidden="true">{{ entry.open_kanji }}</span>
+          </span>
+          <span class="chip" data-kind="vocabulary" [title]="entry.open_vocabulary + ' vocabulary open'">
+            <span class="visually-hidden">{{ entry.open_vocabulary }} vocabulary open</span>
+            <span aria-hidden="true">{{ entry.open_vocabulary }}</span>
+          </span>
+        </span>
+      }
+    }
+    <svg class="caret" viewBox="0 0 24 24" width="14" height="14" aria-hidden="true" focusable="false">
+      <path d="M6 9l6 6 6-6" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" />
+    </svg>
+  </button>
+
+  @if (open()) {
+    <div
+      #panel
+      [id]="panelId"
+      class="panel"
+      role="listbox"
+      aria-label="Level"
+    >
+      <div class="col-head" aria-hidden="true">
+        <span class="col-head-level"></span>
+        <span class="col-head-counts">
+          <span data-kind="radical">Rad</span>
+          <span data-kind="kanji">Kan</span>
+          <span data-kind="vocabulary">Voc</span>
+        </span>
+      </div>
+      @for (entry of levels(); track entry.level) {
+        <div
+          #optionEl
+          [attr.data-level]="entry.level"
+          [id]="optionId(entry.level)"
+          role="option"
+          class="option"
+          [class.current]="entry.level === level()"
+          [class.active]="entry.level === activeLevel()"
+          [attr.aria-selected]="entry.level === level()"
+          (click)="select(entry.level)"
+          (mouseenter)="activeLevel.set(entry.level)"
+        >
+          <span class="option-level">
+            Level {{ entry.level }}
+            @if (entry.level === level()) {
+              <span aria-hidden="true">✓</span>
+            }
+          </span>
+          @if (isDone(entry)) {
+            <span class="option-done">done</span>
+          } @else {
+            <span class="option-counts">
+              <span class="count" data-kind="radical" [class.zero]="entry.open_radicals === 0">
+                {{ entry.open_radicals || '–' }}
+              </span>
+              <span class="count" data-kind="kanji" [class.zero]="entry.open_kanji === 0">
+                {{ entry.open_kanji || '–' }}
+              </span>
+              <span class="count" data-kind="vocabulary" [class.zero]="entry.open_vocabulary === 0">
+                {{ entry.open_vocabulary || '–' }}
+              </span>
+            </span>
+          }
+        </div>
+      }
+    </div>
+  }
+</div>

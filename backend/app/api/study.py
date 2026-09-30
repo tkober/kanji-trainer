@@ -279,19 +279,43 @@ async def _level_summaries(session: AsyncSession) -> list[LevelSummary]:
     "Level 5 — done" for a level fully learned rather than dropping it from
     the list -- which used to read as "nothing was ever imported there".
     """
+    is_open = Progress.state == ItemState.NEW.value
     rows = await session.execute(
         select(
             Subject.level,
             func.count().label("total"),
-            func.sum(case((Progress.state == ItemState.NEW.value, 1), else_=0)).label("open"),
+            func.sum(case((is_open, 1), else_=0)).label("open"),
+            func.sum(
+                case((is_open & (Subject.object_type == "radical"), 1), else_=0)
+            ).label("open_radicals"),
+            func.sum(
+                case((is_open & (Subject.object_type == "kanji"), 1), else_=0)
+            ).label("open_kanji"),
+            func.sum(
+                case(
+                    (
+                        is_open
+                        & Subject.object_type.in_(("vocabulary", "kana_vocabulary")),
+                        1,
+                    ),
+                    else_=0,
+                )
+            ).label("open_vocabulary"),
         )
         .join(Progress, Progress.subject_id == Subject.id)
         .group_by(Subject.level)
         .order_by(Subject.level)
     )
     return [
-        LevelSummary(level=level, open_count=int(open_ or 0), total_count=total)
-        for level, total, open_ in rows
+        LevelSummary(
+            level=level,
+            open_count=int(open_ or 0),
+            total_count=total,
+            open_radicals=int(open_radicals or 0),
+            open_kanji=int(open_kanji or 0),
+            open_vocabulary=int(open_vocabulary or 0),
+        )
+        for level, total, open_, open_radicals, open_kanji, open_vocabulary in rows
     ]
 
 
