@@ -52,7 +52,7 @@
               <button type="button" (click)="noneIn(group.tiles)">None</button>
             </div>
           </div>
-          <div class="tile-grid">
+          <div class="tile-grid" [class.flow]="group.key === 'vocabulary'">
             @for (tile of group.tiles; track tile.subject.id) {
               @if (tile.state === 'new') {
                 <button

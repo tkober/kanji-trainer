@@ -211,6 +211,15 @@ img.characters {
   display: grid;
   grid-template-columns: repeat(auto-fill, minmax(52px, 1fr));
   gap: 0.5rem;
+
+  /* Vocabulary only (see `groups()` in lessons.ts): a wrapping row sized to
+     each word instead of uniform squares, so アメリカ人 does not wrap onto a
+     second line inside a box built for 大. Radicals and kanji keep the grid
+     above untouched. */
+  &.flow {
+    display: flex;
+    flex-wrap: wrap;
+  }
 }
 
 .tile {
@@ -263,6 +272,19 @@ img.characters {
     background: var(--band-burned);
     color: var(--band-burned-ink);
     border-color: transparent;
+  }
+
+  /* `.tile-grid.flow` sizes the tile to its word: the square tiles' 52px as
+     the floor for both sides, width following the content. `max-content`
+     keeps a word on one line; only a word wider than the whole row (a phone
+     at 375px) is capped by `max-width` and wraps rather than overflowing. */
+  .flow & {
+    aspect-ratio: auto;
+    width: max-content;
+    max-width: 100%;
+    min-width: 52px;
+    min-height: 52px;
+    padding: 0 0.6rem;
   }
 
   &.static {
