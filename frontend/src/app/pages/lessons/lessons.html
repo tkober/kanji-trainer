@@ -3,9 +3,9 @@
   @if (levels().length > 0) {
     <label class="level-pick">
       Level
-      <select [value]="level() ?? ''" (change)="pickLevel($event)">
+      <select (change)="pickLevel($event)">
         @for (entry of levels(); track entry.level) {
-          <option [value]="entry.level">
+          <option [value]="entry.level" [selected]="entry.level === level()">
             Level {{ entry.level }} — {{ entry.open_count > 0 ? entry.open_count + ' left' : 'done' }}
           </option>
         }
