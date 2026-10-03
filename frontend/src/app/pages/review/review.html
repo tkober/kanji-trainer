@@ -163,11 +163,11 @@
       </p>
     }
     <div class="row actions">
-      <button class="primary" appHoldFocus [disabled]="submitting()" (click)="submit()">
-        {{ held() ? 'Submit anyway (Enter)' : 'Answer (Enter)' }}
-      </button>
       <button class="known" appHoldFocus (click)="markKnown()" title="Alt+K">
         I know this
+      </button>
+      <button class="primary" appHoldFocus [disabled]="submitting()" (click)="submit()">
+        {{ held() ? 'Submit anyway (Enter)' : 'Answer (Enter)' }}
       </button>
     </div>
     <p class="muted hint-line">
