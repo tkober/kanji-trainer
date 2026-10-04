@@ -26,6 +26,7 @@ import { HoldFocus } from '../../core/hold-focus';
 import { absorbInput, finaliseKana, isKana, romajiToKana } from '../../core/kana';
 import { Mnemonic } from '../../core/mnemonic';
 import { type ReadingGroup, readingGroups } from '../../core/readings';
+import { reinsert, shuffleQuestions } from '../../core/review-queue';
 import { LevelPicker } from '../../shared/level-picker/level-picker';
 import { RadicalIllustration } from '../../shared/radical-illustration/radical-illustration';
 
@@ -106,9 +107,10 @@ function chunk<T>(items: T[], size: number): T[][] {
  * lessons instead of just to reviews.
  *
  * The quiz stays the gate it always was: nothing here goes to the SRS without
- * having been produced once. Failing it costs nothing — the card goes to the
- * back of the current batch's queue. `/api/lessons/quiz` has no side effects,
- * and only `/api/lessons/start` moves anything, one batch at a time.
+ * having been produced once. Failing it costs nothing — the card is
+ * reinserted later in the current batch's queue. `/api/lessons/quiz` has no
+ * side effects, and only `/api/lessons/start` moves anything, one batch at a
+ * time.
  */
 @Component({
   selector: 'app-lessons',
@@ -418,10 +420,12 @@ export class LessonsPage {
   /** Leave the reading phase and build the quiz queue for this batch. */
   startQuiz(): void {
     this.queue.set(
-      this.items().map((item) => ({
-        subject: item.subject,
-        questions: questionsFor(item.subject.object_type),
-      })),
+      this.items().map((item) =>
+        shuffleQuestions({
+          subject: item.subject,
+          questions: questionsFor(item.subject.object_type),
+        }),
+      ),
     );
     this.passed.set(0);
     this.raw.set('');
@@ -477,7 +481,9 @@ export class LessonsPage {
     }
   }
 
-  /** Move past the feedback; a miss sends the card to the back of the queue. */
+  /** Move past the feedback; a miss or a remaining half is reinserted later
+   * in the queue, not sent to the back (see `reinsert` in review-queue.ts —
+   * same reasoning as the review screen's `next()`, issue #27). */
   advance(): void {
     const result = this.feedback();
     const card = this.card();
@@ -485,16 +491,16 @@ export class LessonsPage {
       return;
     }
 
-    const rest = this.queue().slice(1);
+    let rest = this.queue().slice(1);
     if (result.correct) {
       const remaining = card.questions.slice(1);
       if (remaining.length > 0) {
-        rest.push({ ...card, questions: remaining });
+        rest = reinsert(rest, { ...card, questions: remaining });
       } else {
         this.passed.update((n) => n + 1);
       }
     } else {
-      rest.push(card);
+      rest = reinsert(rest, card);
     }
 
     this.queue.set(rest);

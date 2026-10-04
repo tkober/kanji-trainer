@@ -24,6 +24,7 @@ import { HoldFocus } from '../../core/hold-focus';
 import { absorbInput, finaliseKana, isKana, romajiToKana } from '../../core/kana';
 import { Mnemonic } from '../../core/mnemonic';
 import { type ReadingGroup, readingGroups } from '../../core/readings';
+import { reinsert, shuffleQuestions } from '../../core/review-queue';
 import { type Hotkey, Hotkeys } from '../../shared/hotkeys/hotkeys';
 import { RadicalIllustration } from '../../shared/radical-illustration/radical-illustration';
 
@@ -139,7 +140,11 @@ export class Review {
     this.error.set(null);
     try {
       const queue = await this.api.reviewQueue(100);
-      this.queue.set(queue.items);
+      // The backend always hands back `['meaning', 'reading']` — shuffle each
+      // item's own half-order here, or the first sighting of every item is
+      // always its meaning. A no-op for an item already mid-review (it
+      // arrives with only its outstanding half left).
+      this.queue.set(queue.items.map(shuffleQuestions));
       this.counters.setDue(queue.total_due);
     } catch (err) {
       this.error.set((err as Error).message);
@@ -307,11 +312,14 @@ export class Review {
       return;
     }
 
-    const rest = this.queue().slice(1);
+    let rest = this.queue().slice(1);
     if (result.remaining.length > 0) {
-      // To the back rather than straight round again: answering the reading
-      // immediately after being shown the meaning tests nothing.
-      rest.push({ ...card, questions: result.remaining });
+      // Somewhere later in the round, not straight back round again and not
+      // at the very back either: a straight re-insert tests nothing (the
+      // meaning just answered is still on screen), and a straight push to
+      // the back regroups every reading into one block at the end of the
+      // round once enough items have gone through this once (issue #27).
+      rest = reinsert(rest, { ...card, questions: result.remaining });
     }
 
     this.queue.set(rest);
