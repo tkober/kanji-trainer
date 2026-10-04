@@ -233,6 +233,16 @@ ahead of both settings: an item with a review in flight (`pending_meaning` or
 `pending_reading` set — a half-answered item from a closed tab) is served
 first, so it is picked up right away rather than lost somewhere in a shuffle.
 
+**The server orders items; the browser orders halves.** Every queue item
+arrives with `questions` in the fixed order `srs.required_questions` /
+`srs.outstanding` produce (`['meaning', 'reading']`) — the backend does not
+care which half is answered first (`submit_answer` accepts either). `review.ts`
+and `lessons.ts` shuffle that order per item and, when a half is left
+outstanding, reinsert it at a random later position in the round rather than
+at the back (`core/review-queue.ts`). A straight push to the back used to
+regroup every reading into one block at the end of the round, no matter how
+well the SQL order shuffled the items themselves (issue #27).
+
 ## Invariants worth preserving
 
 **A queue item never carries its answers.** `SubjectSummary` and
