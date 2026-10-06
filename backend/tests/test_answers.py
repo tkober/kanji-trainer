@@ -144,7 +144,8 @@ def test_an_unknown_reading_is_wrong():
         ("tsukue", "つくえ"),
         ("ryokou", "りょこう"),
         ("nihon", "にほん"),
-        ("onna", "おんな"),
+        ("onnna", "おんな"),
+        ("onna", "おんあ"),
     ],
 )
 def test_romaji_to_hiragana(romaji: str, kana: str):
@@ -155,8 +156,20 @@ def test_the_doubled_n_is_one_kana():
     """Most IMEs need "nn" for ん, so that is what the fingers do."""
     assert romaji_to_hiragana("sann") == "さん"
     assert romaji_to_hiragana("sannnen") == "さんねん"
-    # The second n still opens a syllable wherever it can -- see "onna" above.
-    assert romaji_to_hiragana("annai") == "あんない"
+    # "nn" is eager now -- see "onna"/"onnna" above -- so な only survives
+    # past it with a third n: "annai" would be あんあい, not あんない.
+    assert romaji_to_hiragana("annnai") == "あんない"
+
+
+def test_nn_is_eager_like_an_ime_issue_31():
+    """せんえん (1000 yen), not せんねん, when typed the way an IME expects.
+
+    "sennenn" is "nn" (ん) + "e" + "nn" (ん): the fingers write せんえん.
+    Getting ねん there would need a third n to spell out the "ne" syllable
+    before the closing ん, which is "sennnenn".
+    """
+    assert romaji_to_hiragana("sennenn") == "せんえん"
+    assert romaji_to_hiragana("sennnenn") == "せんねん"
 
 
 def test_normalise_kana_folds_katakana_and_strips_spaces():
