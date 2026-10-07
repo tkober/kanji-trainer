@@ -43,9 +43,8 @@ async def _kanji_readings_for(
     is a *fragment* of the word's reading, not "the wrong type of reading" --
     that confusion (WaniKani's own hint) only exists when the vocabulary and
     the kanji are the same character and could plausibly share a reading.
-    Okurigana (e.g. 出る vs the kanji 出) is deliberately excluded too, to keep
-    the qualifying case simple and exact rather than reaching for "trivially
-    robust".
+    A word with okurigana (出る next to the kanji 出) is left out as well: the
+    exact-characters case is the one that cannot misfire.
     """
     if (
         question is not QuestionType.READING

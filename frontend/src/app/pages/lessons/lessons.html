@@ -261,6 +261,10 @@
         } @else if (result.secondary) {
           <span> The primary answer is <em class="jp">{{ result.expected }}</em>.</span>
         }
+      } @else if (result.retry) {
+        <!-- A real reading, just not this item's: there is no expected answer
+             to name, only the hint below saying which reading was meant. -->
+        <strong>Doesn't count.</strong>
       } @else {
         <strong>Not yet.</strong>
         <span> Expected: <em class="jp">{{ result.expected }}</em></span>

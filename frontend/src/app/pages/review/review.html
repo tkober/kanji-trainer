@@ -79,9 +79,9 @@
     >
       @if (result.retry) {
         <strong>Doesn't count.</strong>
-        @if (card.subject.object_type === 'vocabulary') {
-          <span> That is the kanji's reading — this is the vocabulary.</span>
-        } @else {
+        <!-- On vocabulary the retry is the kanji's reading (issue #41), which is
+             not a reading of this item; the hint below says so on its own. -->
+        @if (card.subject.object_type !== 'vocabulary') {
           <span> That is a real reading of this character — just not the one asked for.</span>
         }
       } @else if (result.correct) {
