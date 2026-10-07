@@ -1,0 +1,147 @@
+/* Matches the dt/dd look the three pages shared before this component existed
+   (browse's detail dialog, lessons' reading phase, review's "Show item"
+   panel) — see their own stylesheets for the fields around this block. */
+
+:host {
+  display: block;
+}
+
+dl {
+  margin: 0;
+}
+
+dt {
+  font-size: 0.8rem;
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+  color: var(--muted);
+  margin-top: 0.75rem;
+  display: flex;
+  align-items: center;
+  gap: 0.3rem;
+
+  &:first-child {
+    margin-top: 0;
+  }
+
+  &.accepted {
+    color: var(--text);
+    font-weight: 700;
+  }
+}
+
+dd {
+  margin: 0.15rem 0 0;
+
+  &.jp {
+    font-size: 1.15rem;
+  }
+
+  &.accepted {
+    font-weight: 700;
+  }
+}
+
+/* The (i) button: small, round, never louder than the heading it sits next
+   to — it is a reminder on demand, not a call to action. */
+.info {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 1.1rem;
+  height: 1.1rem;
+  padding: 0;
+  border-radius: 50%;
+  border: 1px solid var(--muted);
+  background: none;
+  color: var(--muted);
+  font: inherit;
+  font-size: 0.65rem;
+  font-style: italic;
+  line-height: 1;
+  text-transform: none;
+  letter-spacing: 0;
+
+  &:hover {
+    border-color: var(--accent);
+    color: var(--accent);
+    background: none;
+  }
+}
+
+/* The native Popover API: light-dismiss (outside click, a second click on the
+   invoker, Esc) and the top layer come for free, and its default UA position
+   — centred in the viewport — needs no anchoring maths to stay on screen at
+   390px. `appHoldFocus` on the invoking button keeps this from taking the
+   caret on the review screen; opening the popover itself moves no focus. */
+.info-popover {
+  max-width: min(22rem, calc(100vw - 2rem));
+  background: var(--surface);
+  color: var(--text);
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  box-shadow: var(--shadow);
+  padding: 0.9rem 1rem;
+
+  h3 {
+    margin: 0 0 0.4rem;
+    font-size: 0.95rem;
+  }
+
+  p {
+    margin: 0 0 0.5rem;
+    font-size: 0.85rem;
+    line-height: 1.45;
+    text-transform: none;
+    letter-spacing: 0;
+    color: var(--text);
+  }
+
+  .common {
+    color: var(--muted);
+  }
+
+  a {
+    font-size: 0.85rem;
+  }
+}
+
+/* A reading that WaniKani stores in hiragana but is shown in katakana
+   (on'yomi) — hover reveals the hiragana on a device that has hover, a tap
+   toggles it where it does not. The underlying button looks like plain text,
+   not a control, until that moment. */
+.kana-toggle {
+  display: inline;
+  padding: 0;
+  margin: 0;
+  border: 0;
+  background: none;
+  color: inherit;
+  font: inherit;
+  cursor: pointer;
+  border-bottom: 1px dotted var(--muted);
+
+  .hiragana {
+    display: none;
+  }
+
+  &.revealed {
+    .katakana {
+      display: none;
+    }
+
+    .hiragana {
+      display: inline;
+    }
+  }
+
+  @media (hover: hover) {
+    &:hover .katakana {
+      display: none;
+    }
+
+    &:hover .hiragana {
+      display: inline;
+    }
+  }
+}

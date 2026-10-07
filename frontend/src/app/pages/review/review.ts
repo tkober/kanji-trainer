@@ -11,29 +11,23 @@ import {
 import { RouterLink } from '@angular/router';
 
 import { Api } from '../../core/api';
-import type {
-  AnswerResult,
-  ObjectType,
-  QuestionType,
-  QueueItem,
-  SubjectDetail,
-} from '../../core/api.types';
+import type { AnswerResult, ObjectType, QuestionType, QueueItem } from '../../core/api.types';
 import { Counters } from '../../core/counters';
 import { glyphCount } from '../../core/glyphs';
 import { HoldFocus } from '../../core/hold-focus';
 import { absorbInput, finaliseKana, isKana, romajiToKana } from '../../core/kana';
 import { Mnemonic } from '../../core/mnemonic';
-import { type ReadingGroup, readingGroups } from '../../core/readings';
 import { reinsert, shuffleQuestions } from '../../core/review-queue';
 import { type Hotkey, Hotkeys } from '../../shared/hotkeys/hotkeys';
 import { RadicalIllustration } from '../../shared/radical-illustration/radical-illustration';
+import { Readings } from '../../shared/readings/readings';
 
 /** A queue entry plus what it still owes. */
 type Card = QueueItem;
 
 @Component({
   selector: 'app-review',
-  imports: [DatePipe, HoldFocus, Hotkeys, Mnemonic, RadicalIllustration, RouterLink],
+  imports: [DatePipe, HoldFocus, Hotkeys, Mnemonic, RadicalIllustration, Readings, RouterLink],
   templateUrl: './review.html',
   styleUrl: './review.scss',
 })
@@ -492,10 +486,6 @@ export class Review {
   /** Bound to `.characters` as `--glyphs`, so its font shrinks to fit the card. */
   protected glyphCount(text: string): number {
     return glyphCount(text);
-  }
-
-  protected readings(subject: SubjectDetail): ReadingGroup[] {
-    return readingGroups(subject.readings);
   }
 
   protected primaryMeanings(result: AnswerResult): string {

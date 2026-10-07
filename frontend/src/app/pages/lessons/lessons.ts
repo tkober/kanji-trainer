@@ -25,10 +25,10 @@ import { glyphCount } from '../../core/glyphs';
 import { HoldFocus } from '../../core/hold-focus';
 import { absorbInput, finaliseKana, isKana, romajiToKana } from '../../core/kana';
 import { Mnemonic } from '../../core/mnemonic';
-import { type ReadingGroup, readingGroups } from '../../core/readings';
 import { reinsert, shuffleQuestions } from '../../core/review-queue';
 import { LevelPicker } from '../../shared/level-picker/level-picker';
 import { RadicalIllustration } from '../../shared/radical-illustration/radical-illustration';
+import { Readings } from '../../shared/readings/readings';
 
 /** One item in the quiz, with the questions it still owes. */
 interface QuizCard {
@@ -114,7 +114,7 @@ function chunk<T>(items: T[], size: number): T[][] {
  */
 @Component({
   selector: 'app-lessons',
-  imports: [HoldFocus, LevelPicker, Mnemonic, RadicalIllustration, RouterLink],
+  imports: [HoldFocus, LevelPicker, Mnemonic, RadicalIllustration, Readings, RouterLink],
   templateUrl: './lessons.html',
   styleUrl: './lessons.scss',
 })
@@ -604,10 +604,6 @@ export class LessonsPage {
       .filter((meaning) => meaning.accepted_answer !== false)
       .map((meaning) => meaning.meaning)
       .join(', ');
-  }
-
-  protected readings(subject: SubjectDetail): ReadingGroup[] {
-    return readingGroups(subject.readings);
   }
 
   protected band(stage: number): Band {

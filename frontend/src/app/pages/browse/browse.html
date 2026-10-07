@@ -183,16 +183,9 @@
         <button type="button" class="close" aria-label="Close" (click)="closeDetail()">×</button>
       </header>
 
+      <app-readings [readings]="item.subject.readings" [objectType]="item.subject.object_type" />
+
       <dl>
-        @for (group of readings(item); track group.key) {
-          <dt>
-            {{ group.label ?? 'Reading' }}
-            @if (!group.accepted) {
-              <span class="not-asked">(not asked in reviews)</span>
-            }
-          </dt>
-          <dd class="jp" [class.not-asked]="!group.accepted">{{ group.readings }}</dd>
-        }
         @if (item.subject.parts_of_speech.length > 0) {
           <dt>Part of speech</dt>
           <dd>{{ item.subject.parts_of_speech.join(', ') }}</dd>

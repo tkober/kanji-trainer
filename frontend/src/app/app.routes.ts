@@ -27,6 +27,11 @@ export const routes: Routes = [
     title: 'Items · Kanji Trainer',
   },
   {
+    path: 'readings',
+    loadComponent: () => import('./pages/readings/readings').then((m) => m.ReadingsPage),
+    title: 'Kanji readings · Kanji Trainer',
+  },
+  {
     path: 'settings',
     loadComponent: () => import('./pages/settings/settings').then((m) => m.SettingsPage),
     title: 'Settings · Kanji Trainer',

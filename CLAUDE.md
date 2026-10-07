@@ -172,7 +172,13 @@ protecting: this module decides how much work the learner is asked to do.
 (Levenshtein against every accepted and whitelisted meaning, allowance scaled
 by length); readings forgive nothing beyond kana folding and the romaji
 fallback. A reading one kana off is a *different reading*, and accepting it
-would drill the wrong word while reporting success.
+would drill the wrong word while reporting success. On'yomi is *displayed* in
+katakana (dictionary convention — `core/readings.ts`, tap/hover reveals the
+underlying hiragana) while the check above stays kana-folded; the two never
+need to agree. `shared/readings/readings.ts` is the one place that renders a
+kanji's or word's readings — the review "Show item" panel, the lessons
+reading phase and the browse detail dialog all embed it rather than keeping
+their own copy.
 
 **Lessons are scoped to one level and gated by a quiz.** `GET /api/lessons` is
 a selection view: it defaults to the lowest level that still has anything
