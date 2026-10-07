@@ -66,6 +66,12 @@ async def test_legacy_database_is_bridged_without_losing_data() -> None:
     try:
         await _reset_to_legacy_schema(owner_engine)
         subject_id = await _seed_legacy_row(owner_engine)
+        # Dropped only after seeding: the ORM model already expects this
+        # column (it is in Base.metadata), so inserting through it needs the
+        # column there a moment longer than `lesson_batch_size`, which lives
+        # on a table this seed never touches.
+        async with owner_engine.begin() as conn:
+            await conn.execute(text("ALTER TABLE subjects DROP COLUMN context_sentences"))
     finally:
         await owner_engine.dispose()
 
@@ -78,6 +84,9 @@ async def test_legacy_database_is_bridged_without_losing_data() -> None:
             columns = await conn.run_sync(
                 lambda c: {col["name"] for col in inspect(c).get_columns("app_settings")}
             )
+            subject_columns = await conn.run_sync(
+                lambda c: {col["name"] for col in inspect(c).get_columns("subjects")}
+            )
             version = (
                 await conn.execute(text("SELECT version_num FROM alembic_version"))
             ).scalar_one()
@@ -86,6 +95,7 @@ async def test_legacy_database_is_bridged_without_losing_data() -> None:
 
     assert "subject_illustrations" in tables
     assert "lesson_batch_size" in columns, "migrate_schema should have added the missing column"
+    assert "context_sentences" in subject_columns, "revision 0003 should have added the column"
     assert version == _head_revision()
 
     from app.db import get_sessionmaker, reset_engines

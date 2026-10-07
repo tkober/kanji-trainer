@@ -36,6 +36,11 @@ export interface Reading {
   type?: string;
 }
 
+export interface ContextSentence {
+  ja: string;
+  en: string;
+}
+
 export interface SubjectDetail extends SubjectSummary {
   meanings: Meaning[];
   readings: Reading[];
@@ -45,6 +50,9 @@ export interface SubjectDetail extends SubjectSummary {
   meaning_hint: string | null;
   reading_mnemonic: string | null;
   reading_hint: string | null;
+  /** Vocabulary/kana_vocabulary only, empty elsewhere. Detail only — the
+   *  English half names the word being asked about. */
+  context_sentences: ContextSentence[];
   /** The item's page on wanikani.com — null for a hand-added item. */
   wanikani_url: string | null;
 }

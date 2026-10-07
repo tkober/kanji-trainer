@@ -283,6 +283,26 @@ async def test_the_detail_links_to_wanikani_but_the_queue_does_not(client, sessi
     assert "wanikani_url" not in queue_item["subject"]
 
 
+async def test_context_sentences_are_in_the_detail_but_not_the_queue(client, session):
+    """Detail only -- the English half of a sentence names the word (issue #32)."""
+    subject_id = await seed_tsuki_vocabulary(session)
+    subject = await session.get(Subject, subject_id)
+    subject.context_sentences = [
+        {"en": "The moon is bright tonight.", "ja": "今夜は月が明るい。"},
+        {"en": "Look at the moon.", "ja": "月を見て。"},
+    ]
+    await session.commit()
+
+    item = (await client.get(f"/api/items/{subject_id}")).json()
+    assert item["subject"]["context_sentences"] == [
+        {"en": "The moon is bright tonight.", "ja": "今夜は月が明るい。"},
+        {"en": "Look at the moon.", "ja": "月を見て。"},
+    ]
+
+    queue_item = (await client.get("/api/reviews")).json()["items"][0]
+    assert "context_sentences" not in queue_item["subject"]
+
+
 async def test_a_hand_added_item_has_no_wanikani_link(client, session):
     own = Subject(
         wanikani_id=None,

@@ -294,6 +294,7 @@ async def _flush_subjects(session: AsyncSession, rows: list[dict[str, Any]]) -> 
                     "readings",
                     "component_subject_ids",
                     "parts_of_speech",
+                    "context_sentences",
                     "meaning_mnemonic",
                     "meaning_hint",
                     "reading_mnemonic",

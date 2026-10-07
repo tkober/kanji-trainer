@@ -27,6 +27,7 @@ import { absorbInput, finaliseKana, isKana, romajiToKana } from '../../core/kana
 import { Mnemonic } from '../../core/mnemonic';
 import { reinsert, shuffleQuestions } from '../../core/review-queue';
 import { LevelPicker } from '../../shared/level-picker/level-picker';
+import { ContextSentences } from '../../shared/context-sentences/context-sentences';
 import { RadicalIllustration } from '../../shared/radical-illustration/radical-illustration';
 import { Readings } from '../../shared/readings/readings';
 
@@ -114,7 +115,15 @@ function chunk<T>(items: T[], size: number): T[][] {
  */
 @Component({
   selector: 'app-lessons',
-  imports: [HoldFocus, LevelPicker, Mnemonic, RadicalIllustration, Readings, RouterLink],
+  imports: [
+    ContextSentences,
+    HoldFocus,
+    LevelPicker,
+    Mnemonic,
+    RadicalIllustration,
+    Readings,
+    RouterLink,
+  ],
   templateUrl: './lessons.html',
   styleUrl: './lessons.scss',
 })

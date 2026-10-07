@@ -11,8 +11,9 @@ from datetime import datetime, timezone
 
 import pytest
 
-from app.importer import classify, parse_timestamp
+from app.importer import _flush_subjects, classify, parse_timestamp
 from app.srs import STAGE_BURNED, STAGE_ENLIGHTENED, ItemState
+from app.wanikani import subject_row
 
 
 @pytest.mark.parametrize("wk_stage", [5, 6, 7, 8, 9])
@@ -62,3 +63,54 @@ def test_parse_timestamp_handles_wanikanis_format():
 @pytest.mark.parametrize("value", [None, "", "not a date", 42])
 def test_parse_timestamp_tolerates_rubbish(value: object):
     assert parse_timestamp(value) is None
+
+
+# --- context sentences (issue #32) -------------------------------------------
+
+
+def _vocab_item(context_sentences: list[dict] | None) -> dict:
+    data = {
+        "level": 1,
+        "slug": "moon-vocab",
+        "characters": "月",
+        "meanings": [{"meaning": "Moon", "primary": True, "accepted_answer": True}],
+        "meaning_mnemonic": "The moon, as a word on its own.",
+    }
+    if context_sentences is not None:
+        data["context_sentences"] = context_sentences
+    return {"id": 4, "object": "vocabulary", "data": data}
+
+
+def test_subject_row_maps_context_sentences():
+    sentences = [{"en": "The moon is bright tonight.", "ja": "今夜は月が明るい。"}]
+    row = subject_row(_vocab_item(sentences))
+    assert row["context_sentences"] == sentences
+
+
+def test_subject_row_defaults_context_sentences_to_an_empty_list():
+    """Radicals and kanji carry no such field -- WaniKani omits it entirely."""
+    row = subject_row(_vocab_item(None))
+    assert row["context_sentences"] == []
+
+
+async def test_a_reimport_refreshes_context_sentences(session):
+    """Like every other content column, a re-import must pick up a revision --
+    WaniKani does add example sentences to existing vocabulary over time."""
+    first = subject_row(_vocab_item([{"en": "Old sentence.", "ja": "古い文。"}]))
+    await _flush_subjects(session, [first])
+    await session.commit()
+
+    second = subject_row(
+        _vocab_item([{"en": "New sentence.", "ja": "新しい文。"}, {"en": "Another.", "ja": "別の文。"}])
+    )
+    await _flush_subjects(session, [second])
+    await session.commit()
+
+    from sqlalchemy import select
+
+    from app.db import Subject
+
+    subject = (
+        await session.execute(select(Subject).where(Subject.wanikani_id == 4))
+    ).scalar_one()
+    assert subject.context_sentences == second["context_sentences"]

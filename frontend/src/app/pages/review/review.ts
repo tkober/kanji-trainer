@@ -19,6 +19,7 @@ import { absorbInput, finaliseKana, isKana, romajiToKana } from '../../core/kana
 import { Mnemonic } from '../../core/mnemonic';
 import { reinsert, shuffleQuestions } from '../../core/review-queue';
 import { type Hotkey, Hotkeys } from '../../shared/hotkeys/hotkeys';
+import { ContextSentences } from '../../shared/context-sentences/context-sentences';
 import { RadicalIllustration } from '../../shared/radical-illustration/radical-illustration';
 import { Readings } from '../../shared/readings/readings';
 
@@ -27,7 +28,16 @@ type Card = QueueItem;
 
 @Component({
   selector: 'app-review',
-  imports: [DatePipe, HoldFocus, Hotkeys, Mnemonic, RadicalIllustration, Readings, RouterLink],
+  imports: [
+    ContextSentences,
+    DatePipe,
+    HoldFocus,
+    Hotkeys,
+    Mnemonic,
+    RadicalIllustration,
+    Readings,
+    RouterLink,
+  ],
   templateUrl: './review.html',
   styleUrl: './review.scss',
 })

@@ -5,6 +5,7 @@ import { FormsModule } from '@angular/forms';
 import { Api } from '../../core/api';
 import type { Item, ObjectType } from '../../core/api.types';
 import { Mnemonic } from '../../core/mnemonic';
+import { ContextSentences } from '../../shared/context-sentences/context-sentences';
 import { RadicalIllustration } from '../../shared/radical-illustration/radical-illustration';
 import { Readings } from '../../shared/readings/readings';
 
@@ -20,7 +21,7 @@ const PAGE_SIZE = 100;
  */
 @Component({
   selector: 'app-browse',
-  imports: [DatePipe, FormsModule, Mnemonic, RadicalIllustration, Readings],
+  imports: [ContextSentences, DatePipe, FormsModule, Mnemonic, RadicalIllustration, Readings],
   templateUrl: './browse.html',
   styleUrl: './browse.scss',
 })

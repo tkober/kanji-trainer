@@ -198,7 +198,14 @@
           <dt>Reading mnemonic</dt>
           <dd [innerHTML]="item.subject.reading_mnemonic | mnemonic"></dd>
         }
+      </dl>
 
+      <app-context-sentences
+        [sentences]="item.subject.context_sentences"
+        [characters]="item.subject.characters"
+      />
+
+      <dl>
         <dt>Progress</dt>
         <dd>
           {{ item.progress.correct_count }} correct · {{ item.progress.incorrect_count }} wrong ·

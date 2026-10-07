@@ -77,6 +77,7 @@ def subject_detail(subject: Subject) -> SubjectDetail:
         readings=subject.readings,
         parts_of_speech=subject.parts_of_speech,
         component_subject_ids=subject.component_subject_ids,
+        context_sentences=subject.context_sentences,
         meaning_mnemonic=subject.meaning_mnemonic,
         meaning_hint=subject.meaning_hint,
         reading_mnemonic=subject.reading_mnemonic,

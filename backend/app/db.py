@@ -237,6 +237,12 @@ class Subject(Base):
     parts_of_speech: Mapped[list[str]] = mapped_column(
         JSONColumn, nullable=False, server_default="[]"
     )
+    # [{"en": "...", "ja": "..."}, ...] -- vocabulary and kana_vocabulary only;
+    # WaniKani has no such field on radicals or kanji. Detail-only, like
+    # meanings/readings -- see SubjectDetail.context_sentences.
+    context_sentences: Mapped[list[dict[str, Any]]] = mapped_column(
+        JSONColumn, nullable=False, server_default="[]"
+    )
 
     meaning_mnemonic: Mapped[str] = mapped_column(Text, nullable=False, server_default="")
     meaning_hint: Mapped[str | None] = mapped_column(Text, nullable=True)

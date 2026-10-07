@@ -153,6 +153,10 @@
       <app-readings [readings]="item.subject.readings" [objectType]="item.subject.object_type" />
 
       <dl>
+        @if (item.subject.parts_of_speech.length > 0) {
+          <dt>Part of speech</dt>
+          <dd>{{ item.subject.parts_of_speech.join(', ') }}</dd>
+        }
         @if (item.subject.meaning_mnemonic) {
           <dt>Meaning mnemonic</dt>
           <dd [innerHTML]="item.subject.meaning_mnemonic | mnemonic"></dd>
@@ -168,6 +172,11 @@
           </dd>
         }
       </dl>
+
+      <app-context-sentences
+        [sentences]="item.subject.context_sentences"
+        [characters]="item.subject.characters"
+      />
 
       <app-radical-illustration
         [subjectId]="item.subject.id"

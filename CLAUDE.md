@@ -257,6 +257,15 @@ one function for each. `GET /api/reviews` returns summaries; the detail comes
 back only in the *answer response*. An SRS the learner can read ahead in is not
 an SRS.
 
+**Context sentences are imported, detail-only.** WaniKani's
+`data.context_sentences` (vocabulary and kana_vocabulary only) is mapped like
+every other content field (`subject_row` in `wanikani.py`, refreshed by every
+re-import) and lives on `SubjectDetail.context_sentences` — never on
+`SubjectSummary` or the review queue, since the English half names the word
+being asked about. "Pattern of use" and "Common word combinations" (issue
+#32) are shown on wanikani.com but are not in the API, so they are not
+scraped or imported.
+
 **`state` and `srs_stage` are both stored, and are not redundant.** Stage 9 is
 reachable two ways — eight correct reviews, or one press of "das kann ich" —
 and `ItemState.KNOWN` is what tells them apart. `GET /api/stats` counts
