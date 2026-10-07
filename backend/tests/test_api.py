@@ -121,6 +121,88 @@ async def test_a_wrong_answer_keeps_the_item_due(client, session):
     assert (await client.get("/api/reviews")).json()["total_due"] == 1
 
 
+async def seed_tsuki_vocabulary(session, *, stage: int = 2, due_minutes: int = -5) -> int:
+    """月 the vocabulary (reading つき), component kanji 月 (onyomi げつ/がつ)."""
+    kanji = Subject(
+        wanikani_id=441,
+        object_type="kanji",
+        level=1,
+        slug="month",
+        characters="月",
+        meanings=[{"meaning": "Month", "primary": True, "accepted_answer": True}],
+        auxiliary_meanings=[],
+        readings=[
+            {"reading": "げつ", "primary": True, "accepted_answer": True, "type": "onyomi"},
+            {"reading": "がつ", "primary": False, "accepted_answer": True, "type": "onyomi"},
+            {"reading": "つき", "primary": False, "accepted_answer": False, "type": "kunyomi"},
+        ],
+        component_subject_ids=[],
+        parts_of_speech=[],
+        meaning_mnemonic="A moon.",
+    )
+    session.add(kanji)
+    await session.flush()
+
+    vocabulary = Subject(
+        wanikani_id=442,
+        object_type="vocabulary",
+        level=1,
+        slug="month-vocab",
+        characters="月",
+        meanings=[{"meaning": "Month", "primary": True, "accepted_answer": True}],
+        auxiliary_meanings=[],
+        readings=[{"reading": "つき", "primary": True, "accepted_answer": True}],
+        component_subject_ids=[kanji.id],
+        parts_of_speech=["noun"],
+        meaning_mnemonic="The moon in the sky.",
+    )
+    session.add(vocabulary)
+    await session.flush()
+
+    session.add(
+        Progress(
+            subject_id=vocabulary.id,
+            state=ItemState.LEARNING.value,
+            srs_stage=stage,
+            next_review_at=NOW + timedelta(minutes=due_minutes),
+        )
+    )
+    await session.commit()
+    return vocabulary.id
+
+
+async def test_the_kanjis_reading_on_its_vocabulary_is_a_retry_not_a_miss(client, session):
+    """Issue: answering げつ for the vocabulary 月 (reading つき) must retry
+    with a hint, not count as wrong -- the learner knew *a* reading, just the
+    kanji's rather than the word's."""
+    subject_id = await seed_tsuki_vocabulary(session)
+
+    response = await client.post(
+        "/api/reviews/answer",
+        json={"subject_id": subject_id, "question": "reading", "answer": "getsu"},
+    )
+    assert response.status_code == 200
+    body = response.json()
+    assert not body["correct"]
+    assert body["retry"]
+    assert body["hint"] is not None
+    # Nothing committed or revealed: still due, still owing both questions.
+    assert body["subject"] is None
+    assert body["expected"] == ""
+
+    queue = (await client.get("/api/reviews")).json()
+    assert queue["total_due"] == 1
+    assert queue["items"][0]["questions"] == ["meaning", "reading"]
+
+    correct = await client.post(
+        "/api/reviews/answer",
+        json={"subject_id": subject_id, "question": "reading", "answer": "tsuki"},
+    )
+    body = correct.json()
+    assert body["correct"]
+    assert not body["retry"]
+
+
 async def test_marking_known_takes_an_item_out_of_the_queue(client, session):
     subject_id = await seed_kanji(session)
 

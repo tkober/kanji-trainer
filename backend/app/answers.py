@@ -217,6 +217,7 @@ def check_reading(
     given: str,
     readings: Iterable[dict[str, Any]],
     object_type: str = "kanji",
+    kanji_readings: Iterable[dict[str, Any]] = (),
 ) -> AnswerCheck:
     """Check a reading. Exact after normalisation -- no typo tolerance.
 
@@ -229,6 +230,14 @@ def check_reading(
     on'yomi of a kanji taught by its kun'yomi) is still wrong, but says so:
     "richtig gelesen, andere Lesung gefragt" is a different mistake from not
     knowing the word, and conflating them wastes the learner's attention.
+
+    ``kanji_readings`` is the reading list of the single kanji this vocabulary
+    is written with (empty for everything else -- see the caller in
+    ``api/study.py``). A vocabulary item that happens to share its reading
+    with that kanji is simply correct, checked first; only once the item's
+    own readings (accepted and known-but-unaccepted) have failed to match is
+    a kanji reading considered, so the "wrong type of reading" retry never
+    shadows a genuinely correct vocabulary answer.
     """
     entries = list(readings)
     answer = normalise_kana(romaji_to_hiragana(given) if _is_romaji(given) else given)
@@ -266,6 +275,24 @@ def check_reading(
                     f"That is the {kind} reading — a different one was asked for."
                     if kind
                     else "That is a real reading of this item, but not the one asked for."
+                ),
+            )
+
+    for entry in kanji_readings:
+        if entry.get("reading") and answer == normalise_kana(entry["reading"]):
+            # The vocabulary's own readings above have already failed to
+            # match, so this is the kanji's on'yomi (or kun'yomi) bleeding
+            # into a vocabulary question -- e.g. answering げつ for 月 the
+            # word, whose own reading is つき. Also not counted, for the same
+            # reason as above: the learner knew a reading of the character,
+            # just not this item's.
+            return AnswerCheck(
+                correct=False,
+                expected="",
+                retry=True,
+                hint=(
+                    "That is the kanji's reading — this is the vocabulary, "
+                    "so its own reading is asked for."
                 ),
             )
 

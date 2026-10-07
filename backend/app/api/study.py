@@ -32,6 +32,40 @@ from ..srs import ItemState, QuestionType
 router = APIRouter()
 
 
+async def _kanji_readings_for(
+    session: AsyncSession, subject: Subject, question: QuestionType
+) -> tuple[dict, ...]:
+    """The component kanji's readings, when a vocabulary reading question can
+    be confused with them -- empty otherwise.
+
+    Deliberately narrow: only a vocabulary item whose ``characters`` are
+    exactly one kanji qualifies. For a multi-kanji word a component's reading
+    is a *fragment* of the word's reading, not "the wrong type of reading" --
+    that confusion (WaniKani's own hint) only exists when the vocabulary and
+    the kanji are the same character and could plausibly share a reading.
+    Okurigana (e.g. 出る vs the kanji 出) is deliberately excluded too, to keep
+    the qualifying case simple and exact rather than reaching for "trivially
+    robust".
+    """
+    if (
+        question is not QuestionType.READING
+        or subject.object_type != "vocabulary"
+        or subject.characters is None
+        or len(subject.characters) != 1
+        or not subject.component_subject_ids
+    ):
+        return ()
+
+    kanji = await session.scalar(
+        select(Subject).where(
+            Subject.id.in_(subject.component_subject_ids),
+            Subject.object_type == "kanji",
+            Subject.characters == subject.characters,
+        )
+    )
+    return tuple(kanji.readings) if kanji is not None else ()
+
+
 def _questions(progress: Progress, subject: Subject) -> list[QuestionType]:
     """What this item still owes.
 
@@ -179,7 +213,10 @@ async def submit_answer(
             config.meaning_typo_tolerance_divisor,
         )
     else:
-        check = check_reading(payload.answer, subject.readings, subject.object_type)
+        kanji_readings = await _kanji_readings_for(session, subject, payload.question)
+        check = check_reading(
+            payload.answer, subject.readings, subject.object_type, kanji_readings
+        )
 
     # --- the two second chances, both of which leave the item untouched ---
     #
@@ -488,7 +525,10 @@ async def quiz_answer(
             config.meaning_typo_tolerance_divisor,
         )
     else:
-        check = check_reading(payload.answer, subject.readings, subject.object_type)
+        kanji_readings = await _kanji_readings_for(session, subject, payload.question)
+        check = check_reading(
+            payload.answer, subject.readings, subject.object_type, kanji_readings
+        )
 
     return QuizOut(
         correct=check.correct,

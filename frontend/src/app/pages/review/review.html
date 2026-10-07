@@ -79,7 +79,11 @@
     >
       @if (result.retry) {
         <strong>Doesn't count.</strong>
-        <span> That is a real reading of this character — just not the one asked for.</span>
+        @if (card.subject.object_type === 'vocabulary') {
+          <span> That is the kanji's reading — this is the vocabulary.</span>
+        } @else {
+          <span> That is a real reading of this character — just not the one asked for.</span>
+        }
       } @else if (result.correct) {
         <strong>Correct.</strong>
         @if (result.typo) {

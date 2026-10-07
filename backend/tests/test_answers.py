@@ -130,6 +130,45 @@ def test_an_unknown_reading_is_wrong():
     assert not check_reading("ざつ", KOU).correct
 
 
+# 月 the vocabulary (reading つき) vs 月 the kanji (onyomi げつ/がつ).
+TSUKI = [{"reading": "つき", "primary": True, "accepted_answer": True}]
+GETSU_GATSU = [
+    {"reading": "げつ", "primary": True, "accepted_answer": True, "type": "onyomi"},
+    {"reading": "がつ", "primary": False, "accepted_answer": True, "type": "onyomi"},
+]
+
+
+def test_the_kanjis_reading_on_a_vocabulary_is_a_retry_with_a_dedicated_hint():
+    check = check_reading("げつ", TSUKI, "vocabulary", GETSU_GATSU)
+    assert not check.correct
+    assert check.retry
+    assert check.expected == ""
+    assert check.hint is not None
+    assert "vocabulary" in check.hint
+
+
+def test_the_vocabularys_own_reading_still_wins_even_if_it_equalled_a_kanji_reading():
+    """A vocabulary reading that happens to coincide with the kanji's is simply
+    correct -- the item's own readings are checked first."""
+    check = check_reading("つき", TSUKI, "vocabulary", kanji_readings=TSUKI)
+    assert check.correct
+    assert not check.retry
+
+
+def test_an_unrelated_reading_is_still_plain_wrong_with_kanji_readings_present():
+    check = check_reading("ざつ", TSUKI, "vocabulary", GETSU_GATSU)
+    assert not check.correct
+    assert not check.retry
+    assert check.hint is None
+
+
+def test_without_kanji_readings_the_old_behaviour_is_unchanged():
+    check = check_reading("げつ", TSUKI, "vocabulary")
+    assert not check.correct
+    assert not check.retry
+    assert check.hint is None
+
+
 # --- romaji ----------------------------------------------------------------
 
 
