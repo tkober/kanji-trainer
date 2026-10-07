@@ -269,7 +269,15 @@ GET that writes is surprising, and an item merely looked at should be untouched.
 to insist or to correct a typo, since below four characters there is no typo
 tolerance to catch a slip. `retry` is a real reading of the character of the
 type that was *not* asked: WaniKani re-asks rather than counting it wrong, and
-charging for it would punish knowing more than the question wanted. Both return
+charging for it would punish knowing more than the question wanted. The same
+verdict covers a vocabulary item answered with its component kanji's reading
+instead of its own (issue #41, e.g. 月 the word answered げつ, the kanji's
+on'yomi) — `check_reading()`'s `kanji_readings` parameter, filled in by
+`study.py`'s `_kanji_readings_for()` only for a vocabulary item whose
+`characters` are exactly one kanji, checked after the item's own readings so a
+coincidental match is simply correct. A multi-kanji word is deliberately
+excluded: one component's reading there is a fragment of the word's reading,
+not this confusion. Both `held` and `retry` return
 through `_still_open()`, which sends no `expected` and no `subject` — the
 learner is about to answer this same question again, and a warning carrying the
 answer would be a reveal button with extra steps. Neither commits, so the
