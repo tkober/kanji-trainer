@@ -66,10 +66,8 @@ async def test_legacy_database_is_bridged_without_losing_data() -> None:
     try:
         await _reset_to_legacy_schema(owner_engine)
         subject_id = await _seed_legacy_row(owner_engine)
-        # Dropped only after seeding: the ORM model already expects this
-        # column (it is in Base.metadata), so inserting through it needs the
-        # column there a moment longer than `lesson_batch_size`, which lives
-        # on a table this seed never touches.
+        # A pre-Alembic database predates 0003 too. Dropped only after the
+        # seed, which inserts through the ORM model and so needs the column.
         async with owner_engine.begin() as conn:
             await conn.execute(text("ALTER TABLE subjects DROP COLUMN context_sentences"))
     finally:
