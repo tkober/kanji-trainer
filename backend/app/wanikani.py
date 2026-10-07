@@ -84,6 +84,17 @@ class WaniKaniClient:
         async for page in self._iter_pages(f"{self.api_base}/assignments", {"hidden": "false"}):
             yield page
 
+    async def iter_study_materials(self) -> AsyncIterator[tuple[list[dict[str, Any]], int]]:
+        """Every study material, page by page.
+
+        A study material carries the learner's own notes on a subject --
+        ``data.meaning_synonyms`` ("User Synonyms" on wanikani.com) is the
+        only part this app imports (issue #33); the rest (mnemonic notes) has
+        no local equivalent.
+        """
+        async for page in self._iter_pages(f"{self.api_base}/study_materials", None):
+            yield page
+
     # --- internals -------------------------------------------------------
 
     def _require_token(self) -> None:
@@ -170,6 +181,10 @@ def subject_row(item: dict[str, Any]) -> dict[str, Any]:
         "readings": data.get("readings") or [],
         "component_subject_ids": data.get("component_subject_ids") or [],
         "parts_of_speech": data.get("parts_of_speech") or [],
+        # [{"en": "...", "ja": "..."}, ...] -- vocabulary/kana_vocabulary only.
+        # "Pattern of use" and "Common word combinations" are website-only
+        # (not in the API) and are deliberately not scraped here.
+        "context_sentences": data.get("context_sentences") or [],
         "meaning_mnemonic": data.get("meaning_mnemonic") or "",
         "meaning_hint": data.get("meaning_hint"),
         "reading_mnemonic": data.get("reading_mnemonic"),

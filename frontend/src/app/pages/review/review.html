@@ -79,7 +79,11 @@
     >
       @if (result.retry) {
         <strong>Doesn't count.</strong>
-        <span> That is a real reading of this character — just not the one asked for.</span>
+        <!-- On vocabulary the retry is the kanji's reading (issue #41), which is
+             not a reading of this item; the hint below says so on its own. -->
+        @if (card.subject.object_type !== 'vocabulary') {
+          <span> That is a real reading of this character — just not the one asked for.</span>
+        }
       } @else if (result.correct) {
         <strong>Correct.</strong>
         @if (result.typo) {
@@ -112,14 +116,21 @@
           <dl>
             <dt>Meanings</dt>
             <dd>{{ primaryMeanings(result) }}</dd>
-            @for (group of readings(subject); track group.key) {
-              <dt>
-                {{ group.label ?? 'Readings' }}
-                @if (!group.accepted) {
-                  <span class="not-asked">(not asked in reviews)</span>
-                }
-              </dt>
-              <dd class="jp" [class.not-asked]="!group.accepted">{{ group.readings }}</dd>
+          </dl>
+
+          <app-synonyms
+            [subjectId]="subject.id"
+            [synonyms]="subject.synonyms"
+            (synonymsChange)="onSynonymsChange(subject.id, $event)"
+            (done)="focus()"
+          />
+
+          <app-readings [readings]="subject.readings" [objectType]="subject.object_type" />
+
+          <dl>
+            @if (subject.parts_of_speech.length > 0) {
+              <dt>Part of speech</dt>
+              <dd>{{ subject.parts_of_speech.join(', ') }}</dd>
             }
             @if (subject.meaning_mnemonic) {
               <dt>Meaning mnemonic</dt>
@@ -130,6 +141,11 @@
               <dd [innerHTML]="subject.reading_mnemonic | mnemonic"></dd>
             }
           </dl>
+
+          <app-context-sentences
+            [sentences]="subject.context_sentences"
+            [characters]="subject.characters"
+          />
 
           <app-radical-illustration
             [subjectId]="subject.id"
@@ -162,8 +178,22 @@
         That looks wrong. <kbd>Enter</kbd> to submit anyway, <kbd>Esc</kbd> to edit.
       </p>
     }
+  }
+
+  @if (confirmKnown()) {
+    <p class="warning">
+      This marks <strong class="jp">{{ card.subject.characters || card.subject.slug }}</strong> as
+      known — meaning <strong>and</strong> reading. Both leave the reviews.
+    </p>
     <div class="row actions">
-      <button class="known" appHoldFocus (click)="markKnown()" title="Alt+K">
+      <button class="known" appHoldFocus (click)="requestKnown()">
+        Mark whole item known (Alt+K / Enter)
+      </button>
+      <button appHoldFocus (click)="cancelKnown()">Cancel (Esc)</button>
+    </div>
+  } @else if (!feedback()) {
+    <div class="row actions">
+      <button class="known" appHoldFocus (click)="requestKnown()" title="Alt+K">
         I know this
       </button>
       <button class="primary" appHoldFocus [disabled]="submitting()" (click)="submit()">
@@ -171,7 +201,8 @@
       </button>
     </div>
     <p class="muted hint-line">
-      “I know this” retires the item immediately — no waiting on intervals.
+      “I know this” retires the whole item immediately — meaning and reading together, no waiting
+      on intervals.
     </p>
   }
 }

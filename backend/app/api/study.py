@@ -28,8 +28,42 @@ from ..models import (
 from ..runtime_config import RuntimeConfig, load_runtime_config
 from ..serialize import subject_detail, subject_summary
 from ..srs import ItemState, QuestionType
+from ..synonyms import load_synonyms, load_synonyms_map
 
 router = APIRouter()
+
+
+async def _kanji_readings_for(
+    session: AsyncSession, subject: Subject, question: QuestionType
+) -> tuple[dict, ...]:
+    """The component kanji's readings, when a vocabulary reading question can
+    be confused with them -- empty otherwise.
+
+    Deliberately narrow: only a vocabulary item whose ``characters`` are
+    exactly one kanji qualifies. For a multi-kanji word a component's reading
+    is a *fragment* of the word's reading, not "the wrong type of reading" --
+    that confusion (WaniKani's own hint) only exists when the vocabulary and
+    the kanji are the same character and could plausibly share a reading.
+    A word with okurigana (出る next to the kanji 出) is left out as well: the
+    exact-characters case is the one that cannot misfire.
+    """
+    if (
+        question is not QuestionType.READING
+        or subject.object_type != "vocabulary"
+        or subject.characters is None
+        or len(subject.characters) != 1
+        or not subject.component_subject_ids
+    ):
+        return ()
+
+    kanji = await session.scalar(
+        select(Subject).where(
+            Subject.id.in_(subject.component_subject_ids),
+            Subject.object_type == "kanji",
+            Subject.characters == subject.characters,
+        )
+    )
+    return tuple(kanji.readings) if kanji is not None else ()
 
 
 def _questions(progress: Progress, subject: Subject) -> list[QuestionType]:
@@ -171,15 +205,24 @@ async def submit_answer(
             status_code=409, detail="That question has already been answered for this item."
         )
 
+    # Loaded for a reading answer too, although only the meaning check reads
+    # them: the detail in the response is what the "Show item" panel edits,
+    # and the synonym editor saves a whole list -- an empty one shown after a
+    # reading would overwrite every synonym the item has on the first add.
+    synonyms = await load_synonyms(session, subject.id)
     if payload.question is QuestionType.MEANING:
         check = check_meaning(
             payload.answer,
             subject.meanings,
             subject.auxiliary_meanings,
             config.meaning_typo_tolerance_divisor,
+            synonyms,
         )
     else:
-        check = check_reading(payload.answer, subject.readings, subject.object_type)
+        kanji_readings = await _kanji_readings_for(session, subject, payload.question)
+        check = check_reading(
+            payload.answer, subject.readings, subject.object_type, kanji_readings
+        )
 
     # --- the two second chances, both of which leave the item untouched ---
     #
@@ -235,7 +278,7 @@ async def submit_answer(
         srs_stage_after=outcome.stage_after,
         stage_name_after=srs.stage_name(outcome.stage_after),
         next_review_at=outcome.next_review_at,
-        subject=subject_detail(subject),
+        subject=subject_detail(subject, synonyms),
     )
 
 
@@ -424,14 +467,20 @@ async def lesson_items(
     if not ids:
         return []
 
-    rows = await session.execute(
-        select(Progress, Subject)
-        .join(Subject, Subject.id == Progress.subject_id)
-        .where(Subject.id.in_(ids), Progress.state == ItemState.NEW.value)
-        .order_by(Subject.sort_order, Subject.id)
-    )
+    rows = (
+        await session.execute(
+            select(Progress, Subject)
+            .join(Subject, Subject.id == Progress.subject_id)
+            .where(Subject.id.in_(ids), Progress.state == ItemState.NEW.value)
+            .order_by(Subject.sort_order, Subject.id)
+        )
+    ).all()
+    synonyms_map = await load_synonyms_map(session, (subject.id for _, subject in rows))
     return [
-        LessonItem(subject=subject_detail(subject), srs_stage=progress.srs_stage)
+        LessonItem(
+            subject=subject_detail(subject, synonyms_map.get(subject.id, [])),
+            srs_stage=progress.srs_stage,
+        )
         for progress, subject in rows
     ]
 
@@ -481,14 +530,19 @@ async def quiz_answer(
         )
 
     if payload.question is QuestionType.MEANING:
+        synonyms = await load_synonyms(session, subject.id)
         check = check_meaning(
             payload.answer,
             subject.meanings,
             subject.auxiliary_meanings,
             config.meaning_typo_tolerance_divisor,
+            synonyms,
         )
     else:
-        check = check_reading(payload.answer, subject.readings, subject.object_type)
+        kanji_readings = await _kanji_readings_for(session, subject, payload.question)
+        check = check_reading(
+            payload.answer, subject.readings, subject.object_type, kanji_readings
+        )
 
     return QuizOut(
         correct=check.correct,

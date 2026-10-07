@@ -16,10 +16,19 @@ from sqlalchemy.ext.asyncio import AsyncSession
 
 from .. import srs
 from ..db import Progress, Subject, get_session
-from ..models import ItemOut, ItemPage, MarkKnownIn, OverrideResult, SubjectIdsIn
+from ..models import (
+    ItemOut,
+    ItemPage,
+    MarkKnownIn,
+    OverrideResult,
+    SubjectIdsIn,
+    SynonymsIn,
+    SynonymsOut,
+)
 from ..runtime_config import load_runtime_config
 from ..serialize import progress_out, subject_detail
 from ..srs import ItemState
+from ..synonyms import load_synonyms, load_synonyms_map, save_synonyms
 
 router = APIRouter()
 
@@ -63,18 +72,25 @@ async def list_items(
         )
         or 0
     )
-    rows = await session.execute(
-        select(Progress, Subject)
-        .join(Subject, Subject.id == Progress.subject_id)
-        .where(*filters)
-        .order_by(Subject.sort_order, Subject.id)
-        .offset(offset)
-        .limit(limit)
-    )
+    rows = (
+        await session.execute(
+            select(Progress, Subject)
+            .join(Subject, Subject.id == Progress.subject_id)
+            .where(*filters)
+            .order_by(Subject.sort_order, Subject.id)
+            .offset(offset)
+            .limit(limit)
+        )
+    ).all()
+    # One query for every id on the page, not one per row.
+    synonyms_map = await load_synonyms_map(session, (subject.id for _, subject in rows))
 
     return ItemPage(
         items=[
-            ItemOut(subject=subject_detail(subject), progress=progress_out(progress))
+            ItemOut(
+                subject=subject_detail(subject, synonyms_map.get(subject.id, [])),
+                progress=progress_out(progress),
+            )
             for progress, subject in rows
         ],
         total=total,
@@ -109,7 +125,29 @@ async def read_item(
     if row is None:
         raise HTTPException(status_code=404, detail="Subject not found.")
     progress, subject = row
-    return ItemOut(subject=subject_detail(subject), progress=progress_out(progress))
+    synonyms = await load_synonyms(session, subject.id)
+    return ItemOut(subject=subject_detail(subject, synonyms), progress=progress_out(progress))
+
+
+# --- synonyms ----------------------------------------------------------------
+
+
+@router.put("/{subject_id}/synonyms", response_model=SynonymsOut)
+async def set_synonyms(
+    subject_id: int, payload: SynonymsIn, session: AsyncSession = Depends(get_session)
+) -> SynonymsOut:
+    """Add or replace the learner's own synonyms for this item's *meaning*
+    (issue #33) -- never the reading, see `answers.check_meaning`.
+
+    Works for every subject type and every state: an item not yet learned can
+    carry a synonym just as well as one already known, same as the rest of
+    this module's overrides.
+    """
+    subject = await session.get(Subject, subject_id)
+    if subject is None:
+        raise HTTPException(status_code=404, detail="Subject not found.")
+    cleaned = await save_synonyms(session, subject_id, payload.synonyms)
+    return SynonymsOut(synonyms=cleaned)
 
 
 # --- the overrides ---------------------------------------------------------

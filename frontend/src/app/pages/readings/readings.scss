@@ -1,0 +1,19 @@
+:host {
+  display: block;
+  max-width: 640px;
+  margin: 0 auto;
+}
+
+.card + .card {
+  margin-top: 1rem;
+}
+
+.card {
+  p {
+    margin: 0 0 0.6rem;
+
+    &:last-child {
+      margin-bottom: 0;
+    }
+  }
+}

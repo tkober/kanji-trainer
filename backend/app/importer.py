@@ -32,6 +32,7 @@ from sqlalchemy.ext.asyncio import AsyncSession, async_sessionmaker
 from .db import ImportRun, Progress, Subject, _upsert
 from .runtime_config import RuntimeConfig
 from .srs import STAGE_BURNED, ItemState, schedule
+from .synonyms import load_synonyms, merge_from_import, set_synonyms
 from .wanikani import WaniKaniClient, WaniKaniError, subject_row
 
 log = logging.getLogger(__name__)
@@ -180,6 +181,12 @@ async def _import_everything(
     imported, wk_ids = await _import_subjects(session, client, run_id)
     await _resolve_components(session, wk_ids)
     await _ensure_progress_rows(session)
+    # After subjects, so wk_ids resolve -- same reason _resolve_components runs
+    # here rather than earlier. Not wrapped in a try/except: a study-materials
+    # fetch failure is treated exactly like an assignments one (both propagate
+    # to `_run`'s own handler and fail the whole run), since there is no
+    # partial-import story here, same as assignments.
+    await _apply_study_materials(session, client, wk_ids)
     counts = await _apply_assignments(
         session,
         client,
@@ -294,6 +301,7 @@ async def _flush_subjects(session: AsyncSession, rows: list[dict[str, Any]]) -> 
                     "readings",
                     "component_subject_ids",
                     "parts_of_speech",
+                    "context_sentences",
                     "meaning_mnemonic",
                     "meaning_hint",
                     "reading_mnemonic",
@@ -331,6 +339,30 @@ async def _resolve_components(session: AsyncSession, wk_ids: dict[int, int]) -> 
                 )
             )
     await session.commit()
+
+
+async def _apply_study_materials(
+    session: AsyncSession, client: WaniKaniClient, wk_ids: dict[int, int]
+) -> None:
+    """Merge WaniKani's own "User Synonyms" into `subject_synonyms` (issue #33).
+
+    Union with whatever the learner already has here, local entries first, so
+    a synonym typed in this app is never lost to a re-import -- see
+    `merge_from_import`. A subject WaniKani has no entry for, or whose entry
+    carries no `meaning_synonyms`, is left exactly as it is.
+    """
+    async for page, _total in client.iter_study_materials():
+        for item in page:
+            data = item.get("data") or {}
+            raw_synonyms = data.get("meaning_synonyms") or []
+            local_id = wk_ids.get(data.get("subject_id"))
+            if local_id is None or not raw_synonyms:
+                continue
+            existing = await load_synonyms(session, local_id)
+            merged = merge_from_import(existing, raw_synonyms)
+            if merged != existing:
+                await set_synonyms(session, local_id, merged)
+        await session.commit()
 
 
 async def _ensure_progress_rows(session: AsyncSession) -> None:

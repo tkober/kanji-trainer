@@ -183,16 +183,15 @@
         <button type="button" class="close" aria-label="Close" (click)="closeDetail()">×</button>
       </header>
 
+      <app-synonyms
+        [subjectId]="item.subject.id"
+        [synonyms]="item.subject.synonyms"
+        (synonymsChange)="onSynonymsChange(item.subject.id, $event)"
+      />
+
+      <app-readings [readings]="item.subject.readings" [objectType]="item.subject.object_type" />
+
       <dl>
-        @for (group of readings(item); track group.key) {
-          <dt>
-            {{ group.label ?? 'Reading' }}
-            @if (!group.accepted) {
-              <span class="not-asked">(not asked in reviews)</span>
-            }
-          </dt>
-          <dd class="jp" [class.not-asked]="!group.accepted">{{ group.readings }}</dd>
-        }
         @if (item.subject.parts_of_speech.length > 0) {
           <dt>Part of speech</dt>
           <dd>{{ item.subject.parts_of_speech.join(', ') }}</dd>
@@ -205,7 +204,14 @@
           <dt>Reading mnemonic</dt>
           <dd [innerHTML]="item.subject.reading_mnemonic | mnemonic"></dd>
         }
+      </dl>
 
+      <app-context-sentences
+        [sentences]="item.subject.context_sentences"
+        [characters]="item.subject.characters"
+      />
+
+      <dl>
         <dt>Progress</dt>
         <dd>
           {{ item.progress.correct_count }} correct · {{ item.progress.incorrect_count }} wrong ·

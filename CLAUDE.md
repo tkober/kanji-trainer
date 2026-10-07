@@ -172,7 +172,13 @@ protecting: this module decides how much work the learner is asked to do.
 (Levenshtein against every accepted and whitelisted meaning, allowance scaled
 by length); readings forgive nothing beyond kana folding and the romaji
 fallback. A reading one kana off is a *different reading*, and accepting it
-would drill the wrong word while reporting success.
+would drill the wrong word while reporting success. On'yomi is *displayed* in
+katakana (dictionary convention — `core/readings.ts`, tap/hover reveals the
+underlying hiragana) while the check above stays kana-folded; the two never
+need to agree. `shared/readings/readings.ts` is the one place that renders a
+kanji's or word's readings — the review "Show item" panel, the lessons
+reading phase and the browse detail dialog all embed it rather than keeping
+their own copy.
 
 **Lessons are scoped to one level and gated by a quiz.** `GET /api/lessons` is
 a selection view: it defaults to the lowest level that still has anything
@@ -251,6 +257,49 @@ one function for each. `GET /api/reviews` returns summaries; the detail comes
 back only in the *answer response*. An SRS the learner can read ahead in is not
 an SRS.
 
+**Context sentences are imported, detail-only.** WaniKani's
+`data.context_sentences` (vocabulary and kana_vocabulary only) is mapped like
+every other content field (`subject_row` in `wanikani.py`, refreshed by every
+re-import) and lives on `SubjectDetail.context_sentences` — never on
+`SubjectSummary` or the review queue, since the English half names the word
+being asked about. "Pattern of use" and "Common word combinations" (issue
+#32) are shown on wanikani.com but are not in the API, so they are not
+scraped or imported.
+
+**Meaning synonyms are the learner's own, in their own table, detail-only**
+(issue #33, modelled on WaniKani's "User Synonyms"). `subject_synonyms` holds
+exactly one JSON list of strings per subject, same reasoning as
+`subject_illustrations`: the importer upserts `subjects` wholesale on every
+(re-)import, and this is data the learner typed in, never WaniKani's content —
+a re-import must not throw it away. `app/synonyms.py` is the one place that
+normalises (trim, collapse whitespace, drop empties, dedupe case-insensitively,
+≤ 64 chars, ≤ 8 entries — WaniKani's own limit) and reads/writes the table;
+`PUT /api/items/{id}/synonyms` is the only way in from the browser. Like
+`context_sentences`, `SubjectDetail.synonyms` never appears on a
+`SubjectSummary` or a queue item — these are accepted *answers*, and a queue
+item that carried them would be a reveal button.
+
+An exact match on a synonym is checked in `answers.check_meaning` *before*
+even the blacklist — the learner explicitly said this word means this item
+for them, which overrides WaniKani's own exclusion list rather than losing to
+it. Only an exact match jumps the blacklist this way; a near-miss on a synonym
+is just another typo candidate, added to the pool after the blacklist exactly
+like every other meaning. Readings are untouched — synonyms are a *meaning*
+override only, consistent with the asymmetry the rest of `answers.py`
+documents. Every detail the browser receives carries the real list, including
+the answer response to a *reading*: the synonym editor saves the whole list
+(`PUT /api/items/{id}/synonyms`), so a detail with an empty one would wipe
+the item's synonyms on the first add.
+
+On import, `GET /study_materials` is fetched after subjects (so WaniKani ids
+resolve to local ones) and its `data.meaning_synonyms` is *merged* into the
+local row — union, local entries first so a synonym typed in this app always
+survives a re-import, truncated to 8 if the union is over the limit
+(`app.synonyms.merge_from_import`). A failure to fetch study materials is
+treated exactly like a failure to fetch assignments: it is not swallowed, and
+propagates to fail the whole import run, since there is no partial-import
+story here either way.
+
 **`state` and `srs_stage` are both stored, and are not redundant.** Stage 9 is
 reachable two ways — eight correct reviews, or one press of "das kann ich" —
 and `ItemState.KNOWN` is what tells them apart. `GET /api/stats` counts
@@ -269,7 +318,15 @@ GET that writes is surprising, and an item merely looked at should be untouched.
 to insist or to correct a typo, since below four characters there is no typo
 tolerance to catch a slip. `retry` is a real reading of the character of the
 type that was *not* asked: WaniKani re-asks rather than counting it wrong, and
-charging for it would punish knowing more than the question wanted. Both return
+charging for it would punish knowing more than the question wanted. The same
+verdict covers a vocabulary item answered with its component kanji's reading
+instead of its own (issue #41, e.g. 月 the word answered げつ, the kanji's
+on'yomi) — `check_reading()`'s `kanji_readings` parameter, filled in by
+`study.py`'s `_kanji_readings_for()` only for a vocabulary item whose
+`characters` are exactly one kanji, checked after the item's own readings so a
+coincidental match is simply correct. A multi-kanji word is deliberately
+excluded: one component's reading there is a fragment of the word's reading,
+not this confusion. Both `held` and `retry` return
 through `_still_open()`, which sends no `expected` and no `subject` — the
 learner is about to answer this same question again, and a warning carrying the
 answer would be a reveal button with extra steps. Neither commits, so the

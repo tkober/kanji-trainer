@@ -60,6 +60,16 @@ class SubjectDetail(SubjectSummary):
     readings: list[dict] = Field(default_factory=list)
     parts_of_speech: list[str] = Field(default_factory=list)
     component_subject_ids: list[int] = Field(default_factory=list)
+    #: [{"en": "...", "ja": "..."}, ...] -- vocabulary/kana_vocabulary only,
+    #: empty elsewhere. Detail only, like everything above: the English
+    #: sentence names the word being asked about and would reveal the answer
+    #: on a queue item. "Pattern of use" and "Common word combinations" are
+    #: shown on wanikani.com but are not in the API, so they are not imported.
+    context_sentences: list[dict] = Field(default_factory=list)
+    #: The learner's own synonyms (issue #33) -- accepted answers for the
+    #: *meaning*, never the reading. Detail only, like everything above: a
+    #: queue item must not carry its own accepted answers.
+    synonyms: list[str] = Field(default_factory=list)
     meaning_mnemonic: str = ""
     meaning_hint: str | None = None
     reading_mnemonic: str | None = None
@@ -273,6 +283,21 @@ class MarkKnownIn(BaseModel):
 
 class SubjectIdsIn(BaseModel):
     subject_ids: list[int]
+
+
+# --- synonyms ----------------------------------------------------------------
+
+
+class SynonymsIn(BaseModel):
+    synonyms: list[str]
+
+
+class SynonymsOut(BaseModel):
+    """The normalised, stored list -- what the server actually kept, which
+    may differ from what was sent (trimmed, deduped, reordered to first
+    spelling wins)."""
+
+    synonyms: list[str]
 
 
 class OverrideResult(BaseModel):

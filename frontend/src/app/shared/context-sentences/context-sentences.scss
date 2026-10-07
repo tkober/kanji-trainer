@@ -1,0 +1,52 @@
+/* Matches the dt/dd look `shared/readings` and the pages around this
+   component share -- see their stylesheets for the fields this sits next to. */
+
+:host {
+  display: block;
+}
+
+dl {
+  margin: 0;
+}
+
+dt {
+  font-size: 0.8rem;
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+  color: var(--muted);
+  margin-top: 0.75rem;
+}
+
+dd {
+  margin: 0.15rem 0 0;
+}
+
+.sentence {
+  margin: 0 0 0.6rem;
+
+  &:last-child {
+    margin-bottom: 0;
+  }
+}
+
+.jp {
+  display: block;
+  font-size: 1.05rem;
+}
+
+.en {
+  display: block;
+  font-size: 0.85rem;
+  margin-top: 0.1rem;
+}
+
+/* The item's own characters inside the sentence -- the same purple every
+   vocabulary tile and glyph uses, as a tint rather than solid text so the
+   sentence still reads as a sentence (cf. .wk-vocabulary in styles.scss). */
+mark {
+  background: color-mix(in srgb, var(--vocabulary) 18%, transparent);
+  color: inherit;
+  font-weight: 700;
+  border-radius: 4px;
+  padding: 0.05em 0.15em;
+}

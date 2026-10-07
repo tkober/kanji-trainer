@@ -1,0 +1,59 @@
+<dl>
+  <dt>Your synonyms</dt>
+  <dd>
+    <div class="chips">
+      @for (synonym of synonyms(); track synonym) {
+        <span class="chip">
+          {{ synonym }}
+          <button
+            type="button"
+            appHoldFocus
+            class="remove"
+            [disabled]="busy()"
+            [attr.aria-label]="'Remove synonym ' + synonym"
+            (click)="remove(synonym)"
+          >
+            ×
+          </button>
+        </span>
+      }
+      @if (adding()) {
+        <span class="add-form">
+          <input
+            #draftField
+            type="text"
+            name="synonym"
+            class="draft"
+            autocomplete="off"
+            autocorrect="off"
+            autocapitalize="off"
+            spellcheck="false"
+            placeholder="Add synonym"
+            [value]="draft()"
+            [disabled]="busy()"
+            (input)="onInput($event)"
+            (keydown)="onKeydown($event)"
+          />
+          <button
+            type="button"
+            appHoldFocus
+            class="confirm"
+            [disabled]="busy()"
+            aria-label="Save synonym"
+            (click)="save()"
+          >
+            ✓
+          </button>
+        </span>
+      } @else {
+        <button type="button" appHoldFocus class="add" (click)="startAdding()">
+          + Add synonym
+        </button>
+      }
+    </div>
+    @if (error(); as message) {
+      <p class="error">{{ message }}</p>
+    }
+    <p class="hint muted">Accepted as an answer for the meaning, from the next review on.</p>
+  </dd>
+</dl>

@@ -1,0 +1,50 @@
+<dl>
+  @for (group of groups(); track group.key) {
+    <dt [class.accepted]="bold(group)">
+      {{ group.label ?? 'Reading' }}
+      @if (group.type) {
+        <button
+          type="button"
+          appHoldFocus
+          class="info"
+          aria-label="What is {{ group.label }}?"
+          [attr.popovertarget]="popoverId(group.type)"
+        >
+          i
+        </button>
+        <div [id]="popoverId(group.type)" popover class="info-popover">
+          <strong class="title">{{ group.label }}</strong>
+          <p>{{ info(group.type) }}</p>
+          <p class="common">{{ commonInfo }}</p>
+          <a href="/readings" target="_blank" rel="noopener">More about readings →</a>
+        </div>
+      }
+      @if (!group.accepted) {
+        <span class="not-asked">(not asked in reviews)</span>
+      }
+    </dt>
+    <dd class="jp" [class.not-asked]="!group.accepted" [class.accepted]="bold(group)">
+      @for (entry of group.readings; track entry.reading + '#' + $index; let last = $last) {
+        @if (entry.converted) {
+          <button
+            type="button"
+            appHoldFocus
+            class="kana-toggle"
+            [class.revealed]="isRevealed(group, $index)"
+            [attr.title]="entry.reading"
+            aria-label="{{ entry.display }}, in hiragana {{ entry.reading }}"
+            (click)="toggleReveal(group, $index)"
+          >
+            <span class="katakana">{{ entry.display }}</span>
+            <span class="hiragana">{{ entry.reading }}</span>
+          </button>
+        } @else {
+          <span>{{ entry.display }}</span>
+        }
+        @if (!last) {
+          <span aria-hidden="true">、</span>
+        }
+      }
+    </dd>
+  }
+</dl>

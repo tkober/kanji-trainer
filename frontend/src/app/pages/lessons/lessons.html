@@ -148,14 +148,20 @@
       <dl>
         <dt>Meaning</dt>
         <dd>{{ meanings(item.subject) }}</dd>
-        @for (group of readings(item.subject); track group.key) {
-          <dt>
-            {{ group.label ?? 'Reading' }}
-            @if (!group.accepted) {
-              <span class="not-asked">(not asked in reviews)</span>
-            }
-          </dt>
-          <dd class="jp" [class.not-asked]="!group.accepted">{{ group.readings }}</dd>
+      </dl>
+
+      <app-synonyms
+        [subjectId]="item.subject.id"
+        [synonyms]="item.subject.synonyms"
+        (synonymsChange)="onSynonymsChange(item.subject.id, $event)"
+      />
+
+      <app-readings [readings]="item.subject.readings" [objectType]="item.subject.object_type" />
+
+      <dl>
+        @if (item.subject.parts_of_speech.length > 0) {
+          <dt>Part of speech</dt>
+          <dd>{{ item.subject.parts_of_speech.join(', ') }}</dd>
         }
         @if (item.subject.meaning_mnemonic) {
           <dt>Meaning mnemonic</dt>
@@ -172,6 +178,11 @@
           </dd>
         }
       </dl>
+
+      <app-context-sentences
+        [sentences]="item.subject.context_sentences"
+        [characters]="item.subject.characters"
+      />
 
       <app-radical-illustration
         [subjectId]="item.subject.id"
@@ -261,6 +272,10 @@
         } @else if (result.secondary) {
           <span> The primary answer is <em class="jp">{{ result.expected }}</em>.</span>
         }
+      } @else if (result.retry) {
+        <!-- A real reading, just not this item's: there is no expected answer
+             to name, only the hint below saying which reading was meant. -->
+        <strong>Doesn't count.</strong>
       } @else {
         <strong>Not yet.</strong>
         <span> Expected: <em class="jp">{{ result.expected }}</em></span>

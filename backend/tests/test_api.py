@@ -121,6 +121,88 @@ async def test_a_wrong_answer_keeps_the_item_due(client, session):
     assert (await client.get("/api/reviews")).json()["total_due"] == 1
 
 
+async def seed_tsuki_vocabulary(session, *, stage: int = 2, due_minutes: int = -5) -> int:
+    """月 the vocabulary (reading つき), component kanji 月 (onyomi げつ/がつ)."""
+    kanji = Subject(
+        wanikani_id=441,
+        object_type="kanji",
+        level=1,
+        slug="month",
+        characters="月",
+        meanings=[{"meaning": "Month", "primary": True, "accepted_answer": True}],
+        auxiliary_meanings=[],
+        readings=[
+            {"reading": "げつ", "primary": True, "accepted_answer": True, "type": "onyomi"},
+            {"reading": "がつ", "primary": False, "accepted_answer": True, "type": "onyomi"},
+            {"reading": "つき", "primary": False, "accepted_answer": False, "type": "kunyomi"},
+        ],
+        component_subject_ids=[],
+        parts_of_speech=[],
+        meaning_mnemonic="A moon.",
+    )
+    session.add(kanji)
+    await session.flush()
+
+    vocabulary = Subject(
+        wanikani_id=442,
+        object_type="vocabulary",
+        level=1,
+        slug="month-vocab",
+        characters="月",
+        meanings=[{"meaning": "Month", "primary": True, "accepted_answer": True}],
+        auxiliary_meanings=[],
+        readings=[{"reading": "つき", "primary": True, "accepted_answer": True}],
+        component_subject_ids=[kanji.id],
+        parts_of_speech=["noun"],
+        meaning_mnemonic="The moon in the sky.",
+    )
+    session.add(vocabulary)
+    await session.flush()
+
+    session.add(
+        Progress(
+            subject_id=vocabulary.id,
+            state=ItemState.LEARNING.value,
+            srs_stage=stage,
+            next_review_at=NOW + timedelta(minutes=due_minutes),
+        )
+    )
+    await session.commit()
+    return vocabulary.id
+
+
+async def test_the_kanjis_reading_on_its_vocabulary_is_a_retry_not_a_miss(client, session):
+    """Issue: answering げつ for the vocabulary 月 (reading つき) must retry
+    with a hint, not count as wrong -- the learner knew *a* reading, just the
+    kanji's rather than the word's."""
+    subject_id = await seed_tsuki_vocabulary(session)
+
+    response = await client.post(
+        "/api/reviews/answer",
+        json={"subject_id": subject_id, "question": "reading", "answer": "getsu"},
+    )
+    assert response.status_code == 200
+    body = response.json()
+    assert not body["correct"]
+    assert body["retry"]
+    assert body["hint"] is not None
+    # Nothing committed or revealed: still due, still owing both questions.
+    assert body["subject"] is None
+    assert body["expected"] == ""
+
+    queue = (await client.get("/api/reviews")).json()
+    assert queue["total_due"] == 1
+    assert queue["items"][0]["questions"] == ["meaning", "reading"]
+
+    correct = await client.post(
+        "/api/reviews/answer",
+        json={"subject_id": subject_id, "question": "reading", "answer": "tsuki"},
+    )
+    body = correct.json()
+    assert body["correct"]
+    assert not body["retry"]
+
+
 async def test_marking_known_takes_an_item_out_of_the_queue(client, session):
     subject_id = await seed_kanji(session)
 
@@ -199,6 +281,26 @@ async def test_the_detail_links_to_wanikani_but_the_queue_does_not(client, sessi
     # That page names the meaning, so the link is an answer like any other.
     queue_item = (await client.get("/api/reviews")).json()["items"][0]
     assert "wanikani_url" not in queue_item["subject"]
+
+
+async def test_context_sentences_are_in_the_detail_but_not_the_queue(client, session):
+    """Detail only -- the English half of a sentence names the word (issue #32)."""
+    subject_id = await seed_tsuki_vocabulary(session)
+    subject = await session.get(Subject, subject_id)
+    subject.context_sentences = [
+        {"en": "The moon is bright tonight.", "ja": "今夜は月が明るい。"},
+        {"en": "Look at the moon.", "ja": "月を見て。"},
+    ]
+    await session.commit()
+
+    item = (await client.get(f"/api/items/{subject_id}")).json()
+    assert item["subject"]["context_sentences"] == [
+        {"en": "The moon is bright tonight.", "ja": "今夜は月が明るい。"},
+        {"en": "Look at the moon.", "ja": "月を見て。"},
+    ]
+
+    queue_item = (await client.get("/api/reviews")).json()["items"][0]
+    assert "context_sentences" not in queue_item["subject"]
 
 
 async def test_a_hand_added_item_has_no_wanikani_link(client, session):
@@ -294,3 +396,162 @@ async def test_clearing_the_token_falls_back_to_the_environment(client):
 async def test_import_without_a_token_is_refused(client):
     response = await client.post("/api/import", json={})
     assert response.status_code == 400
+
+
+# --- synonyms (issue #33) ---------------------------------------------------
+
+
+async def test_setting_synonyms_normalises_and_returns_the_stored_list(client, session):
+    subject_id = await seed_kanji(session)
+
+    response = await client.put(
+        f"/api/items/{subject_id}/synonyms",
+        json={"synonyms": ["  Rise  ", "rise", "Up", ""]},
+    )
+    assert response.status_code == 200
+    # Collapsed whitespace, dropped the empty entry, and "rise" deduped
+    # case-insensitively against "Rise" -- first spelling wins.
+    assert response.json()["synonyms"] == ["Rise", "Up"]
+
+    item = (await client.get(f"/api/items/{subject_id}")).json()
+    assert item["subject"]["synonyms"] == ["Rise", "Up"]
+
+
+async def test_a_ninth_synonym_is_rejected(client, session):
+    subject_id = await seed_kanji(session)
+
+    response = await client.put(
+        f"/api/items/{subject_id}/synonyms",
+        json={"synonyms": [f"word{i}" for i in range(9)]},
+    )
+    assert response.status_code == 422
+
+
+async def test_an_overlong_synonym_is_rejected(client, session):
+    subject_id = await seed_kanji(session)
+
+    response = await client.put(
+        f"/api/items/{subject_id}/synonyms", json={"synonyms": ["x" * 65]}
+    )
+    assert response.status_code == 422
+
+
+async def test_setting_synonyms_for_an_unknown_subject_is_404(client):
+    response = await client.put("/api/items/999999/synonyms", json={"synonyms": ["foo"]})
+    assert response.status_code == 404
+
+
+async def test_an_empty_list_clears_the_synonyms(client, session):
+    subject_id = await seed_kanji(session)
+    await client.put(f"/api/items/{subject_id}/synonyms", json={"synonyms": ["Rise"]})
+
+    response = await client.put(f"/api/items/{subject_id}/synonyms", json={"synonyms": []})
+    assert response.json()["synonyms"] == []
+
+    item = (await client.get(f"/api/items/{subject_id}")).json()
+    assert item["subject"]["synonyms"] == []
+
+
+async def test_a_review_answer_accepts_a_synonym_as_the_meaning(client, session):
+    subject_id = await seed_kanji(session)
+    await client.put(f"/api/items/{subject_id}/synonyms", json={"synonyms": ["Rise"]})
+
+    response = await client.post(
+        "/api/reviews/answer",
+        json={"subject_id": subject_id, "question": "meaning", "answer": "rise"},
+    )
+    body = response.json()
+    assert body["correct"] is True
+    assert body["secondary"] is True
+    assert body["expected"] == "Above"
+
+
+async def test_a_reading_answer_still_carries_the_synonyms(client, session):
+    # The "Show item" editor saves the whole list it was given; an empty one
+    # after a reading answer would wipe the item's synonyms on the first add.
+    subject_id = await seed_kanji(session)
+    await client.put(f"/api/items/{subject_id}/synonyms", json={"synonyms": ["Rise"]})
+
+    response = await client.post(
+        "/api/reviews/answer",
+        json={"subject_id": subject_id, "question": "reading", "answer": "じょう"},
+    )
+    assert response.json()["subject"]["synonyms"] == ["Rise"]
+
+
+async def test_the_review_queue_never_carries_synonyms(client, session):
+    subject_id = await seed_kanji(session)
+    await client.put(f"/api/items/{subject_id}/synonyms", json={"synonyms": ["Rise"]})
+
+    queue = (await client.get("/api/reviews")).json()
+    assert "synonyms" not in queue["items"][0]["subject"]
+
+
+async def test_the_items_list_carries_synonyms_in_bulk(client, session):
+    first = await seed_kanji(session, stage=2)
+    second_subject = Subject(
+        wanikani_id=441,
+        object_type="kanji",
+        level=1,
+        slug="下",
+        characters="下",
+        meanings=[{"meaning": "Below", "primary": True, "accepted_answer": True}],
+        readings=[{"reading": "か", "primary": True, "accepted_answer": True, "type": "onyomi"}],
+        component_subject_ids=[],
+        parts_of_speech=[],
+        meaning_mnemonic="A toe below the ground.",
+    )
+    session.add(second_subject)
+    await session.flush()
+    session.add(
+        Progress(
+            subject_id=second_subject.id,
+            state=ItemState.LEARNING.value,
+            srs_stage=2,
+            next_review_at=NOW + timedelta(minutes=-5),
+        )
+    )
+    await session.commit()
+
+    await client.put(f"/api/items/{first}/synonyms", json={"synonyms": ["Rise"]})
+    await client.put(
+        f"/api/items/{second_subject.id}/synonyms", json={"synonyms": ["Down", "Under"]}
+    )
+
+    items = {
+        item["subject"]["id"]: item["subject"]["synonyms"]
+        for item in (await client.get("/api/items")).json()["items"]
+    }
+    assert items[first] == ["Rise"]
+    assert items[second_subject.id] == ["Down", "Under"]
+
+
+async def test_a_lesson_quiz_accepts_a_synonym(client, session):
+    subject = Subject(
+        wanikani_id=442,
+        object_type="kanji",
+        level=1,
+        slug="上",
+        characters="上",
+        meanings=[{"meaning": "Above", "primary": True, "accepted_answer": True}],
+        readings=[
+            {"reading": "じょう", "primary": True, "accepted_answer": True, "type": "onyomi"}
+        ],
+        component_subject_ids=[],
+        parts_of_speech=[],
+        meaning_mnemonic="A toe above the ground.",
+    )
+    session.add(subject)
+    await session.flush()
+    session.add(Progress(subject_id=subject.id, state=ItemState.NEW.value))
+    await session.commit()
+
+    await client.put(f"/api/items/{subject.id}/synonyms", json={"synonyms": ["Rise"]})
+
+    response = await client.post(
+        "/api/lessons/quiz",
+        json={"subject_id": subject.id, "question": "meaning", "answer": "rise"},
+    )
+    body = response.json()
+    assert body["correct"] is True
+    assert body["secondary"] is True

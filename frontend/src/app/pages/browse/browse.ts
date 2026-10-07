@@ -5,8 +5,10 @@ import { FormsModule } from '@angular/forms';
 import { Api } from '../../core/api';
 import type { Item, ObjectType } from '../../core/api.types';
 import { Mnemonic } from '../../core/mnemonic';
-import { type ReadingGroup, readingGroups } from '../../core/readings';
+import { ContextSentences } from '../../shared/context-sentences/context-sentences';
 import { RadicalIllustration } from '../../shared/radical-illustration/radical-illustration';
+import { Readings } from '../../shared/readings/readings';
+import { Synonyms } from '../../shared/synonyms/synonyms';
 
 const PAGE_SIZE = 100;
 
@@ -20,7 +22,15 @@ const PAGE_SIZE = 100;
  */
 @Component({
   selector: 'app-browse',
-  imports: [DatePipe, FormsModule, Mnemonic, RadicalIllustration],
+  imports: [
+    ContextSentences,
+    DatePipe,
+    FormsModule,
+    Mnemonic,
+    RadicalIllustration,
+    Readings,
+    Synonyms,
+  ],
   templateUrl: './browse.html',
   styleUrl: './browse.scss',
 })
@@ -212,14 +222,20 @@ export class Browse {
     );
   }
 
+  /** Keep both the open dialog and the underlying list row current after a
+   * save -- `detail` and the matching row in `items` are separate objects by
+   * the time either changes, so both need updating in place. */
+  protected onSynonymsChange(subjectId: number, synonyms: string[]): void {
+    const apply = (item: Item): Item =>
+      item.subject.id === subjectId ? { ...item, subject: { ...item.subject, synonyms } } : item;
+    this.items.update((items) => items.map(apply));
+    this.detail.update((item) => (item ? apply(item) : item));
+  }
+
   protected meanings(item: Item): string {
     return item.subject.meanings
       .filter((meaning) => meaning.accepted_answer !== false)
       .map((meaning) => meaning.meaning)
       .join(', ');
-  }
-
-  protected readings(item: Item): ReadingGroup[] {
-    return readingGroups(item.subject.readings);
   }
 }

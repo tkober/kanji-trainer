@@ -11,29 +11,35 @@ import {
 import { RouterLink } from '@angular/router';
 
 import { Api } from '../../core/api';
-import type {
-  AnswerResult,
-  ObjectType,
-  QuestionType,
-  QueueItem,
-  SubjectDetail,
-} from '../../core/api.types';
+import type { AnswerResult, ObjectType, QuestionType, QueueItem } from '../../core/api.types';
 import { Counters } from '../../core/counters';
 import { glyphCount } from '../../core/glyphs';
 import { HoldFocus } from '../../core/hold-focus';
 import { absorbInput, finaliseKana, isKana, romajiToKana } from '../../core/kana';
 import { Mnemonic } from '../../core/mnemonic';
-import { type ReadingGroup, readingGroups } from '../../core/readings';
 import { reinsert, shuffleQuestions } from '../../core/review-queue';
 import { type Hotkey, Hotkeys } from '../../shared/hotkeys/hotkeys';
+import { ContextSentences } from '../../shared/context-sentences/context-sentences';
 import { RadicalIllustration } from '../../shared/radical-illustration/radical-illustration';
+import { Readings } from '../../shared/readings/readings';
+import { Synonyms } from '../../shared/synonyms/synonyms';
 
 /** A queue entry plus what it still owes. */
 type Card = QueueItem;
 
 @Component({
   selector: 'app-review',
-  imports: [DatePipe, HoldFocus, Hotkeys, Mnemonic, RadicalIllustration, RouterLink],
+  imports: [
+    ContextSentences,
+    DatePipe,
+    HoldFocus,
+    Hotkeys,
+    Mnemonic,
+    RadicalIllustration,
+    Readings,
+    RouterLink,
+    Synonyms,
+  ],
   templateUrl: './review.html',
   styleUrl: './review.scss',
 })
@@ -66,6 +72,15 @@ export class Review {
   protected readonly shake = signal(false);
 
   /**
+   * "I know this" was pressed while the item's other half is still open.
+   *
+   * `mark_known` settles meaning and reading together, which is invisible from
+   * whichever half happens to be on screen — set once, by `requestKnown()`,
+   * to ask before it is irreversible rather than after.
+   */
+  protected readonly confirmKnown = signal(false);
+
+  /**
    * Whether the "Show item" details block is expanded.
    *
    * Controlled rather than left to the `<details>` element itself, because
@@ -80,7 +95,7 @@ export class Review {
   protected readonly hotkeys: Hotkey[] = [
     { keys: ['Enter'], label: 'Submit answer / next item' },
     { keys: ['Esc'], label: 'Edit a held answer' },
-    { keys: ['Alt', 'K'], label: 'I know this' },
+    { keys: ['Alt', 'K'], label: 'I know this (press twice for the whole item)' },
     { keys: ['F'], label: 'Show item info (after answering)' },
     { keys: ['?'], label: 'Toggle this menu (after answering)' },
   ];
@@ -92,6 +107,27 @@ export class Review {
   protected readonly question = computed<QuestionType | null>(
     () => this.current()?.questions[0] ?? null,
   );
+
+  /**
+   * Whether the item's *other* question is still outstanding.
+   *
+   * `card.questions` is the order fixed when the item was served and goes
+   * stale the moment an answer lands, so once feedback is up the true
+   * picture is `remaining` from that answer instead — except after a `retry`,
+   * which leaves the current question open too (nothing was consumed), so it
+   * reads exactly like no feedback at all.
+   */
+  protected readonly otherHalfOpen = computed(() => {
+    const card = this.current();
+    if (!card) {
+      return false;
+    }
+    const result = this.feedback();
+    if (result && !result.retry) {
+      return result.remaining.length > 0;
+    }
+    return card.questions.length > 1;
+  });
 
   /**
    * What goes in the box. A reading is converted as it is typed — seeing かん
@@ -146,6 +182,7 @@ export class Review {
       // arrives with only its outstanding half left).
       this.queue.set(queue.items.map(shuffleQuestions));
       this.counters.setDue(queue.total_due);
+      this.confirmKnown.set(false);
     } catch (err) {
       this.error.set((err as Error).message);
     } finally {
@@ -172,10 +209,27 @@ export class Review {
     if (this.held()) {
       this.held.set(false);
     }
+    // Same reasoning as `held`: typing again means the learner changed their
+    // mind, and a pending "mark the whole item known?" must not survive that
+    // — or they would be stuck re-reading a panel for an answer they are now
+    // busy typing.
+    if (this.confirmKnown()) {
+      this.confirmKnown.set(false);
+    }
   }
 
   /** Enter submits, and once there is feedback on screen, Enter moves on. */
   onKeydown(event: KeyboardEvent): void {
+    // The confirmation panel is the most recently raised prompt on screen, so
+    // Escape clears it before anything else gets a turn — including a held
+    // answer, which can be showing at the same time (nothing about pressing
+    // Alt+K requires the previous answer to not be held).
+    if (event.key === 'Escape' && this.confirmKnown()) {
+      event.preventDefault();
+      this.confirmKnown.set(false);
+      return;
+    }
+
     if (event.key === 'Escape' && this.held()) {
       // Hand the input back with the text selected, so correcting a slip is
       // one keystroke rather than a clear-and-retype.
@@ -198,7 +252,12 @@ export class Review {
 
     if (event.key === 'Enter') {
       event.preventDefault();
-      if (this.feedback()) {
+      // Confirming takes priority over both of Enter's usual jobs — it must
+      // not submit the answer underneath the panel, and the panel can be up
+      // with no feedback showing at all.
+      if (this.confirmKnown()) {
+        void this.markKnown();
+      } else if (this.feedback()) {
         this.next();
       } else {
         void this.submit();
@@ -209,7 +268,7 @@ export class Review {
     // unmodified shortcut would be swallowed by the answer.
     if (event.altKey && event.key.toLowerCase() === 'k') {
       event.preventDefault();
-      void this.markKnown();
+      this.requestKnown();
       return;
     }
 
@@ -327,6 +386,7 @@ export class Review {
     this.showItem.set(false);
     this.raw.set('');
     this.held.set(false);
+    this.confirmKnown.set(false);
     this.continueRound();
   }
 
@@ -344,6 +404,32 @@ export class Review {
       return;
     }
     this.focus();
+  }
+
+  /**
+   * Entry point for the "I know this" button and `Alt+K`.
+   *
+   * Goes straight to `markKnown()` when there is nothing left to clarify (a
+   * radical, or the other half already answered); otherwise the first press
+   * only raises the confirmation panel, and a second press — same button,
+   * same shortcut, or `Enter` — is what actually calls `markKnown()`. That
+   * keeps the common case (nothing outstanding) exactly as fast as before.
+   */
+  protected requestKnown(): void {
+    if (this.confirmKnown()) {
+      void this.markKnown();
+      return;
+    }
+    if (this.otherHalfOpen()) {
+      this.confirmKnown.set(true);
+      return;
+    }
+    void this.markKnown();
+  }
+
+  /** Cancel button for the confirmation panel — keeps focus and typed text. */
+  protected cancelKnown(): void {
+    this.confirmKnown.set(false);
   }
 
   /**
@@ -365,6 +451,7 @@ export class Review {
       this.showItem.set(false);
       this.raw.set('');
       this.held.set(false);
+      this.confirmKnown.set(false);
       this.counters.spendDue();
       this.continueRound();
     } catch (err) {
@@ -385,6 +472,7 @@ export class Review {
       this.showItem.set(false);
       this.raw.set('');
       this.held.set(false);
+      this.confirmKnown.set(false);
       // Back to Apprentice I is four hours out, so this one has left the due
       // set as surely as an answered item has.
       this.counters.spendDue();
@@ -412,10 +500,6 @@ export class Review {
     return glyphCount(text);
   }
 
-  protected readings(subject: SubjectDetail): ReadingGroup[] {
-    return readingGroups(subject.readings);
-  }
-
   protected primaryMeanings(result: AnswerResult): string {
     return (result.subject?.meanings ?? [])
       .filter((meaning) => meaning.accepted_answer !== false)
@@ -424,13 +508,29 @@ export class Review {
   }
 
   /**
+   * Keep `feedback().subject.synonyms` current after a save in the "Show
+   * item" panel -- same reasoning as the browse list item and the lessons
+   * item: reopening the panel (or answering the item's other half) must show
+   * the new list without a refetch.
+   */
+  protected onSynonymsChange(subjectId: number, synonyms: string[]): void {
+    this.feedback.update((result) => {
+      if (!result?.subject || result.subject.id !== subjectId) {
+        return result;
+      }
+      return { ...result, subject: { ...result.subject, synonyms } };
+    });
+  }
+
+  /**
    * Focus now, for the cases the effect cannot see.
    *
    * The effect covers every change of question. This covers the rest: the
    * field is already rendered and already the right one, it just lost the
-   * caret to a button click.
+   * caret to a button click -- or, after `app-synonyms` is done with it, to
+   * its own draft field.
    */
-  private focus(): void {
+  protected focus(): void {
     this.field()?.nativeElement.focus();
   }
 }
