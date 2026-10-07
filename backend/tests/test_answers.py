@@ -92,6 +92,60 @@ def test_levenshtein_basics():
     assert levenshtein("same", "same") == 0
 
 
+# --- synonyms (issue #33) ---------------------------------------------------
+
+
+def test_a_synonym_is_accepted_and_reported_as_secondary():
+    check = check_meaning("h2o", WATER, synonyms=["H2O"])
+    assert check.correct
+    assert check.secondary
+    # Always the primary, never the synonym's own spelling -- same reasoning
+    # as a secondary whitelisted meaning.
+    assert check.expected == "Water"
+
+
+def test_a_synonym_beats_the_blacklist():
+    """The learner explicitly said this word means this item for them -- that
+    overrides WaniKani's own exclusion, checked first on purpose."""
+    auxiliary = [{"meaning": "Water", "type": "blacklist"}]
+    check = check_meaning("water", WATER, auxiliary, synonyms=["Water"])
+    assert check.correct
+    assert check.secondary
+    assert not check.hint
+
+
+def test_a_typo_on_a_synonym_is_still_forgiven():
+    # "H2O" is three characters -- too short for any typo tolerance at all
+    # (see `typo_allowance`) -- so a longer synonym is needed to prove the
+    # typo pass considers synonyms rather than just the exact-match pass.
+    check = check_meaning("Hydraton", WATER, synonyms=["Hydration"])
+    assert check.correct
+    assert check.secondary
+    assert check.typo
+    assert check.expected == "Water"
+
+
+def test_a_misspelled_synonym_does_not_outrank_the_blacklist():
+    """Only an *exact* synonym match jumps the blacklist -- a near-miss on a
+    synonym never reaches the typo pass at all when the given answer is an
+    exact blacklisted meaning, since the blacklist check (an exact match too)
+    comes first and returns immediately."""
+    auxiliary = [{"meaning": "Spring", "type": "blacklist"}]
+    check = check_meaning("spring", WATER, auxiliary, synonyms=["String"])
+    assert not check.correct
+    assert check.hint
+
+
+def test_without_synonyms_the_old_behaviour_is_unchanged():
+    assert not check_meaning("h2o", WATER).correct
+
+
+def test_a_synonym_is_irrelevant_to_reading_checks():
+    """Readings are untouched by issue #33 -- `check_reading` has no synonyms
+    parameter at all, so this is really just documenting the boundary."""
+    assert not check_reading("たか", KOU).correct
+
+
 # --- readings --------------------------------------------------------------
 
 KOU = [

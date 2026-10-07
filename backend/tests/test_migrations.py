@@ -92,6 +92,7 @@ async def test_legacy_database_is_bridged_without_losing_data() -> None:
         await engine.dispose()
 
     assert "subject_illustrations" in tables
+    assert "subject_synonyms" in tables, "revision 0004 should have added the table"
     assert "lesson_batch_size" in columns, "migrate_schema should have added the missing column"
     assert "context_sentences" in subject_columns, "revision 0003 should have added the column"
     assert version == _head_revision()
@@ -109,7 +110,8 @@ async def test_legacy_database_is_bridged_without_losing_data() -> None:
 async def _reset_to_legacy_schema(owner_engine: AsyncEngine) -> None:
     """Drop everything `fresh_schema` set up, and recreate the schema as it
     would have looked right before Alembic existed: no `subject_illustrations`
-    table, no `alembic_version`, and one `ADDED_COLUMNS` entry missing.
+    or `subject_synonyms` table, no `alembic_version`, and one `ADDED_COLUMNS`
+    entry missing.
     """
     async with owner_engine.begin() as conn:
         await conn.run_sync(Base.metadata.drop_all)
@@ -117,7 +119,7 @@ async def _reset_to_legacy_schema(owner_engine: AsyncEngine) -> None:
 
     legacy_metadata = MetaData()
     for table in Base.metadata.tables.values():
-        if table.name != "subject_illustrations":
+        if table.name not in ("subject_illustrations", "subject_synonyms"):
             table.to_metadata(legacy_metadata)
 
     async with owner_engine.begin() as conn:

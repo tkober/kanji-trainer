@@ -139,12 +139,23 @@ def check_meaning(
     meanings: Iterable[dict[str, Any]],
     auxiliary_meanings: Iterable[dict[str, Any]] = (),
     typo_divisor: int = 7,
+    synonyms: Iterable[str] = (),
 ) -> AnswerCheck:
     """Check an English meaning, allowing for typing.
 
-    Order matters: the blacklist is consulted before the typo tolerance, or a
-    deliberately excluded answer could be let in as a near-miss of an accepted
-    one.
+    ``synonyms`` are the learner's own, added by hand (issue #33, WaniKani's
+    "User Synonyms") -- never WaniKani's content, so they are checked first,
+    before even the blacklist: the learner explicitly said this word means
+    this item *for them*, which is a stronger signal than WaniKani's own
+    exclusion list and should not be second-guessed by it. Only an *exact*
+    match does that; a near-miss on a synonym is not special-cased further and
+    falls through to the typo pass like every other candidate, after the
+    blacklist exactly as today -- a misspelled synonym must not be let in
+    ahead of a deliberately excluded meaning either.
+
+    Order below that is unchanged: the blacklist is consulted before the typo
+    tolerance, or a deliberately excluded answer could be let in as a
+    near-miss of an accepted one.
     """
     answer = normalise_meaning(given)
     accepted = _accepted(meanings, "meaning")
@@ -155,6 +166,14 @@ def check_meaning(
 
     if not answer:
         return AnswerCheck(correct=False, expected=primary)
+
+    synonym_list = list(synonyms)
+    for candidate in synonym_list:
+        if answer == normalise_meaning(candidate):
+            # Always secondary: a synonym is never the primary meaning, and
+            # `expected` names that primary -- the thing the learner has not
+            # said yet, same reasoning as the secondary branch below.
+            return AnswerCheck(correct=True, expected=primary, secondary=True)
 
     auxiliary = list(auxiliary_meanings)
     blacklist = {
@@ -188,9 +207,10 @@ def check_meaning(
                 secondary=secondary,
             )
 
-    # Nothing matched exactly; allow for a typo against the closest candidate.
+    # Nothing matched exactly; allow for a typo against the closest candidate,
+    # synonyms included (after the blacklist, same as every other candidate).
     best: tuple[int, str] | None = None
-    for candidate in candidates:
+    for candidate in candidates + synonym_list:
         distance = levenshtein(answer, normalise_meaning(candidate))
         if best is None or distance < best[0]:
             best = (distance, candidate)

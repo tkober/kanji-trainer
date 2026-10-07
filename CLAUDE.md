@@ -266,6 +266,41 @@ being asked about. "Pattern of use" and "Common word combinations" (issue
 #32) are shown on wanikani.com but are not in the API, so they are not
 scraped or imported.
 
+**Meaning synonyms are the learner's own, in their own table, detail-only**
+(issue #33, modelled on WaniKani's "User Synonyms"). `subject_synonyms` holds
+exactly one JSON list of strings per subject, same reasoning as
+`subject_illustrations`: the importer upserts `subjects` wholesale on every
+(re-)import, and this is data the learner typed in, never WaniKani's content —
+a re-import must not throw it away. `app/synonyms.py` is the one place that
+normalises (trim, collapse whitespace, drop empties, dedupe case-insensitively,
+≤ 64 chars, ≤ 8 entries — WaniKani's own limit) and reads/writes the table;
+`PUT /api/items/{id}/synonyms` is the only way in from the browser. Like
+`context_sentences`, `SubjectDetail.synonyms` never appears on a
+`SubjectSummary` or a queue item — these are accepted *answers*, and a queue
+item that carried them would be a reveal button.
+
+An exact match on a synonym is checked in `answers.check_meaning` *before*
+even the blacklist — the learner explicitly said this word means this item
+for them, which overrides WaniKani's own exclusion list rather than losing to
+it. Only an exact match jumps the blacklist this way; a near-miss on a synonym
+is just another typo candidate, added to the pool after the blacklist exactly
+like every other meaning. Readings are untouched — synonyms are a *meaning*
+override only, consistent with the asymmetry the rest of `answers.py`
+documents. `study.py` loads the `subject_synonyms` row (one query) only when
+the question being checked is the meaning; the "Show item" subject response
+after a *reading*-only answer therefore carries last-loaded (possibly empty)
+synonyms until the meaning half is also answered in the same session — a
+deliberate trade-off rather than an extra query on every reading check.
+
+On import, `GET /study_materials` is fetched after subjects (so WaniKani ids
+resolve to local ones) and its `data.meaning_synonyms` is *merged* into the
+local row — union, local entries first so a synonym typed in this app always
+survives a re-import, truncated to 8 if the union is over the limit
+(`app.synonyms.merge_from_import`). A failure to fetch study materials is
+treated exactly like a failure to fetch assignments: it is not swallowed, and
+propagates to fail the whole import run, since there is no partial-import
+story here either way.
+
 **`state` and `srs_stage` are both stored, and are not redundant.** Stage 9 is
 reachable two ways — eight correct reviews, or one press of "das kann ich" —
 and `ItemState.KNOWN` is what tells them apart. `GET /api/stats` counts

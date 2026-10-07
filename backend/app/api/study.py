@@ -28,6 +28,7 @@ from ..models import (
 from ..runtime_config import RuntimeConfig, load_runtime_config
 from ..serialize import subject_detail, subject_summary
 from ..srs import ItemState, QuestionType
+from ..synonyms import load_synonyms, load_synonyms_map
 
 router = APIRouter()
 
@@ -204,12 +205,21 @@ async def submit_answer(
             status_code=409, detail="That question has already been answered for this item."
         )
 
+    # Loaded only for a meaning question -- a reading check never consults
+    # synonyms, so the query would be wasted on a reading answer. That also
+    # means `subject_detail` below carries an empty list when a *reading* was
+    # the question just answered; it catches up once the meaning half is
+    # answered too, and the frontend's own sync after a save keeps a
+    # already-open panel current regardless.
+    synonyms: list[str] = []
     if payload.question is QuestionType.MEANING:
+        synonyms = await load_synonyms(session, subject.id)
         check = check_meaning(
             payload.answer,
             subject.meanings,
             subject.auxiliary_meanings,
             config.meaning_typo_tolerance_divisor,
+            synonyms,
         )
     else:
         kanji_readings = await _kanji_readings_for(session, subject, payload.question)
@@ -271,7 +281,7 @@ async def submit_answer(
         srs_stage_after=outcome.stage_after,
         stage_name_after=srs.stage_name(outcome.stage_after),
         next_review_at=outcome.next_review_at,
-        subject=subject_detail(subject),
+        subject=subject_detail(subject, synonyms),
     )
 
 
@@ -460,14 +470,20 @@ async def lesson_items(
     if not ids:
         return []
 
-    rows = await session.execute(
-        select(Progress, Subject)
-        .join(Subject, Subject.id == Progress.subject_id)
-        .where(Subject.id.in_(ids), Progress.state == ItemState.NEW.value)
-        .order_by(Subject.sort_order, Subject.id)
-    )
+    rows = (
+        await session.execute(
+            select(Progress, Subject)
+            .join(Subject, Subject.id == Progress.subject_id)
+            .where(Subject.id.in_(ids), Progress.state == ItemState.NEW.value)
+            .order_by(Subject.sort_order, Subject.id)
+        )
+    ).all()
+    synonyms_map = await load_synonyms_map(session, (subject.id for _, subject in rows))
     return [
-        LessonItem(subject=subject_detail(subject), srs_stage=progress.srs_stage)
+        LessonItem(
+            subject=subject_detail(subject, synonyms_map.get(subject.id, [])),
+            srs_stage=progress.srs_stage,
+        )
         for progress, subject in rows
     ]
 
@@ -517,11 +533,13 @@ async def quiz_answer(
         )
 
     if payload.question is QuestionType.MEANING:
+        synonyms = await load_synonyms(session, subject.id)
         check = check_meaning(
             payload.answer,
             subject.meanings,
             subject.auxiliary_meanings,
             config.meaning_typo_tolerance_divisor,
+            synonyms,
         )
     else:
         kanji_readings = await _kanji_readings_for(session, subject, payload.question)

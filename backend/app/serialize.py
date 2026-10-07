@@ -7,6 +7,7 @@ never carries its answers" is visible as a single pair of functions:
 
 from __future__ import annotations
 
+from collections.abc import Iterable
 from urllib.parse import quote
 
 from .config import get_settings
@@ -64,8 +65,15 @@ def wanikani_url(subject: Subject) -> str | None:
     return f"{site_base}/{path}/{quote(subject.slug)}"
 
 
-def subject_detail(subject: Subject) -> SubjectDetail:
-    """Everything, answers included. Only after the question is answered."""
+def subject_detail(subject: Subject, synonyms: Iterable[str] = ()) -> SubjectDetail:
+    """Everything, answers included. Only after the question is answered.
+
+    ``synonyms`` is the learner's own (issue #33), loaded by the caller --
+    never here, since it lives in its own table (`SubjectSynonyms`) and this
+    function only ever sees the `Subject` row. A caller serving many subjects
+    at once should load them in bulk (`app.synonyms.load_synonyms_map`) rather
+    than call this once per row and query once per row to match.
+    """
     return SubjectDetail(
         id=subject.id,
         object_type=subject.object_type,
@@ -78,6 +86,7 @@ def subject_detail(subject: Subject) -> SubjectDetail:
         parts_of_speech=subject.parts_of_speech,
         component_subject_ids=subject.component_subject_ids,
         context_sentences=subject.context_sentences,
+        synonyms=list(synonyms),
         meaning_mnemonic=subject.meaning_mnemonic,
         meaning_hint=subject.meaning_hint,
         reading_mnemonic=subject.reading_mnemonic,

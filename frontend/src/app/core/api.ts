@@ -119,6 +119,16 @@ export class Api {
     return this.get(`/api/items/${subjectId}/illustration`);
   }
 
+  /** Add or replace the learner's own synonyms for one item's meaning
+   * (issue #33). Returns the normalised, stored list. */
+  setSynonyms(subjectId: number, synonyms: string[]): Promise<string[]> {
+    return firstValueFrom(
+      this.http.put<{ synonyms: string[] }>(`/api/items/${subjectId}/synonyms`, { synonyms }),
+    )
+      .then((result) => result.synonyms)
+      .catch(rethrow);
+  }
+
   /** "I know this." The reason this app exists. */
   markKnown(subjectIds: number[], knownStage?: number): Promise<{ changed: number }> {
     return this.post('/api/items/known', {

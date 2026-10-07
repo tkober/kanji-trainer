@@ -84,6 +84,17 @@ class WaniKaniClient:
         async for page in self._iter_pages(f"{self.api_base}/assignments", {"hidden": "false"}):
             yield page
 
+    async def iter_study_materials(self) -> AsyncIterator[tuple[list[dict[str, Any]], int]]:
+        """Every study material, page by page.
+
+        A study material carries the learner's own notes on a subject --
+        ``data.meaning_synonyms`` ("User Synonyms" on wanikani.com) is the
+        only part this app imports (issue #33); the rest (mnemonic notes) has
+        no local equivalent.
+        """
+        async for page in self._iter_pages(f"{self.api_base}/study_materials", None):
+            yield page
+
     # --- internals -------------------------------------------------------
 
     def _require_token(self) -> None:

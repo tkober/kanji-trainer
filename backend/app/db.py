@@ -297,6 +297,32 @@ class SubjectIllustration(Base):
     checked_at: Mapped[datetime] = mapped_column(UtcDateTime, nullable=False)
 
 
+class SubjectSynonyms(Base):
+    """Learner-entered extra meanings for one subject (issue #33), modelled on
+    WaniKani's "User Synonyms". An exact match on one of these is accepted as
+    the item's *meaning* answer -- readings are untouched, see
+    :func:`app.answers.check_meaning`.
+
+    Its own table, for the same reason as :class:`SubjectIllustration`: the
+    importer upserts ``subjects`` wholesale on every (re-)import, and this is
+    the learner's own data, never WaniKani's content -- a re-import must not
+    throw it away. WaniKani's own ``study_materials.meaning_synonyms`` is
+    *merged* into this row on import rather than overwriting it
+    (``app.synonyms.merge_from_import``), so a synonym added from either side
+    survives both a re-import and a hand edit.
+    """
+
+    __tablename__ = "subject_synonyms"
+
+    subject_id: Mapped[int] = mapped_column(
+        ForeignKey("subjects.id", ondelete="CASCADE"), primary_key=True
+    )
+    synonyms: Mapped[list[str]] = mapped_column(JSONColumn, nullable=False, server_default="[]")
+    updated_at: Mapped[datetime] = mapped_column(
+        UtcDateTime, nullable=False, server_default=func.now()
+    )
+
+
 class Progress(Base):
     """What the learner has done with one subject. One row per subject.
 

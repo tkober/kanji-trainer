@@ -22,6 +22,7 @@ import { type Hotkey, Hotkeys } from '../../shared/hotkeys/hotkeys';
 import { ContextSentences } from '../../shared/context-sentences/context-sentences';
 import { RadicalIllustration } from '../../shared/radical-illustration/radical-illustration';
 import { Readings } from '../../shared/readings/readings';
+import { Synonyms } from '../../shared/synonyms/synonyms';
 
 /** A queue entry plus what it still owes. */
 type Card = QueueItem;
@@ -37,6 +38,7 @@ type Card = QueueItem;
     RadicalIllustration,
     Readings,
     RouterLink,
+    Synonyms,
   ],
   templateUrl: './review.html',
   styleUrl: './review.scss',
@@ -506,13 +508,29 @@ export class Review {
   }
 
   /**
+   * Keep `feedback().subject.synonyms` current after a save in the "Show
+   * item" panel -- same reasoning as the browse list item and the lessons
+   * item: reopening the panel (or answering the item's other half) must show
+   * the new list without a refetch.
+   */
+  protected onSynonymsChange(subjectId: number, synonyms: string[]): void {
+    this.feedback.update((result) => {
+      if (!result?.subject || result.subject.id !== subjectId) {
+        return result;
+      }
+      return { ...result, subject: { ...result.subject, synonyms } };
+    });
+  }
+
+  /**
    * Focus now, for the cases the effect cannot see.
    *
    * The effect covers every change of question. This covers the rest: the
    * field is already rendered and already the right one, it just lost the
-   * caret to a button click.
+   * caret to a button click -- or, after `app-synonyms` is done with it, to
+   * its own draft field.
    */
-  private focus(): void {
+  protected focus(): void {
     this.field()?.nativeElement.focus();
   }
 }

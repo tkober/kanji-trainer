@@ -30,6 +30,7 @@ import { LevelPicker } from '../../shared/level-picker/level-picker';
 import { ContextSentences } from '../../shared/context-sentences/context-sentences';
 import { RadicalIllustration } from '../../shared/radical-illustration/radical-illustration';
 import { Readings } from '../../shared/readings/readings';
+import { Synonyms } from '../../shared/synonyms/synonyms';
 
 /** One item in the quiz, with the questions it still owes. */
 interface QuizCard {
@@ -123,6 +124,7 @@ function chunk<T>(items: T[], size: number): T[][] {
     RadicalIllustration,
     Readings,
     RouterLink,
+    Synonyms,
   ],
   templateUrl: './lessons.html',
   styleUrl: './lessons.scss',
@@ -606,6 +608,18 @@ export class LessonsPage {
   /** Bound to `.characters` as `--glyphs`, so its font shrinks to fit the card. */
   protected glyphCount(text: string): number {
     return glyphCount(text);
+  }
+
+  /** Keep the current item's synonyms current after a save in the reading
+   * phase -- same reasoning as `Review.onSynonymsChange`. */
+  protected onSynonymsChange(subjectId: number, synonyms: string[]): void {
+    this.items.update((items) =>
+      items.map((item) =>
+        item.subject.id === subjectId
+          ? { ...item, subject: { ...item.subject, synonyms } }
+          : item,
+      ),
+    );
   }
 
   protected meanings(subject: SubjectDetail): string {

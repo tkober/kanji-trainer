@@ -118,6 +118,13 @@
             <dd>{{ primaryMeanings(result) }}</dd>
           </dl>
 
+          <app-synonyms
+            [subjectId]="subject.id"
+            [synonyms]="subject.synonyms"
+            (synonymsChange)="onSynonymsChange(subject.id, $event)"
+            (done)="focus()"
+          />
+
           <app-readings [readings]="subject.readings" [objectType]="subject.object_type" />
 
           <dl>

@@ -183,6 +183,12 @@
         <button type="button" class="close" aria-label="Close" (click)="closeDetail()">×</button>
       </header>
 
+      <app-synonyms
+        [subjectId]="item.subject.id"
+        [synonyms]="item.subject.synonyms"
+        (synonymsChange)="onSynonymsChange(item.subject.id, $event)"
+      />
+
       <app-readings [readings]="item.subject.readings" [objectType]="item.subject.object_type" />
 
       <dl>
