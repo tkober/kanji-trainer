@@ -162,8 +162,22 @@
         That looks wrong. <kbd>Enter</kbd> to submit anyway, <kbd>Esc</kbd> to edit.
       </p>
     }
+  }
+
+  @if (confirmKnown()) {
+    <p class="warning">
+      This marks <strong class="jp">{{ card.subject.characters || card.subject.slug }}</strong> as
+      known — meaning <strong>and</strong> reading. Both leave the reviews.
+    </p>
     <div class="row actions">
-      <button class="known" appHoldFocus (click)="markKnown()" title="Alt+K">
+      <button class="known" appHoldFocus (click)="requestKnown()">
+        Mark whole item known (Alt+K / Enter)
+      </button>
+      <button appHoldFocus (click)="cancelKnown()">Cancel (Esc)</button>
+    </div>
+  } @else if (!feedback()) {
+    <div class="row actions">
+      <button class="known" appHoldFocus (click)="requestKnown()" title="Alt+K">
         I know this
       </button>
       <button class="primary" appHoldFocus [disabled]="submitting()" (click)="submit()">
@@ -171,7 +185,8 @@
       </button>
     </div>
     <p class="muted hint-line">
-      “I know this” retires the item immediately — no waiting on intervals.
+      “I know this” retires the whole item immediately — meaning and reading together, no waiting
+      on intervals.
     </p>
   }
 }
