@@ -196,6 +196,16 @@ dialog.detail {
     margin: 1rem 0 0;
   }
 
+  /* The readings render their own <dl> (shared/readings); the list after them
+     carries on from it rather than opening a new block. */
+  app-readings {
+    margin-top: 1rem;
+  }
+
+  app-readings + dl {
+    margin-top: 0;
+  }
+
   dt {
     font-size: 0.8rem;
     text-transform: uppercase;

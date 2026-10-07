@@ -21,7 +21,7 @@ const INFO: Record<string, string> = {
 
 const COMMON_INFO =
   'Reviews ask for the reading taught first; the others are shown dimmed as “not asked in ' +
-  'reviews” — getting one of those right still counts, just as a retry rather than a mistake.';
+  'reviews”. Answering with one of those is not counted as a mistake — you are simply asked again.';
 
 let nextInstanceId = 0;
 

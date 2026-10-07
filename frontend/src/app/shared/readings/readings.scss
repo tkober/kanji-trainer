@@ -20,10 +20,6 @@ dt {
   align-items: center;
   gap: 0.3rem;
 
-  &:first-child {
-    margin-top: 0;
-  }
-
   &.accepted {
     color: var(--text);
     font-weight: 700;
@@ -82,10 +78,16 @@ dd {
   border-radius: var(--radius);
   box-shadow: var(--shadow);
   padding: 0.9rem 1rem;
+  /* Inside a <dt>, which is uppercase and letter-spaced; none of that here. */
+  text-transform: none;
+  letter-spacing: 0;
+  font-weight: 400;
 
-  h3 {
+  .title {
+    display: block;
     margin: 0 0 0.4rem;
     font-size: 0.95rem;
+    font-weight: 700;
   }
 
   p {
