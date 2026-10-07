@@ -205,15 +205,12 @@ async def submit_answer(
             status_code=409, detail="That question has already been answered for this item."
         )
 
-    # Loaded only for a meaning question -- a reading check never consults
-    # synonyms, so the query would be wasted on a reading answer. That also
-    # means `subject_detail` below carries an empty list when a *reading* was
-    # the question just answered; it catches up once the meaning half is
-    # answered too, and the frontend's own sync after a save keeps a
-    # already-open panel current regardless.
-    synonyms: list[str] = []
+    # Loaded for a reading answer too, although only the meaning check reads
+    # them: the detail in the response is what the "Show item" panel edits,
+    # and the synonym editor saves a whole list -- an empty one shown after a
+    # reading would overwrite every synonym the item has on the first add.
+    synonyms = await load_synonyms(session, subject.id)
     if payload.question is QuestionType.MEANING:
-        synonyms = await load_synonyms(session, subject.id)
         check = check_meaning(
             payload.answer,
             subject.meanings,

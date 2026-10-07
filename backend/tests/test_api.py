@@ -466,6 +466,19 @@ async def test_a_review_answer_accepts_a_synonym_as_the_meaning(client, session)
     assert body["expected"] == "Above"
 
 
+async def test_a_reading_answer_still_carries_the_synonyms(client, session):
+    # The "Show item" editor saves the whole list it was given; an empty one
+    # after a reading answer would wipe the item's synonyms on the first add.
+    subject_id = await seed_kanji(session)
+    await client.put(f"/api/items/{subject_id}/synonyms", json={"synonyms": ["Rise"]})
+
+    response = await client.post(
+        "/api/reviews/answer",
+        json={"subject_id": subject_id, "question": "reading", "answer": "じょう"},
+    )
+    assert response.json()["subject"]["synonyms"] == ["Rise"]
+
+
 async def test_the_review_queue_never_carries_synonyms(client, session):
     subject_id = await seed_kanji(session)
     await client.put(f"/api/items/{subject_id}/synonyms", json={"synonyms": ["Rise"]})

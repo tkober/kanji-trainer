@@ -286,11 +286,10 @@ it. Only an exact match jumps the blacklist this way; a near-miss on a synonym
 is just another typo candidate, added to the pool after the blacklist exactly
 like every other meaning. Readings are untouched — synonyms are a *meaning*
 override only, consistent with the asymmetry the rest of `answers.py`
-documents. `study.py` loads the `subject_synonyms` row (one query) only when
-the question being checked is the meaning; the "Show item" subject response
-after a *reading*-only answer therefore carries last-loaded (possibly empty)
-synonyms until the meaning half is also answered in the same session — a
-deliberate trade-off rather than an extra query on every reading check.
+documents. Every detail the browser receives carries the real list, including
+the answer response to a *reading*: the synonym editor saves the whole list
+(`PUT /api/items/{id}/synonyms`), so a detail with an empty one would wipe
+the item's synonyms on the first add.
 
 On import, `GET /study_materials` is fetched after subjects (so WaniKani ids
 resolve to local ones) and its `data.meaning_synonyms` is *merged* into the
