@@ -10,6 +10,7 @@ import {
   viewChild,
   viewChildren,
 } from '@angular/core';
+import { SumiButtonDirective } from 'sumi-ui/forms';
 
 import type { LevelSummary } from '../../core/api.types';
 
@@ -30,6 +31,7 @@ import type { LevelSummary } from '../../core/api.types';
  */
 @Component({
   selector: 'app-level-picker',
+  imports: [SumiButtonDirective],
   templateUrl: './level-picker.html',
   styleUrl: './level-picker.scss',
 })

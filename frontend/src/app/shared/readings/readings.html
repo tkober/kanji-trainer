@@ -23,7 +23,7 @@
         <span class="not-asked">(not asked in reviews)</span>
       }
     </dt>
-    <dd class="jp" [class.not-asked]="!group.accepted" [class.accepted]="bold(group)">
+    <dd lang="ja" [class.not-asked]="!group.accepted" [class.accepted]="bold(group)">
       @for (entry of group.readings; track entry.reading + '#' + $index; let last = $last) {
         @if (entry.converted) {
           <button
