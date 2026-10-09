@@ -333,7 +333,9 @@ story here either way.
 reachable two ways — eight correct reviews, or one press of "das kann ich" —
 and `ItemState.KNOWN` is what tells them apart. `GET /api/stats` counts
 `burned_count` only for `state == learning`, so the dashboard stays honest
-rather than flattering. Do not collapse these.
+rather than flattering. Do not collapse these. The dashboard's
+`sumi-segmented-bar` keeps the same split visible: "Marked as known" is its
+own segment, in its own colour, never folded into "Burned".
 
 **The pending flags live in the database, not the session.**
 `progress.pending_meaning` / `pending_reading` are NULL while no review is in
@@ -498,16 +500,21 @@ happens in Python, not SQL: Postgres wants `date_trunc` and SQLite wants
 timestamps.
 
 Two charts, never one with two y-axes — a bar count and a running total have
-different scales, and a dual axis is the single most misread chart form. The
-columns are stacked by stage band so a tall bar says whether tomorrow is new
-material or old material returning; the cumulative line sits below with its
-own scale.
+different scales, and a dual axis is the single most misread chart form. A
+stacked `sumi-bar-chart` (`rows`/`series`, one series per stage band) says
+whether tomorrow is new material or old material returning; a separate
+`sumi-sparkline` of the cumulative sits in its own card below, with its own
+scale.
 
 The three series use slots 1-3 of the data-viz reference palette, validated
-with its script in both modes (worst adjacent CVD ΔE 9.2 light / 9.4 dark).
-Aqua measures 2.82:1 on the light surface, under the 3:1 line, so the relief
-rule applies and is why the legend, the tooltip and the "Show numbers" table
-all carry the band names in text. Re-run the validator before changing a hue.
+with its script in both modes (worst adjacent CVD ΔE 9.2 light / 9.4 dark),
+passed to the chart as each series' own `color` — the `--band-*` custom
+properties stay app tokens, defined on the forecast page's host so they
+inherit into the chart rather than living inside Sumi UI. Aqua measures
+2.82:1 on the light surface, under the 3:1 line, so the relief rule applies
+and is why a `sumi-legend` above the chart and the combined `sumi-data-table`
+("Show numbers") both carry the band names in text, never colour alone.
+Re-run the validator before changing a hue.
 
 Forecast tests anchor their due times to the current *hour boundary*, not to
 `now`. Offsets measured from `now` put two items in the same bucket or not
