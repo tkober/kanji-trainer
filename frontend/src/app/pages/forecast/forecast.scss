@@ -7,21 +7,15 @@
    Dark run: CVD ΔE 9.4, normal-vision 26.5 — both clear.
    Aqua sits at 2.82:1 on the light surface, below the 3:1 line, so the
    relief rule applies: the legend, the tooltip and the "Show numbers"
-   table all carry the identity in text, never colour alone. */
+   table all carry the identity in text, never colour alone. `light-dark()`,
+   not a media query on the OS setting, so these follow Sumi UI's theme
+   toggle rather than only the OS preference. */
 .viz-root {
-  --band-apprentice: #2a78d6;
-  --band-guru: #eb6834;
-  --band-master: #1baf7a;
-  --chart-surface: var(--surface);
-  --grid: var(--border);
-}
-
-@media (prefers-color-scheme: dark) {
-  .viz-root {
-    --band-apprentice: #3987e5;
-    --band-guru: #d95926;
-    --band-master: #199e70;
-  }
+  --band-apprentice: light-dark(#2a78d6, #3987e5);
+  --band-guru: light-dark(#eb6834, #d95926);
+  --band-master: light-dark(#1baf7a, #199e70);
+  --chart-surface: var(--sumi-surface);
+  --grid: var(--sumi-line);
 }
 
 .controls {
@@ -43,10 +37,10 @@
   display: flex;
   flex-direction: column;
   gap: 0.15rem;
-  background: var(--surface);
-  border: 1px solid var(--border);
-  border-radius: var(--radius);
-  box-shadow: var(--shadow);
+  background: var(--sumi-surface);
+  border: 1px solid var(--sumi-line);
+  border-radius: var(--sumi-radius);
+  box-shadow: var(--sumi-shadow);
   padding: 1rem;
 }
 
@@ -58,16 +52,16 @@
 
 .label {
   font-size: 0.85rem;
-  color: var(--muted);
+  color: var(--sumi-muted);
 }
 
 .chart {
   margin: 0 0 1rem;
-  background: var(--surface);
-  border: 1px solid var(--border);
-  border-radius: var(--radius);
-  box-shadow: var(--shadow);
-  padding: var(--gap);
+  background: var(--sumi-surface);
+  border: 1px solid var(--sumi-line);
+  border-radius: var(--sumi-radius);
+  box-shadow: var(--sumi-shadow);
+  padding: var(--sumi-space-4);
 
   figcaption {
     margin-bottom: 0.5rem;
@@ -97,7 +91,7 @@
   flex-wrap: wrap;
   margin-bottom: 0.5rem;
   font-size: 0.85rem;
-  color: var(--muted);
+  color: var(--sumi-muted);
 }
 
 .key {
@@ -128,11 +122,11 @@
 }
 
 .baseline {
-  stroke: var(--border);
+  stroke: var(--sumi-line);
 }
 
 .axis {
-  fill: var(--muted);
+  fill: var(--sumi-muted);
   font-size: 11px;
   font-family: inherit;
 }
@@ -143,12 +137,12 @@
 }
 
 .column.active .hit {
-  fill: color-mix(in srgb, var(--accent) 7%, transparent);
+  fill: color-mix(in srgb, var(--sumi-accent) 7%, transparent);
 }
 
 .cumulative {
   fill: none;
-  stroke: var(--accent);
+  stroke: var(--sumi-accent);
   stroke-width: 2;
   stroke-linejoin: round;
   stroke-linecap: round;
@@ -168,9 +162,9 @@
 .numbers {
   width: 100%;
   border-collapse: collapse;
-  background: var(--surface);
-  border: 1px solid var(--border);
-  border-radius: var(--radius);
+  background: var(--sumi-surface);
+  border: 1px solid var(--sumi-line);
+  border-radius: var(--sumi-radius);
   overflow: hidden;
   font-size: 0.9rem;
 
@@ -185,7 +179,7 @@
   td {
     text-align: right;
     padding: 0.35rem 0.6rem;
-    border-bottom: 1px solid var(--border);
+    border-bottom: 1px solid var(--sumi-line);
   }
 
   th:first-child,
@@ -194,11 +188,11 @@
   }
 
   th {
-    background: var(--surface-alt);
+    background: var(--sumi-sunken);
     font-size: 0.78rem;
     text-transform: uppercase;
     letter-spacing: 0.05em;
-    color: var(--muted);
+    color: var(--sumi-muted);
   }
 
   tbody tr:last-child td {

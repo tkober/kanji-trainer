@@ -1,3 +1,4 @@
+<sumi-page width="narrow" [inkEnd]="false">
 @if (error(); as message) {
   <p class="error">{{ message }}</p>
 }
@@ -210,3 +211,4 @@
 <!-- Always present on this screen, not gated on a card being on screen: the
      shortcuts it documents (Enter, Alt+K) work before an item even loads. -->
 <app-hotkeys [hotkeys]="hotkeys" [(open)]="hotkeysOpen" />
+</sumi-page>

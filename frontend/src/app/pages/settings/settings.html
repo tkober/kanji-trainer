@@ -1,5 +1,4 @@
-<h1>Settings</h1>
-
+<sumi-page title="Settings" width="narrow">
 @if (error(); as message) {
   <p class="error">{{ message }}</p>
 }
@@ -211,3 +210,4 @@
     <button class="primary" [disabled]="busy()" (click)="saveSrs()">Save</button>
   </div>
 </section>
+</sumi-page>

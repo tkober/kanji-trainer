@@ -1,6 +1,7 @@
 import { DatePipe } from '@angular/common';
 import { Component, ElementRef, computed, effect, inject, signal, viewChild } from '@angular/core';
 import { FormsModule } from '@angular/forms';
+import { SumiPage } from 'sumi-ui/layout';
 
 import { Api } from '../../core/api';
 import type { Item, ObjectType } from '../../core/api.types';
@@ -29,6 +30,7 @@ const PAGE_SIZE = 100;
     Mnemonic,
     RadicalIllustration,
     Readings,
+    SumiPage,
     Synonyms,
   ],
   templateUrl: './browse.html',

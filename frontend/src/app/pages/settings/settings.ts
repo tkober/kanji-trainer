@@ -1,5 +1,6 @@
 import { Component, OnDestroy, inject, signal } from '@angular/core';
 import { FormsModule } from '@angular/forms';
+import { SumiPage } from 'sumi-ui/layout';
 
 import { Api } from '../../core/api';
 import type {
@@ -12,7 +13,7 @@ import type {
 
 @Component({
   selector: 'app-settings',
-  imports: [FormsModule],
+  imports: [FormsModule, SumiPage],
   templateUrl: './settings.html',
   styleUrl: './settings.scss',
 })

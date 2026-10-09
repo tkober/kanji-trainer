@@ -9,6 +9,7 @@ import {
   viewChild,
 } from '@angular/core';
 import { RouterLink } from '@angular/router';
+import { SumiPage } from 'sumi-ui/layout';
 
 import { Api } from '../../core/api';
 import type { AnswerResult, ObjectType, QuestionType, QueueItem } from '../../core/api.types';
@@ -38,6 +39,7 @@ type Card = QueueItem;
     RadicalIllustration,
     Readings,
     RouterLink,
+    SumiPage,
     Synonyms,
   ],
   templateUrl: './review.html',

@@ -1,9 +1,16 @@
-<div class="head">
-  <h1>Lessons</h1>
-  @if (levels().length > 0) {
-    <app-level-picker [levels]="levels()" [level]="level()" (picked)="pickLevel($event)" />
-  }
-</div>
+<sumi-page
+  [title]="phase() === 'select' ? 'Lessons' : undefined"
+  width="wide"
+  [inkEnd]="phase() === 'select'"
+>
+@if (phase() === 'select' && levels().length > 0) {
+  <app-level-picker
+    sumiPageActions
+    [levels]="levels()"
+    [level]="level()"
+    (picked)="pickLevel($event)"
+  />
+}
 
 @if (error(); as message) {
   <p class="error">{{ message }}</p>
@@ -298,3 +305,4 @@
     </div>
   }
 }
+</sumi-page>

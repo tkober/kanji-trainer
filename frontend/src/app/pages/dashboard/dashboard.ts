@@ -1,5 +1,6 @@
 import { Component, computed, inject, signal } from '@angular/core';
 import { RouterLink } from '@angular/router';
+import { SumiPage } from 'sumi-ui/layout';
 
 import { Api } from '../../core/api';
 import type { Forecast, ImportRun, Stats } from '../../core/api.types';
@@ -7,7 +8,7 @@ import { Counters } from '../../core/counters';
 
 @Component({
   selector: 'app-dashboard',
-  imports: [RouterLink],
+  imports: [RouterLink, SumiPage],
   templateUrl: './dashboard.html',
   styleUrl: './dashboard.scss',
 })
