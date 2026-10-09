@@ -1,6 +1,21 @@
 import { Component, computed, inject, signal } from '@angular/core';
 import { RouterLink } from '@angular/router';
-import { SumiPage } from 'sumi-ui/layout';
+import {
+  SumiBanner,
+  SumiCard,
+  SumiEmptyState,
+  SumiErrorState,
+  SumiPage,
+} from 'sumi-ui/layout';
+import {
+  SumiBarChart,
+  SumiSegmentedBar,
+  SumiStatGrid,
+  SumiStatTile,
+  type SumiBar,
+  type SumiSegment,
+} from 'sumi-ui/charts';
+import { SumiButtonDirective } from 'sumi-ui/forms';
 
 import { Api } from '../../core/api';
 import type { Forecast, ImportRun, Stats } from '../../core/api.types';
@@ -8,7 +23,19 @@ import { Counters } from '../../core/counters';
 
 @Component({
   selector: 'app-dashboard',
-  imports: [RouterLink, SumiPage],
+  imports: [
+    RouterLink,
+    SumiPage,
+    SumiCard,
+    SumiBanner,
+    SumiEmptyState,
+    SumiErrorState,
+    SumiStatGrid,
+    SumiStatTile,
+    SumiBarChart,
+    SumiSegmentedBar,
+    SumiButtonDirective,
+  ],
   templateUrl: './dashboard.html',
   styleUrl: './dashboard.scss',
 })
@@ -18,7 +45,6 @@ export class Dashboard {
 
   protected readonly stats = signal<Stats | null>(null);
   protected readonly forecast = signal<Forecast | null>(null);
-  protected readonly hovered = signal<Bar | null>(null);
   protected readonly lastImport = signal<ImportRun | null>(null);
   protected readonly error = signal<string | null>(null);
   protected readonly loading = signal(true);
@@ -53,58 +79,22 @@ export class Dashboard {
 
   // --- the next 24 hours, in one glance ---------------------------------
   //
-  // One series, so no legend: the heading says what is plotted. The stage
-  // breakdown lives on the forecast page; a dashboard card that tried to
-  // carry it would need a legend and a colour key for four numbers.
+  // One series, so no legend: the card's own heading says what is plotted.
+  // The stage breakdown lives on the forecast page; a dashboard card that
+  // tried to carry it would need a legend and a colour key for four
+  // numbers.
 
-  protected readonly plot = PLOT;
-
-  protected readonly peak = computed(() =>
-    Math.max(1, ...(this.forecast()?.buckets ?? []).map((bucket) => bucket.count)),
-  );
-
-  protected readonly bars = computed<Bar[]>(() => {
-    const buckets = this.forecast()?.buckets ?? [];
-    if (buckets.length === 0) {
-      return [];
-    }
-    const inner = PLOT.width - PLOT.left - PLOT.right;
-    const band = inner / buckets.length;
-    const width = Math.min(MAX_BAR, Math.max(2, band - GAP));
-    const height = PLOT.height - PLOT.top - PLOT.bottom;
-    const max = this.peak();
-
-    return buckets.map((bucket, index) => {
-      const bandX = PLOT.left + band * index;
-      const barHeight = (bucket.count / max) * height;
+  protected readonly comingUpBars = computed<SumiBar[]>(() =>
+    (this.forecast()?.buckets ?? []).map((bucket, index) => {
       const at = new Date(bucket.at);
       return {
-        at,
         label: at.toLocaleTimeString(undefined, { hour: '2-digit', minute: '2-digit' }),
-        count: bucket.count,
-        cumulative: bucket.cumulative,
-        x: bandX + (band - width) / 2,
-        y: PLOT.height - PLOT.bottom - barHeight,
-        width,
-        height: barHeight,
-        path:
-          barHeight > 0
-            ? roundedTop(
-                bandX + (band - width) / 2,
-                PLOT.height - PLOT.bottom - barHeight,
-                width,
-                barHeight,
-                Math.min(4, barHeight),
-              )
-            : null,
-        hitX: bandX,
-        hitWidth: band,
+        value: bucket.count,
+        // The first bucket is the current hour (see backend/app/api/forecast.py).
+        highlight: index === 0,
       };
-    });
-  });
-
-  /** Label a handful of hours, never all 24. */
-  protected readonly tickEvery = 6;
+    }),
+  );
 
   protected readonly arriving = computed(() =>
     (this.forecast()?.buckets ?? []).reduce((total, bucket) => total + bucket.count, 0),
@@ -128,38 +118,33 @@ export class Dashboard {
     }
     return Math.round(((stats.known_count + stats.burned_count) / stats.total_subjects) * 100);
   }
-}
 
-
-/** One hour of the dashboard's compact forecast. */
-interface Bar {
-  at: Date;
-  label: string;
-  count: number;
-  cumulative: number;
-  x: number;
-  y: number;
-  width: number;
-  height: number;
-  path: string | null;
-  hitX: number;
-  hitWidth: number;
-}
-
-const PLOT = { width: 720, height: 104, left: 30, right: 8, top: 10, bottom: 20 };
-const MAX_BAR = 24;
-const GAP = 2;
-
-/** Rounded data-end, square foot on the baseline. */
-function roundedTop(x: number, y: number, w: number, h: number, r: number): string {
-  const radius = Math.min(r, w / 2, h);
-  return [
-    `M${x},${y + h}`,
-    `L${x},${y + radius}`,
-    `Q${x},${y} ${x + radius},${y}`,
-    `L${x + w - radius},${y}`,
-    `Q${x + w},${y} ${x + w},${y + radius}`,
-    `L${x + w},${y + h}`,
-    'Z',
-  ].join(' ');
+  /**
+   * The SRS-stage breakdown as segmented-bar segments.
+   *
+   * The first five keep the library's default sequential ramp colour (no
+   * `color` given). "Marked as known" gets its own colour, clearly apart
+   * from the ramp — the whole point of the footnote below is that it is
+   * *not* "Burned" (see CLAUDE.md, the `state`/`srs_stage` invariant).
+   * "Hidden" and "Unlearned" are both neutral, but "Unlearned" cannot use
+   * `--sumi-sunken` itself: that token is the segmented-bar's own track
+   * colour, so a segment filled with it would be invisible against the
+   * track. `--sumi-line` is the next step up and stays visible.
+   */
+  protected readonly collectionSegments = computed<SumiSegment[]>(() => {
+    const stats = this.stats();
+    if (!stats) {
+      return [];
+    }
+    return [
+      { label: 'Apprentice', value: stats.apprentice_count },
+      { label: 'Guru', value: stats.guru_count },
+      { label: 'Master', value: stats.master_count },
+      { label: 'Enlightened', value: stats.enlightened_count },
+      { label: 'Burned', value: stats.burned_count },
+      { label: 'Marked as known', value: stats.known_count, color: 'var(--sumi-correct)' },
+      { label: 'Hidden', value: stats.suspended_count, color: 'var(--sumi-muted)' },
+      { label: 'Unlearned', value: stats.new_count, color: 'var(--sumi-line)' },
+    ];
+  });
 }

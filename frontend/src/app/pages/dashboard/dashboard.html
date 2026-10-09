@@ -1,49 +1,31 @@
 <sumi-page title="Dashboard">
-  @if (error(); as message) {
-    <p class="error">{{ message }}</p>
-  }
-
-  @if (loading()) {
-    <p class="muted">Loading …</p>
-  } @else if (stats(); as stats) {
+  @if (stats(); as stats) {
     @if (stats.total_subjects === 0) {
-      <section class="card empty">
-        <h2>No items yet</h2>
-        <p class="muted">
-          Import your WaniKani progress to pick up where you actually are — everything at or
-          above the chosen SRS stage comes in as “known” and never enters the review queue
-          again.
-        </p>
-        <a routerLink="/settings"><button class="primary">Go to import</button></a>
-      </section>
+      <sumi-empty-state title="No items yet" companion="tsuru">
+        Import your WaniKani progress to pick up where you actually are — everything at or
+        above the chosen SRS stage comes in as “known” and never enters the review queue
+        again.
+        <a sumiEmptyAction routerLink="/settings" sumiButton variant="primary">Go to import</a>
+      </sumi-empty-state>
     } @else {
-      <section class="tiles">
-        <a class="tile due" routerLink="/review">
-          <span class="value">{{ stats.due_now }}</span>
-          <span class="label">reviews due</span>
-        </a>
-        <a class="tile" routerLink="/lessons">
-          <span class="value">{{ stats.lessons_available }}</span>
-          <span class="label">
-            @if (stats.current_level !== null) {
-              lessons in level {{ stats.current_level }}
-            } @else {
-              lessons available
-            }
-          </span>
-        </a>
-        <div class="tile">
-          <span class="value">{{ stats.reviews_today }}</span>
-          <span class="label">answered today</span>
-        </div>
-        <div class="tile">
-          <span class="value">{{ accuracy(stats) }}</span>
-          <span class="label">accuracy today</span>
-        </div>
-      </section>
+      <sumi-stat-grid>
+        <sumi-stat-tile
+          [value]="stats.due_now"
+          label="reviews due"
+          link="/review"
+          [emphasis]="true"
+        />
+        <sumi-stat-tile
+          [value]="stats.lessons_available"
+          [label]="stats.current_level !== null ? 'lessons in level ' + stats.current_level : 'lessons available'"
+          link="/lessons"
+        />
+        <sumi-stat-tile [value]="stats.reviews_today" label="answered today" />
+        <sumi-stat-tile [value]="accuracy(stats)" label="accuracy today" />
+      </sumi-stat-grid>
 
-      <section class="card viz-root coming-up">
-        <div class="head">
+      <sumi-card class="coming-up">
+        <div sumiCardHeader class="head">
           <div>
             <h2>Coming up</h2>
             <p class="muted">
@@ -59,135 +41,71 @@
         @if (arriving() === 0) {
           <p class="muted quiet">Nothing scheduled in the next 24 hours.</p>
         } @else {
-          <svg
-            [attr.viewBox]="'0 0 ' + plot.width + ' ' + plot.height"
-            preserveAspectRatio="xMidYMid meet"
-            role="img"
-            aria-label="Reviews arriving per hour over the next 24 hours"
-          >
-            <line
-              class="grid"
-              [attr.x1]="plot.left"
-              [attr.x2]="plot.width - plot.right"
-              [attr.y1]="plot.top"
-              [attr.y2]="plot.top"
-            />
-            <text class="axis" [attr.x]="plot.left - 6" [attr.y]="plot.top + 4" text-anchor="end">
-              {{ peak() }}
-            </text>
-
-            @for (bar of bars(); track bar.at.getTime(); let i = $index) {
-              <g
-                class="column"
-                [class.active]="hovered() === bar"
-                (mouseenter)="hovered.set(bar)"
-                (mouseleave)="hovered.set(null)"
-              >
-                <rect
-                  class="hit"
-                  [attr.x]="bar.hitX"
-                  [attr.y]="plot.top"
-                  [attr.width]="bar.hitWidth"
-                  [attr.height]="plot.height - plot.top - plot.bottom"
-                />
-                @if (bar.path) {
-                  <path class="bar" [attr.d]="bar.path" />
-                }
-              </g>
-              @if (i % tickEvery === 0) {
-                <text
-                  class="axis"
-                  [attr.x]="bar.hitX + bar.hitWidth / 2"
-                  [attr.y]="plot.height - 6"
-                  text-anchor="middle"
-                >
-                  {{ bar.label }}
-                </text>
-              }
-            }
-
-            <line
-              class="baseline"
-              [attr.x1]="plot.left"
-              [attr.x2]="plot.width - plot.right"
-              [attr.y1]="plot.height - plot.bottom"
-              [attr.y2]="plot.height - plot.bottom"
-            />
-          </svg>
-
+          <sumi-bar-chart
+            ariaLabel="Reviews arriving per hour over the next 24 hours"
+            [bars]="comingUpBars()"
+            [labelEvery]="6"
+            [table]="true"
+            labelHeader="Hour"
+            valueHeader="Reviews"
+          />
           <p class="readout">
-            @if (hovered(); as bar) {
-              <strong>{{ bar.label }}</strong> · {{ bar.count }} arriving ·
-              <span class="muted">{{ bar.cumulative }} waiting by then</span>
-            } @else {
-              <strong>{{ arriving() }}</strong> arriving in the next 24 hours ·
-              <span class="muted">{{ waitingAfter() }} waiting by this time tomorrow</span>
-            }
+            <strong>{{ arriving() }}</strong> arriving in the next 24 hours ·
+            <span class="muted">{{ waitingAfter() }} waiting by this time tomorrow</span>
           </p>
         }
-      </section>
+      </sumi-card>
 
-      <section class="card">
-        <h2>Collection</h2>
-        <p class="muted summary">
-          {{ stats.total_subjects }} items, {{ settled(stats) }} % of them settled for good.
-          {{ stats.new_count }} still unlearned.
-        </p>
-        <dl class="breakdown">
-          <div>
-            <dt>Apprentice</dt>
-            <dd>{{ stats.apprentice_count }}</dd>
-          </div>
-          <div>
-            <dt>Guru</dt>
-            <dd>{{ stats.guru_count }}</dd>
-          </div>
-          <div>
-            <dt>Master</dt>
-            <dd>{{ stats.master_count }}</dd>
-          </div>
-          <div>
-            <dt>Enlightened</dt>
-            <dd>{{ stats.enlightened_count }}</dd>
-          </div>
-          <div>
-            <dt>Burned</dt>
-            <dd>{{ stats.burned_count }}</dd>
-          </div>
-          <div class="declared">
-            <dt>Marked as known</dt>
-            <dd>{{ stats.known_count }}</dd>
-          </div>
-          <div>
-            <dt>Hidden</dt>
-            <dd>{{ stats.suspended_count }}</dd>
-          </div>
-        </dl>
+      <sumi-card>
+        <div sumiCardHeader>
+          <h2>Collection</h2>
+          <p class="muted summary">
+            {{ stats.total_subjects }} items, {{ settled(stats) }} % of them settled for good.
+            {{ stats.new_count }} still unlearned.
+          </p>
+        </div>
+        <sumi-segmented-bar
+          ariaLabel="Collection by SRS stage"
+          [segments]="collectionSegments()"
+          [legend]="true"
+          [table]="true"
+        />
         <p class="muted footnote">
           “Burned” counts only items you earned. What you marked as known yourself is listed
           separately — otherwise the number would flatter you.
         </p>
-      </section>
+      </sumi-card>
     }
+  } @else if (error(); as message) {
+    <sumi-error-state title="Can't reach the server" companion="tsuru">
+      {{ message }}
+      <button sumiErrorAction type="button" sumiButton variant="secondary" (click)="load()">
+        Try again
+      </button>
+    </sumi-error-state>
+  } @else {
+    <p class="muted">Loading …</p>
+  }
 
-    @if (lastImport(); as run) {
-      <section class="card">
+  @if (lastImport(); as run) {
+    <sumi-card>
+      <div sumiCardHeader>
         <h2>Last import</h2>
-        <p class="muted">
-          {{ run.status === 'succeeded' ? 'Succeeded' : run.status === 'failed' ? 'Failed' : 'Running' }}
-          · threshold SRS stage {{ run.known_srs_stage }}
+      </div>
+      <p class="muted">
+        {{ run.status === 'succeeded' ? 'Succeeded' : run.status === 'failed' ? 'Failed' : 'Running' }}
+        · threshold SRS stage {{ run.known_srs_stage }}
+      </p>
+      @if (run.status === 'succeeded') {
+        <p>
+          {{ run.subjects_imported }} items fetched,
+          <strong>{{ run.marked_known }}</strong> taken over as known,
+          {{ run.marked_learning }} in the review cycle, {{ run.marked_new }} new.
         </p>
-        @if (run.status === 'succeeded') {
-          <p>
-            {{ run.subjects_imported }} items fetched,
-            <strong>{{ run.marked_known }}</strong> taken over as known,
-            {{ run.marked_learning }} in the review cycle, {{ run.marked_new }} new.
-          </p>
-        }
-        @if (run.message) {
-          <p class="notice">{{ run.message }}</p>
-        }
-      </section>
-    }
+      }
+      @if (run.message) {
+        <sumi-banner tone="notice">{{ run.message }}</sumi-banner>
+      }
+    </sumi-card>
   }
 </sumi-page>
