@@ -1,71 +1,26 @@
-/* Design tokens and the handful of element styles every screen shares. */
-
-:root {
-  color-scheme: light dark;
-
-  /* Item types keep WaniKani's colour coding — the learner reads these
-     faster than any label, and changing them would cost that for nothing. */
-  --radical: #00a1f1;
-  --kanji: #f100a1;
-  --vocabulary: #a100f1;
-
-  --ok: #2e9e5b;
-  --bad: #d4453c;
-  --warn: #c8811a;
-
-  --bg: #f6f7f9;
-  --surface: #ffffff;
-  --surface-alt: #eef0f4;
-  --border: #d8dce3;
-  --text: #1c2026;
-  --muted: #5e6672;
-  --accent: #3a5ccc;
-
-  --radius: 10px;
-  --gap: 1rem;
-  --shadow: 0 1px 2px rgb(0 0 0 / 6%), 0 4px 12px rgb(0 0 0 / 4%);
-}
-
-@media (prefers-color-scheme: dark) {
-  :root {
-    --bg: #14171c;
-    --surface: #1d2128;
-    --surface-alt: #262b34;
-    --border: #333a45;
-    --text: #e8eaee;
-    --muted: #9aa3b0;
-    --accent: #7e9bff;
-    --shadow: 0 1px 2px rgb(0 0 0 / 40%), 0 4px 14px rgb(0 0 0 / 30%);
-  }
-}
-
-* {
-  box-sizing: border-box;
-}
+/* Global styles entry point. Sumi UI's tokens and base styles come first
+   (see sumi-ui's README, "Using Sumi UI in an app"), then the app's own
+   leftover tokens (styles/app-tokens.scss) -- everything else here is the
+   handful of element styles every screen still shares; #40 moves these onto
+   Sumi UI's own components. */
+@use 'sumi-ui/projects/sumi-ui/styles/sumi';
+@use 'styles/app-tokens';
 
 html,
 body {
-  margin: 0;
-  padding: 0;
   min-height: 100%;
 }
 
-body {
-  background: var(--bg);
-  color: var(--text);
-  font-family: system-ui, -apple-system, 'Segoe UI', Roboto, sans-serif;
-  font-size: 16px;
-  line-height: 1.5;
-}
-
 /* Japanese text wants a font stack that will not fall back to a Chinese
-   glyph set — 直 and 今 are drawn differently and the wrong one teaches the
-   wrong stroke order. */
+   glyph set -- 直 and 今 are drawn differently and the wrong one teaches the
+   wrong stroke order. Same stack as Sumi UI's own `[lang='ja']` rule
+   (styles/_base.scss) -- these elements just do not all carry `lang="ja"`. */
 .jp,
 .wk-ja,
 .wk-reading {
-  font-family: 'Hiragino Sans', 'Hiragino Kaku Gothic ProN', 'Yu Gothic',
-    'Noto Sans JP', 'Meiryo', sans-serif;
+  font-family:
+    'Zen Kaku Gothic New', 'Hiragino Kaku Gothic ProN', 'Hiragino Sans', 'Yu Gothic',
+    'Noto Sans JP', sans-serif;
 }
 
 /* A reading WaniKani knows but never asks for — the kun'yomi of a kanji taught
@@ -74,50 +29,13 @@ body {
    buys a retry rather than a right answer. Global for the same reason `.jp` is:
    all three screens render the same list. */
 dd.not-asked {
-  color: var(--muted);
+  color: var(--sumi-muted);
 }
 
 dt .not-asked {
   text-transform: none;
   letter-spacing: 0;
   font-weight: 400;
-}
-
-/* WaniKani tags the pieces of a mnemonic, `highlightMnemonic` turns those tags
-   into spans, and this is what makes them readable: the same three colours the
-   rest of the app uses for radicals, kanji and vocabulary, as a tint rather
-   than as text, so the sentence still reads as a sentence.
-
-   Global, because emulated view encapsulation does not reach content inserted
-   through `innerHTML` — a component style sheet would simply not apply. */
-.wk {
-  border-radius: 4px;
-  padding: 0.08em 0.28em;
-}
-
-.wk-radical {
-  background: color-mix(in srgb, var(--radical) 18%, transparent);
-}
-
-.wk-kanji {
-  background: color-mix(in srgb, var(--kanji) 18%, transparent);
-}
-
-.wk-vocabulary {
-  background: color-mix(in srgb, var(--vocabulary) 18%, transparent);
-}
-
-/* Readings and meanings are the answer being spelled out, not a third kind of
-   item, so they get the neutral tint rather than a fourth hue. */
-.wk-reading,
-.wk-meaning {
-  background: color-mix(in srgb, var(--text) 12%, transparent);
-}
-
-/* <ja> only marks Japanese text: the font stack above, no highlight. */
-.wk-ja {
-  padding: 0;
-  background: none;
 }
 
 h1,
@@ -135,23 +53,19 @@ h2 {
   font-size: 1.15rem;
 }
 
-a {
-  color: var(--accent);
-}
-
 button {
   font: inherit;
   cursor: pointer;
-  border-radius: var(--radius);
-  border: 1px solid var(--border);
-  background: var(--surface);
-  color: var(--text);
+  border-radius: var(--sumi-radius);
+  border: 1px solid var(--sumi-line);
+  background: var(--sumi-surface);
+  color: var(--sumi-text);
   padding: 0.5rem 0.9rem;
   transition: background 120ms ease, border-color 120ms ease;
 }
 
 button:hover:not(:disabled) {
-  background: var(--surface-alt);
+  background: var(--sumi-sunken);
 }
 
 button:disabled {
@@ -160,48 +74,41 @@ button:disabled {
 }
 
 button.primary {
-  background: var(--accent);
-  border-color: var(--accent);
-  color: #fff;
+  background: var(--sumi-accent);
+  border-color: var(--sumi-accent);
+  color: var(--sumi-on-accent);
 }
 
 button.primary:hover:not(:disabled) {
   filter: brightness(1.08);
-  background: var(--accent);
+  background: var(--sumi-accent);
 }
 
 button.danger {
-  color: var(--bad);
-  border-color: color-mix(in srgb, var(--bad) 40%, var(--border));
+  color: var(--sumi-wrong);
+  border-color: color-mix(in srgb, var(--sumi-wrong) 40%, var(--sumi-line));
 }
 
 input,
 select {
   font: inherit;
-  color: var(--text);
-  background: var(--surface);
-  border: 1px solid var(--border);
-  border-radius: var(--radius);
+  color: var(--sumi-text);
+  background: var(--sumi-surface);
+  border: 1px solid var(--sumi-line);
+  border-radius: var(--sumi-radius);
   padding: 0.5rem 0.7rem;
 }
 
-input:focus-visible,
-select:focus-visible,
-button:focus-visible {
-  outline: 2px solid var(--accent);
-  outline-offset: 2px;
-}
-
 .card {
-  background: var(--surface);
-  border: 1px solid var(--border);
-  border-radius: var(--radius);
-  box-shadow: var(--shadow);
-  padding: var(--gap);
+  background: var(--sumi-surface);
+  border: 1px solid var(--sumi-line);
+  border-radius: var(--sumi-radius);
+  box-shadow: var(--sumi-shadow);
+  padding: var(--sumi-space-4);
 }
 
 .muted {
-  color: var(--muted);
+  color: var(--sumi-muted);
 }
 
 .row {
@@ -212,17 +119,17 @@ button:focus-visible {
 }
 
 .error {
-  color: var(--bad);
-  background: color-mix(in srgb, var(--bad) 10%, transparent);
-  border: 1px solid color-mix(in srgb, var(--bad) 35%, transparent);
-  border-radius: var(--radius);
+  color: var(--sumi-wrong);
+  background: var(--sumi-wrong-soft);
+  border: 1px solid color-mix(in srgb, var(--sumi-wrong) 35%, transparent);
+  border-radius: var(--sumi-radius);
   padding: 0.6rem 0.8rem;
 }
 
 .notice {
-  color: var(--warn);
-  background: color-mix(in srgb, var(--warn) 10%, transparent);
-  border: 1px solid color-mix(in srgb, var(--warn) 35%, transparent);
-  border-radius: var(--radius);
+  color: var(--sumi-retry);
+  background: var(--sumi-retry-soft);
+  border: 1px solid color-mix(in srgb, var(--sumi-retry) 35%, transparent);
+  border-radius: var(--sumi-radius);
   padding: 0.6rem 0.8rem;
 }

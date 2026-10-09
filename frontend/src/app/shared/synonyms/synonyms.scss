@@ -13,7 +13,7 @@ dt {
   font-size: 0.8rem;
   text-transform: uppercase;
   letter-spacing: 0.06em;
-  color: var(--muted);
+  color: var(--sumi-muted);
   margin-top: 0.75rem;
 }
 
@@ -34,8 +34,8 @@ dd {
   gap: 0.3rem;
   padding: 0.2rem 0.3rem 0.2rem 0.6rem;
   border-radius: 999px;
-  background: var(--surface-alt);
-  border: 1px solid var(--border);
+  background: var(--sumi-sunken);
+  border: 1px solid var(--sumi-line);
   font-size: 0.9rem;
 }
 
@@ -49,28 +49,28 @@ dd {
   border: 0;
   border-radius: 50%;
   background: none;
-  color: var(--muted);
+  color: var(--sumi-muted);
   font: inherit;
   line-height: 1;
   cursor: pointer;
 
   &:hover {
-    color: var(--bad);
+    color: var(--sumi-wrong);
   }
 }
 
 .add {
-  border: 1px dashed var(--border);
+  border: 1px dashed var(--sumi-line);
   border-radius: 999px;
   background: none;
-  color: var(--muted);
+  color: var(--sumi-muted);
   font-size: 0.85rem;
   padding: 0.25rem 0.7rem;
   cursor: pointer;
 
   &:hover {
-    border-color: var(--accent);
-    color: var(--accent);
+    border-color: var(--sumi-accent-ink);
+    color: var(--sumi-accent-ink);
   }
 }
 
@@ -84,17 +84,14 @@ dd {
   font: inherit;
   font-size: 0.9rem;
   padding: 0.25rem 0.5rem;
-  border: 1px solid var(--border);
+  border: 1px solid var(--sumi-line);
   border-radius: 999px;
-  background: var(--surface);
-  color: var(--text);
+  background: var(--sumi-surface);
+  color: var(--sumi-text);
   width: 9rem;
   max-width: 40vw;
-
-  &:focus {
-    outline: 2px solid var(--accent);
-    outline-offset: 1px;
-  }
+  /* No focus outline of its own -- Sumi UI's global `:focus-visible` ring
+     (styles/_base.scss) already covers it. */
 }
 
 .confirm {
@@ -106,7 +103,7 @@ dd {
   padding: 0;
   border: 0;
   border-radius: 50%;
-  background: var(--ok);
+  background: var(--sumi-correct);
   color: #fff;
   font: inherit;
   line-height: 1;
@@ -119,7 +116,7 @@ dd {
 }
 
 .error {
-  color: var(--bad);
+  color: var(--sumi-wrong);
   font-size: 0.85rem;
   margin: 0.3rem 0 0;
 }

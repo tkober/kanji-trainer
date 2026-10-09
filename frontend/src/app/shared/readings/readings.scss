@@ -14,14 +14,14 @@ dt {
   font-size: 0.8rem;
   text-transform: uppercase;
   letter-spacing: 0.06em;
-  color: var(--muted);
+  color: var(--sumi-muted);
   margin-top: 0.75rem;
   display: flex;
   align-items: center;
   gap: 0.3rem;
 
   &.accepted {
-    color: var(--text);
+    color: var(--sumi-text);
     font-weight: 700;
   }
 }
@@ -48,9 +48,9 @@ dd {
   height: 1.1rem;
   padding: 0;
   border-radius: 50%;
-  border: 1px solid var(--muted);
+  border: 1px solid var(--sumi-muted);
   background: none;
-  color: var(--muted);
+  color: var(--sumi-muted);
   font: inherit;
   font-size: 0.65rem;
   font-style: italic;
@@ -59,8 +59,8 @@ dd {
   letter-spacing: 0;
 
   &:hover {
-    border-color: var(--accent);
-    color: var(--accent);
+    border-color: var(--sumi-accent-ink);
+    color: var(--sumi-accent-ink);
     background: none;
   }
 }
@@ -72,11 +72,11 @@ dd {
    caret on the review screen; opening the popover itself moves no focus. */
 .info-popover {
   max-width: min(22rem, calc(100vw - 2rem));
-  background: var(--surface);
-  color: var(--text);
-  border: 1px solid var(--border);
-  border-radius: var(--radius);
-  box-shadow: var(--shadow);
+  background: var(--sumi-surface);
+  color: var(--sumi-text);
+  border: 1px solid var(--sumi-line);
+  border-radius: var(--sumi-radius);
+  box-shadow: var(--sumi-shadow);
   padding: 0.9rem 1rem;
   /* Inside a <dt>, which is uppercase and letter-spaced; none of that here. */
   text-transform: none;
@@ -96,11 +96,11 @@ dd {
     line-height: 1.45;
     text-transform: none;
     letter-spacing: 0;
-    color: var(--text);
+    color: var(--sumi-text);
   }
 
   .common {
-    color: var(--muted);
+    color: var(--sumi-muted);
   }
 
   a {
@@ -121,7 +121,7 @@ dd {
   color: inherit;
   font: inherit;
   cursor: pointer;
-  border-bottom: 1px dotted var(--muted);
+  border-bottom: 1px dotted var(--sumi-muted);
 
   .hiragana {
     display: none;
