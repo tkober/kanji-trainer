@@ -1,7 +1,13 @@
 import { DatePipe } from '@angular/common';
 import { Component, ElementRef, computed, effect, inject, signal, viewChild } from '@angular/core';
 import { FormsModule } from '@angular/forms';
-import { SumiPage } from 'sumi-ui/layout';
+import { SumiBanner, SumiCard, SumiEmptyState, SumiErrorState, SumiPage } from 'sumi-ui/layout';
+import {
+  SumiButtonDirective,
+  SumiCheckboxDirective,
+  SumiInputDirective,
+  SumiSelectDirective,
+} from 'sumi-ui/forms';
 
 import { Api } from '../../core/api';
 import type { Item, ObjectType } from '../../core/api.types';
@@ -30,7 +36,15 @@ const PAGE_SIZE = 100;
     Mnemonic,
     RadicalIllustration,
     Readings,
+    SumiBanner,
+    SumiButtonDirective,
+    SumiCard,
+    SumiCheckboxDirective,
+    SumiEmptyState,
+    SumiErrorState,
+    SumiInputDirective,
     SumiPage,
+    SumiSelectDirective,
     Synonyms,
   ],
   templateUrl: './browse.html',
@@ -57,6 +71,11 @@ export class Browse {
   protected readonly busy = signal(false);
   protected readonly error = signal<string | null>(null);
   protected readonly status = signal<string | null>(null);
+  /** Whether the list has ever loaded successfully -- a failure before that
+   * point is the T6 "can't reach the server" scene; a failure afterwards
+   * (paging, a re-filter) stays a banner, same as any other action error. */
+  protected readonly loaded = signal(false);
+  protected readonly loadFailed = signal(false);
 
   protected readonly selectedCount = computed(() => this.selected().size);
   protected readonly allSelected = computed(
@@ -97,8 +116,14 @@ export class Browse {
       this.total.set(page.total);
       this.selected.set(new Set());
       this.error.set(null);
+      this.loaded.set(true);
+      this.loadFailed.set(false);
     } catch (err) {
-      this.error.set((err as Error).message);
+      if (this.loaded()) {
+        this.error.set((err as Error).message);
+      } else {
+        this.loadFailed.set(true);
+      }
     } finally {
       this.loading.set(false);
     }

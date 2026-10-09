@@ -2,12 +2,24 @@
   display: block;
 }
 
-section + section,
-table {
-  margin-top: 1rem;
+h2 {
+  margin: 0 0 0.5rem;
+  font-size: 1.15rem;
+  line-height: 1.25;
 }
 
-.filters label {
+.muted {
+  color: var(--sumi-muted);
+}
+
+.row {
+  display: flex;
+  gap: 0.5rem;
+  align-items: center;
+  flex-wrap: wrap;
+}
+
+.filters .field {
   display: flex;
   flex-direction: column;
   gap: 0.2rem;
@@ -44,12 +56,6 @@ table {
 
 .spacer {
   flex: 1;
-}
-
-.known {
-  border-color: color-mix(in srgb, var(--sumi-correct) 45%, var(--sumi-line));
-  color: var(--sumi-correct);
-  font-weight: 600;
 }
 
 table {
@@ -123,6 +129,7 @@ tbody tr.clickable:hover {
     border: 0;
     padding: 0;
     border-radius: 2px;
+    cursor: pointer;
   }
 }
 
@@ -133,7 +140,6 @@ tbody tr.clickable:hover {
 
 .pager {
   justify-content: center;
-  margin-top: 1rem;
 }
 
 dialog.detail {
@@ -186,10 +192,24 @@ dialog.detail {
     font-size: 0.85rem;
   }
 
+  /* The global `button` rule is gone, so this stays self-contained: font,
+     colour, border, background and cursor, same as a plain `sumiButton`
+     secondary would give it, just sized for a corner close icon. */
   .close {
+    font: inherit;
+    cursor: pointer;
+    border-radius: var(--sumi-radius);
+    border: 1px solid var(--sumi-line);
+    background: var(--sumi-surface);
+    color: var(--sumi-text);
     font-size: 1.1rem;
     line-height: 1;
     padding: 0.3rem 0.6rem;
+    transition: background-color 120ms ease;
+
+    &:hover {
+      background: var(--sumi-sunken);
+    }
   }
 
   dl {
@@ -220,10 +240,6 @@ dialog.detail {
 
   dd {
     margin: 0.15rem 0 0;
-  }
-
-  dd.jp {
-    font-size: 1.15rem;
   }
 
   .source {

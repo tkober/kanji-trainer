@@ -1,9 +1,17 @@
 <sumi-page title="Items" width="wide">
-  <section class="card filters">
+  @if (loadFailed()) {
+    <sumi-error-state title="Can't reach the server" companion="tsuru">
+      Your progress is safe. Check the connection and try again.
+      <button sumiErrorAction type="button" sumiButton variant="secondary" (click)="load()">
+        Try again
+      </button>
+    </sumi-error-state>
+  } @else {
+  <sumi-card class="filters">
     <div class="row">
-      <label>
-        State
-        <select [(ngModel)]="state" (change)="applyFilters()">
+      <label class="field">
+        <span>State</span>
+        <select sumiSelect [(ngModel)]="state" (change)="applyFilters()">
           <option value="">all</option>
           <option value="new">new</option>
           <option value="learning">in review cycle</option>
@@ -12,9 +20,9 @@
         </select>
       </label>
 
-      <label>
-        Type
-        <select [(ngModel)]="objectType" (change)="applyFilters()">
+      <label class="field">
+        <span>Type</span>
+        <select sumiSelect [(ngModel)]="objectType" (change)="applyFilters()">
           <option value="">all</option>
           <option value="radical">radical</option>
           <option value="kanji">kanji</option>
@@ -23,9 +31,9 @@
         </select>
       </label>
 
-      <label>
-        Level
-        <select [(ngModel)]="level" (change)="applyFilters()">
+      <label class="field">
+        <span>Level</span>
+        <select sumiSelect [(ngModel)]="level" (change)="applyFilters()">
           <option [ngValue]="null">all</option>
           @for (value of levels(); track value) {
             <option [ngValue]="value">{{ value }}</option>
@@ -33,39 +41,41 @@
         </select>
       </label>
 
-      <label class="grow">
-        Search
+      <label class="field grow">
+        <span>Search</span>
         <input
           type="text"
-          class="jp"
+          sumiInput
+          lang="ja"
           placeholder="character or slug"
           [(ngModel)]="search"
           (keyup.enter)="applyFilters()"
         />
       </label>
 
-      <button (click)="applyFilters()">Filter</button>
+      <button type="button" sumiButton variant="primary" (click)="applyFilters()">Filter</button>
     </div>
-  </section>
+  </sumi-card>
 
   @if (error(); as message) {
-    <p class="error">{{ message }}</p>
+    <sumi-banner tone="error">{{ message }}</sumi-banner>
   }
   @if (status(); as message) {
-    <p class="notice">{{ message }}</p>
+    <sumi-banner tone="success">{{ message }}</sumi-banner>
   }
 
-  <section class="card actions" [class.armed]="selectedCount() > 0">
+  <sumi-card class="actions" [class.armed]="selectedCount() > 0">
     <div class="row">
       <label class="check">
-        <input type="checkbox" [checked]="allSelected()" (change)="toggleAll()" />
+        <input type="checkbox" sumiCheckbox [checked]="allSelected()" (change)="toggleAll()" />
         {{ selectedCount() }} of {{ items().length }} selected
       </label>
 
       <span class="spacer"></span>
 
       <button
-        class="known"
+        type="button"
+        sumiButton
         [disabled]="selectedCount() === 0 || busy()"
         (click)="markKnown()"
         title="Straight to Burned — never comes up again"
@@ -73,24 +83,28 @@
         I know these
       </button>
       <button
+        type="button"
+        sumiButton
         [disabled]="selectedCount() === 0 || busy()"
         (click)="markKnown(8)"
         title="Enlightened — one last check-up in four months"
       >
         Fairly sure
       </button>
-      <button [disabled]="selectedCount() === 0 || busy()" (click)="reset()">
+      <button type="button" sumiButton variant="danger" [disabled]="selectedCount() === 0 || busy()" (click)="reset()">
         Relearn from scratch
       </button>
-      <button [disabled]="selectedCount() === 0 || busy()" (click)="suspend()">Hide</button>
-      <button [disabled]="selectedCount() === 0 || busy()" (click)="unsuspend()">Unhide</button>
+      <button type="button" sumiButton [disabled]="selectedCount() === 0 || busy()" (click)="suspend()">Hide</button>
+      <button type="button" sumiButton [disabled]="selectedCount() === 0 || busy()" (click)="unsuspend()">Unhide</button>
     </div>
-  </section>
+  </sumi-card>
 
   @if (loading()) {
     <p class="muted">Loading …</p>
   } @else if (items().length === 0) {
-    <p class="muted">No items match these filters.</p>
+    <sumi-empty-state title="No matches" companion="tsuru">
+      No items match these filters. Try another state, type, level or search.
+    </sumi-empty-state>
   } @else {
     <table>
       <thead>
@@ -114,11 +128,12 @@
             <td (click)="$event.stopPropagation()">
               <input
                 type="checkbox"
+                sumiCheckbox
                 [checked]="selected().has(item.subject.id)"
                 (change)="toggle(item.subject.id)"
               />
             </td>
-            <td class="character jp" [attr.data-type]="item.subject.object_type">
+            <td class="character" lang="ja" [attr.data-type]="item.subject.object_type">
               <!-- A real button, so the detail is reachable by keyboard too;
                    the row click is the convenience on top of it. -->
               <button type="button" class="glyph" (click)="$event.stopPropagation(); openDetail(item)">
@@ -147,11 +162,11 @@
     </table>
 
     <div class="row pager">
-      <button [disabled]="offset() === 0" (click)="pageBack()">Back</button>
+      <button type="button" sumiButton variant="ghost" size="sm" [disabled]="offset() === 0" (click)="pageBack()">Back</button>
       <span class="muted">
         {{ offset() + 1 }}–{{ offset() + items().length }} of {{ total() }}
       </span>
-      <button [disabled]="offset() + items().length >= total()" (click)="pageForward()">
+      <button type="button" sumiButton variant="ghost" size="sm" [disabled]="offset() + items().length >= total()" (click)="pageForward()">
         Next
       </button>
     </div>
@@ -163,7 +178,7 @@
     @if (detail(); as item) {
       <article>
         <header>
-          <span class="character jp" [attr.data-type]="item.subject.object_type">
+          <span class="character" lang="ja" [attr.data-type]="item.subject.object_type">
             @if (item.subject.characters) {
               {{ item.subject.characters }}
             } @else if (item.subject.character_image_url) {
@@ -239,4 +254,5 @@
       </article>
     }
   </dialog>
+  }
 </sumi-page>
