@@ -6,10 +6,6 @@
   color: var(--sumi-muted);
 }
 
-section + section {
-  margin-top: 1rem;
-}
-
 h2 {
   margin: 0 0 0.5rem;
   font-size: 1.15rem;
@@ -68,19 +64,6 @@ code {
 
 .run {
   margin-top: 1rem;
-}
-
-.bar {
-  height: 6px;
-  border-radius: 999px;
-  background: var(--sumi-sunken);
-  overflow: hidden;
-}
-
-.fill {
-  height: 100%;
-  background: var(--sumi-accent);
-  transition: width 400ms ease;
 }
 
 .toggle {

@@ -146,7 +146,11 @@
         <div class="run">
           @if (run.status === 'running') {
             <p>Running … {{ run.subjects_imported }} of {{ run.subjects_total || '?' }} items</p>
-            <div class="bar"><div class="fill" [style.width.%]="percent(run)"></div></div>
+            <sumi-progress
+              [value]="run.subjects_total ? run.subjects_imported : null"
+              [max]="run.subjects_total"
+              ariaLabel="Import progress"
+            />
           } @else if (run.status === 'succeeded') {
             <p>
               Done: {{ run.subjects_imported }} items fetched,

@@ -1,6 +1,6 @@
 import { Component, OnDestroy, inject, signal } from '@angular/core';
 import { FormsModule } from '@angular/forms';
-import { SumiBanner, SumiCard, SumiErrorState, SumiPage } from 'sumi-ui/layout';
+import { SumiBanner, SumiCard, SumiErrorState, SumiPage, SumiProgress } from 'sumi-ui/layout';
 import {
   SumiButtonDirective,
   SumiCheckboxDirective,
@@ -31,6 +31,7 @@ import type {
     SumiInputDirective,
     SumiKbdDirective,
     SumiPage,
+    SumiProgress,
     SumiSelectDirective,
     SumiToggle,
   ],
@@ -196,12 +197,5 @@ export class SettingsPage implements OnDestroy {
 
   ngOnDestroy(): void {
     this.stopWatching();
-  }
-
-  protected percent(run: ImportRun): number {
-    if (!run.subjects_total) {
-      return 0;
-    }
-    return Math.min(100, Math.round((run.subjects_imported / run.subjects_total) * 100));
   }
 }
