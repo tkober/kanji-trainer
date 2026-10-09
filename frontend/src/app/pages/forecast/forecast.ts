@@ -1,5 +1,20 @@
 import { Component, computed, inject, signal } from '@angular/core';
-import { SumiPage } from 'sumi-ui/layout';
+import { SumiBanner, SumiCard, SumiEmptyState, SumiPage } from 'sumi-ui/layout';
+import {
+  SumiBarChart,
+  SumiDataTable,
+  SumiLegend,
+  SumiSparkline,
+  SumiStatGrid,
+  SumiStatTile,
+  type SumiBarSeries,
+  type SumiLegendItem,
+  type SumiPoint,
+  type SumiStackedRow,
+  type SumiTableColumn,
+  type SumiTableRow,
+} from 'sumi-ui/charts';
+import { SumiButtonDirective, SumiSegmentedControl, type SumiSegmentedOption } from 'sumi-ui/forms';
 
 import { Api } from '../../core/api';
 import type { Forecast, ForecastBucket } from '../../core/api.types';
@@ -15,41 +30,28 @@ interface Slot {
   cumulative: number;
 }
 
-/** A drawn segment of a stacked column. */
-interface Segment {
-  band: 'apprentice' | 'guru' | 'master';
-  x: number;
-  y: number;
-  width: number;
-  height: number;
-  /** Set on the topmost segment, which carries the rounded data-end. */
-  path: string | null;
-}
-
-interface Column {
-  slot: Slot;
-  segments: Segment[];
-  /** Full-height hover target, wider than the mark itself. */
-  hitX: number;
-  hitWidth: number;
-}
-
 const RANGES = [
   { hours: 24, label: '24 hours', bucket: 1 },
   { hours: 48, label: '48 hours', bucket: 3 },
   { hours: 168, label: '7 days', bucket: 24 },
 ] as const;
 
-const PLOT = { width: 960, height: 220, left: 44, right: 12, top: 12, bottom: 28 };
-const LINE = { width: 960, height: 120, left: 44, right: 12, top: 12, bottom: 28 };
-/** Mark specs: bars capped so the band keeps air, 2px of surface between marks. */
-const MAX_BAR = 24;
-const GAP = 2;
-const RADIUS = 4;
-
 @Component({
   selector: 'app-forecast',
-  imports: [SumiPage],
+  imports: [
+    SumiPage,
+    SumiBanner,
+    SumiCard,
+    SumiEmptyState,
+    SumiStatGrid,
+    SumiStatTile,
+    SumiBarChart,
+    SumiSparkline,
+    SumiLegend,
+    SumiDataTable,
+    SumiSegmentedControl,
+    SumiButtonDirective,
+  ],
   templateUrl: './forecast.html',
   styleUrl: './forecast.scss',
 })
@@ -57,15 +59,30 @@ export class ForecastPage {
   private readonly api = inject(Api);
 
   protected readonly ranges = RANGES;
+  protected readonly rangeOptions: SumiSegmentedOption<number>[] = RANGES.map((r) => ({
+    value: r.hours,
+    label: r.label,
+  }));
   protected readonly range = signal<(typeof RANGES)[number]>(RANGES[0]);
   protected readonly data = signal<Forecast | null>(null);
   protected readonly loading = signal(true);
   protected readonly error = signal<string | null>(null);
-  protected readonly hovered = signal<Slot | null>(null);
   protected readonly showTable = signal(false);
 
-  protected readonly plot = PLOT;
-  protected readonly linePlot = LINE;
+  // The three bands' validated, `light-dark()` colours (see CLAUDE.md, "The
+  // forecast") stay app tokens, defined on the page host in forecast.scss
+  // so they inherit into the chart via plain CSS custom-property
+  // inheritance — `sumi-bar-chart` and `sumi-legend` just read `color`.
+  protected readonly series: readonly SumiBarSeries[] = [
+    { key: 'apprentice', label: 'Apprentice', color: 'var(--band-apprentice)' },
+    { key: 'guru', label: 'Guru', color: 'var(--band-guru)' },
+    { key: 'master', label: 'Master+', color: 'var(--band-master)' },
+  ];
+
+  protected readonly legendItems: readonly SumiLegendItem[] = this.series.map((s) => ({
+    label: s.label,
+    color: s.color!,
+  }));
 
   constructor() {
     void this.load();
@@ -83,9 +100,12 @@ export class ForecastPage {
     }
   }
 
-  pick(range: (typeof RANGES)[number]): void {
+  pick(hours: number): void {
+    const range = RANGES.find((r) => r.hours === hours);
+    if (!range) {
+      return;
+    }
     this.range.set(range);
-    this.hovered.set(null);
     void this.load();
   }
 
@@ -121,91 +141,16 @@ export class ForecastPage {
     return out;
   });
 
-  protected readonly peak = computed(() =>
-    Math.max(1, ...this.slots().map((slot) => slot.count)),
+  protected readonly stackedRows = computed<SumiStackedRow[]>(() =>
+    this.slots().map((slot) => ({
+      label: slot.label,
+      values: { apprentice: slot.apprentice, guru: slot.guru, master: slot.master },
+    })),
   );
 
-  /** Round the axis top to something that reads as a number, not a maximum. */
-  protected readonly yMax = computed(() => niceCeiling(this.peak()));
-
-  protected readonly yTicks = computed(() => {
-    const max = this.yMax();
-    const step = max / 4;
-    return [0, step, step * 2, step * 3, max].map((value) => ({
-      value,
-      y: this.barY(value),
-    }));
-  });
-
-  protected readonly columns = computed<Column[]>(() => {
-    const slots = this.slots();
-    if (slots.length === 0) {
-      return [];
-    }
-    const inner = PLOT.width - PLOT.left - PLOT.right;
-    const band = inner / slots.length;
-    const width = Math.min(MAX_BAR, Math.max(2, band - GAP));
-
-    return slots.map((slot, index) => {
-      const bandX = PLOT.left + band * index;
-      const x = bandX + (band - width) / 2;
-      const segments: Segment[] = [];
-
-      // Stacked from the baseline up, so the order of the bands is the order
-      // of the legend and never changes with the data.
-      const stack: Array<[Segment['band'], number]> = [
-        ['apprentice', slot.apprentice],
-        ['guru', slot.guru],
-        ['master', slot.master],
-      ];
-      const topBand = [...stack].reverse().find(([, value]) => value > 0)?.[0];
-
-      let running = 0;
-      for (const [band_, value] of stack) {
-        if (value <= 0) {
-          continue;
-        }
-        const yBottom = this.barY(running);
-        const yTop = this.barY(running + value);
-        // The 2px surface gap between touching segments comes out of the
-        // segment's own height, never from a stroke around it.
-        const height = Math.max(1, yBottom - yTop - (running > 0 ? GAP : 0));
-        segments.push({
-          band: band_,
-          x,
-          y: yTop,
-          width,
-          height,
-          path:
-            band_ === topBand
-              ? roundedTop(x, yTop, width, height, Math.min(RADIUS, height))
-              : null,
-        });
-        running += value;
-      }
-
-      return { slot, segments, hitX: bandX, hitWidth: band };
-    });
-  });
-
-  /** The cumulative line, its own chart rather than a second y-axis. */
-  protected readonly cumulativePath = computed(() => {
-    const slots = this.slots();
-    if (slots.length === 0) {
-      return '';
-    }
-    const max = Math.max(1, ...slots.map((slot) => slot.cumulative));
-    const inner = LINE.width - LINE.left - LINE.right;
-    const step = slots.length > 1 ? inner / (slots.length - 1) : 0;
-    return slots
-      .map((slot, index) => {
-        const x = LINE.left + step * index;
-        const y =
-          LINE.height - LINE.bottom - (slot.cumulative / max) * (LINE.height - LINE.top - LINE.bottom);
-        return `${index === 0 ? 'M' : 'L'}${x.toFixed(1)},${y.toFixed(1)}`;
-      })
-      .join(' ');
-  });
+  protected readonly cumulativePoints = computed<SumiPoint[]>(() =>
+    this.slots().map((slot, index) => ({ x: index, y: slot.cumulative })),
+  );
 
   protected readonly cumulativeMax = computed(() =>
     Math.max(1, ...this.slots().map((slot) => slot.cumulative)),
@@ -217,14 +162,25 @@ export class ForecastPage {
     return count <= 8 ? 1 : Math.ceil(count / 8);
   });
 
-  protected barY(value: number): number {
-    const inner = PLOT.height - PLOT.top - PLOT.bottom;
-    return PLOT.height - PLOT.bottom - (value / this.yMax()) * inner;
-  }
+  protected readonly numbersColumns: readonly SumiTableColumn[] = [
+    { key: 'label', label: 'Slot' },
+    { key: 'apprentice', label: 'Apprentice', align: 'end' },
+    { key: 'guru', label: 'Guru', align: 'end' },
+    { key: 'master', label: 'Master+', align: 'end' },
+    { key: 'count', label: 'Arriving', align: 'end' },
+    { key: 'cumulative', label: 'Waiting', align: 'end' },
+  ];
 
-  protected bandLabel(band: Segment['band']): string {
-    return { apprentice: 'Apprentice', guru: 'Guru', master: 'Master+' }[band];
-  }
+  protected readonly numbersRows = computed<SumiTableRow[]>(() =>
+    this.slots().map((slot) => ({
+      label: this.fullLabel(slot),
+      apprentice: slot.apprentice,
+      guru: slot.guru,
+      master: slot.master,
+      count: slot.count,
+      cumulative: slot.cumulative,
+    })),
+  );
 
   private labelFor(at: Date, size: number): string {
     if (size >= 24) {
@@ -255,39 +211,4 @@ export class ForecastPage {
 
 function sum(buckets: ForecastBucket[], key: keyof ForecastBucket): number {
   return buckets.reduce((total, bucket) => total + (bucket[key] as number), 0);
-}
-
-/** A column with its top two corners rounded and its foot square on the axis. */
-function roundedTop(x: number, y: number, w: number, h: number, r: number): string {
-  const radius = Math.min(r, w / 2, h);
-  return [
-    `M${x},${y + h}`,
-    `L${x},${y + radius}`,
-    `Q${x},${y} ${x + radius},${y}`,
-    `L${x + w - radius},${y}`,
-    `Q${x + w},${y} ${x + w},${y + radius}`,
-    `L${x + w},${y + h}`,
-    'Z',
-  ].join(' ');
-}
-
-/**
- * A round axis top that is not miles above the data.
- *
- * The factor list is fine-grained on purpose: with only [1, 2, 5, 10] a peak
- * of 12 drew an axis to 20 and left the chart looking half empty.
- */
-function niceCeiling(value: number): number {
-  if (value <= 4) {
-    return 4;
-  }
-  const magnitude = 10 ** Math.floor(Math.log10(value));
-  for (const factor of [1, 1.25, 1.5, 2, 2.5, 3, 4, 5, 6, 8, 10]) {
-    const candidate = magnitude * factor;
-    if (candidate >= value) {
-      // Divisible by four, so the four gridlines land on whole numbers.
-      return Math.ceil(candidate / 4) * 4;
-    }
-  }
-  return Math.ceil(value / 4) * 4;
 }
