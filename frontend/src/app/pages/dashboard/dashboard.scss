@@ -2,6 +2,16 @@
   display: block;
 }
 
+h2 {
+  margin: 0 0 0.5rem;
+  font-size: 1.15rem;
+  line-height: 1.25;
+}
+
+.muted {
+  color: var(--sumi-muted);
+}
+
 .summary {
   margin-top: 0;
 }
