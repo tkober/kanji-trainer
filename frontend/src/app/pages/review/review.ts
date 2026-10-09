@@ -73,6 +73,10 @@ export class Review {
   private readonly datePipe = inject(DatePipe);
 
   protected readonly phase = signal<Phase>('idle');
+  /** True while the idle gate's own queue fetch is in flight -- covers the
+   * very first load and every retry/restart, not an active round's page
+   * turn (the active screen never shows a loading state of its own). */
+  protected readonly loading = signal(true);
   protected readonly loadFailed = signal(false);
   protected readonly error = signal<string | null>(null);
 
@@ -266,21 +270,64 @@ export class Review {
     });
 
     inject(DestroyRef).onDestroy(() => this.unregisterConfirmKnownHotkeys());
+
+    // Fetch once on open, the same way the page always has, so the idle
+    // screen can tell "loading" from "nothing due" from "can't reach the
+    // server" instead of reading `counters.due()` before its first poll has
+    // ever landed (which reads as "No reviews due" for a beat, and as the
+    // empty state rather than an error if the backend happens to be down).
+    void this.fetchQueue();
   }
 
   // --- the session ---------------------------------------------------------
 
+  /** The idle gate's own "Start reviews" (and `Enter`, via the gate's
+   * hotkey) -- goes straight to `active` on the queue `fetchQueue()` already
+   * loaded, no second request, so Enter is instant. */
   protected start(): void {
-    this.loadFailed.set(false);
-    this.error.set(null);
+    if (this.queue().length === 0) {
+      return;
+    }
     this.answered.set(0);
     this.correct.set(0);
     this.sessionStartedAt = Date.now();
     this.startLevel = this.counters.level();
-    void this.load();
+    this.resetItemState();
+    this.phase.set('active');
   }
 
-  private async load(): Promise<void> {
+  /** The idle gate's error state's "Try again". */
+  protected retryLoad(): void {
+    void this.fetchQueue();
+  }
+
+  /** "Practice again" after a summary, or `Enter` on that gate -- unlike
+   * `start()`, this one *does* re-fetch: the queue the session began with is
+   * gone (answered through, or the session was abandoned minutes ago), so
+   * there is nothing to reuse. Goes straight into a fresh round once the
+   * fetch lands, same as `start()` would right after it. */
+  protected async restart(): Promise<void> {
+    this.answered.set(0);
+    this.correct.set(0);
+    this.startLevel = this.counters.level();
+    this.phase.set('idle');
+    const ok = await this.fetchQueue();
+    if (ok && this.queue().length > 0) {
+      this.sessionStartedAt = Date.now();
+      this.resetItemState();
+      this.phase.set('active');
+    }
+    // Otherwise the idle screen already shows the right thing on its own --
+    // the error state, or the empty state if nothing turned out to be due.
+  }
+
+  /** The one place that calls `GET /api/reviews`. Leaves `phase` alone --
+   * every caller (the constructor, `retryLoad()`, `restart()`,
+   * `continueRound()`) decides what to do with the result itself. */
+  private async fetchQueue(): Promise<boolean> {
+    this.loading.set(true);
+    this.loadFailed.set(false);
+    this.error.set(null);
     try {
       const queue = await this.api.reviewQueue(100);
       // The backend always hands back `['meaning', 'reading']` -- shuffle
@@ -288,18 +335,13 @@ export class Review {
       // is always its meaning.
       this.queue.set(queue.items.map(shuffleQuestions));
       this.counters.setDue(queue.total_due);
-      this.resetItemState();
-      if (this.queue().length === 0) {
-        // The gate said something was due, but it has since been answered
-        // elsewhere (or the badge was stale) -- same ending as a round that
-        // simply ran out.
-        this.finishSession();
-        return;
-      }
-      this.phase.set('active');
+      return true;
     } catch (err) {
       this.loadFailed.set(true);
       this.error.set((err as Error).message);
+      return false;
+    } finally {
+      this.loading.set(false);
     }
   }
 
@@ -308,7 +350,6 @@ export class Review {
   }
 
   private finishSession(): void {
-    this.queue.set([]);
     this.resetItemState();
     if (this.answered() > 0) {
       this.sessionDurationMs.set(Date.now() - this.sessionStartedAt);
@@ -317,6 +358,9 @@ export class Review {
       void this.counters.refresh();
       this.phase.set('ended');
     } else {
+      // Nothing answered -- e.g. `end()` right after `start()` -- so
+      // whatever is left in `queue()` is still exactly what the gate
+      // advertised and "Start reviews" can reuse it without a re-fetch.
       this.phase.set('idle');
     }
   }
@@ -329,10 +373,22 @@ export class Review {
       return;
     }
     if (this.totalDue() > 0) {
-      void this.load();
+      void this.continueFetching();
       return;
     }
     this.finishSession();
+  }
+
+  /** `continueRound()`'s fetch -- stays in `active` throughout (the session
+   * is already running), and only `finishSession()`s if the backlog turned
+   * out to be spent after all. A failure surfaces via the existing inline
+   * `error()` banner and simply leaves the round empty; the learner can end
+   * the session from there like any other stall. */
+  private async continueFetching(): Promise<void> {
+    const ok = await this.fetchQueue();
+    if (ok && this.queue().length === 0) {
+      this.finishSession();
+    }
   }
 
   // --- answering -------------------------------------------------------

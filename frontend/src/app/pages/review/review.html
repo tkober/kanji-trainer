@@ -1,10 +1,12 @@
 <sumi-page width="narrow" [inkEnd]="false">
   @switch (phase()) {
     @case ('idle') {
-      @if (loadFailed()) {
+      @if (loading()) {
+        <p class="muted">Loading reviews …</p>
+      } @else if (loadFailed()) {
         <sumi-error-state title="Can't reach the server" companion="tsuru">
           Your progress is safe. Check the connection and try again.
-          <button sumiErrorAction type="button" sumiButton variant="secondary" (click)="start()">
+          <button sumiErrorAction type="button" sumiButton variant="secondary" (click)="retryLoad()">
             Try again
           </button>
         </sumi-error-state>
@@ -28,13 +30,13 @@
 
     @case ('ended') {
       <!-- No title: sumi-session-summary supplies its own heading. -->
-      <sumi-session-gate [showAction]="false" companion="tsuru" (start)="start()">
+      <sumi-session-gate [showAction]="false" companion="tsuru" (start)="restart()">
         <sumi-session-summary
           [answered]="answered()"
           [correct]="correct()"
           [durationMs]="sessionDurationMs()"
           [levelUp]="levelUp()"
-          (restart)="start()"
+          (restart)="restart()"
         >
           <sumi-hanko sumiSummaryArt [characters]="hankoCharacters()" [label]="hankoLabel()" />
         </sumi-session-summary>
