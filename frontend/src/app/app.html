@@ -1,62 +1,11 @@
-<header>
-  <a routerLink="/" class="brand">漢字<span>Trainer</span></a>
-
+<sumi-app-shell [brand]="brand" [nav]="nav()">
   @if (level() !== null) {
-    <a routerLink="/lessons" class="level" title="The lowest level with lessons left">
-      <span class="label">Level</span>
-      <span class="value">{{ level() }}</span>
+    <a sumiShellActions routerLink="/lessons" title="The lowest level with lessons left">
+      <sumi-badge tone="accent">Level {{ level() }}</sumi-badge>
     </a>
   }
 
-  <!-- Narrow screens only; `nav` below is always there on a wide one. The due
-       count rides along on the button, because collapsing the nav would
-       otherwise hide the one number that changes while nobody is looking. -->
-  <button
-    type="button"
-    class="menu-toggle"
-    (click)="toggleMenu()"
-    [attr.aria-expanded]="menuOpen()"
-    aria-controls="main-nav"
-    aria-label="Menu"
-  >
-    @if (menuOpen()) {
-      <svg viewBox="0 0 24 24" aria-hidden="true">
-        <path d="M6 6l12 12M18 6L6 18" />
-      </svg>
-    } @else {
-      <svg viewBox="0 0 24 24" aria-hidden="true">
-        <path d="M3 6h18M3 12h18M3 18h18" />
-      </svg>
-    }
-    @if (due() > 0) {
-      <span class="badge">{{ due() }}</span>
-    }
-  </button>
+  <sumi-app-switcher sumiShellSwitcher />
 
-  <!-- One handler on the list: every link closes the menu, and a link added
-       later cannot forget to. -->
-  <nav id="main-nav" [class.open]="menuOpen()" (click)="closeMenu()">
-    <a routerLink="/" routerLinkActive="active" [routerLinkActiveOptions]="{ exact: true }">
-      Dashboard
-    </a>
-    <a routerLink="/review" routerLinkActive="active">
-      Reviews
-      @if (due() > 0) {
-        <span class="badge">{{ due() }}</span>
-      }
-    </a>
-    <a routerLink="/lessons" routerLinkActive="active">
-      Lessons
-      @if (lessons() > 0) {
-        <span class="badge muted-badge">{{ lessons() }}</span>
-      }
-    </a>
-    <a routerLink="/forecast" routerLinkActive="active">Forecast</a>
-    <a routerLink="/browse" routerLinkActive="active">Items</a>
-    <a routerLink="/settings" routerLinkActive="active">Settings</a>
-  </nav>
-</header>
-
-<main>
   <router-outlet />
-</main>
+</sumi-app-shell>

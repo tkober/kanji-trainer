@@ -3,40 +3,26 @@
    validator's --ordinal check against this app's light and dark surfaces.
    Identity never rests on colour alone: every tile also carries a
    title/aria-label naming its stage, and the legend row repeats the names in
-   text next to the swatch. */
+   text next to the swatch. `light-dark()`, not a media query on the OS
+   setting, so these follow Sumi UI's theme toggle (which pins
+   `color-scheme` via `<html data-theme>`) rather than only the OS
+   preference. */
 :host {
   display: block;
-  max-width: 900px;
-  margin: 0 auto;
 
-  --band-apprentice: #86b6ef;
-  --band-guru: #5598e7;
-  --band-master: #2a78d6;
-  --band-enlightened: #1c5cab;
-  --band-burned: #104281;
+  --band-apprentice: light-dark(#86b6ef, #1c5cab);
+  --band-guru: light-dark(#5598e7, #2a78d6);
+  --band-master: light-dark(#2a78d6, #5598e7);
+  --band-enlightened: light-dark(#1c5cab, #86b6ef);
+  --band-burned: light-dark(#104281, #b7d3f6);
   /* Ink chosen per band so the glyph stays readable on its fill -- literal
-     colours rather than `--text`, which flips with the colour scheme and
+     colours rather than `--sumi-text`, which flips with the colour scheme and
      would fight this table rather than follow it. */
-  --band-apprentice-ink: #1c2026;
-  --band-guru-ink: #1c2026;
-  --band-master-ink: #fff;
-  --band-enlightened-ink: #fff;
-  --band-burned-ink: #fff;
-}
-
-@media (prefers-color-scheme: dark) {
-  :host {
-    --band-apprentice: #1c5cab;
-    --band-guru: #2a78d6;
-    --band-master: #5598e7;
-    --band-enlightened: #86b6ef;
-    --band-burned: #b7d3f6;
-    --band-apprentice-ink: #fff;
-    --band-guru-ink: #fff;
-    --band-master-ink: #fff;
-    --band-enlightened-ink: #1c2026;
-    --band-burned-ink: #1c2026;
-  }
+  --band-apprentice-ink: light-dark(#1c2026, #fff);
+  --band-guru-ink: light-dark(#1c2026, #fff);
+  --band-master-ink: light-dark(#fff, #fff);
+  --band-enlightened-ink: light-dark(#fff, #1c2026);
+  --band-burned-ink: light-dark(#fff, #1c2026);
 }
 
 .count {
@@ -48,11 +34,11 @@ section + section {
 }
 
 .prompt {
-  border-radius: var(--radius);
+  border-radius: var(--sumi-radius);
   padding: 2rem 1rem 1rem;
   text-align: center;
   color: #fff;
-  box-shadow: var(--shadow);
+  box-shadow: var(--sumi-shadow);
   /* Lets `.characters` size itself off this card's own width (`cqi`) below,
      rather than the viewport — a block-level card, so containment here does
      not affect anything outside it. */
@@ -98,7 +84,7 @@ img.characters {
     font-size: 0.8rem;
     text-transform: uppercase;
     letter-spacing: 0.06em;
-    color: var(--muted);
+    color: var(--sumi-muted);
     margin-top: 0.75rem;
   }
 
@@ -116,8 +102,8 @@ img.characters {
 }
 
 .known {
-  border-color: color-mix(in srgb, var(--ok) 45%, var(--border));
-  color: var(--ok);
+  border-color: color-mix(in srgb, var(--sumi-correct) 45%, var(--sumi-line));
+  color: var(--sumi-correct);
   font-weight: 600;
 }
 
@@ -142,7 +128,7 @@ img.characters {
   flex-wrap: wrap;
   gap: 0.75rem 1.25rem;
   font-size: 0.85rem;
-  color: var(--muted);
+  color: var(--sumi-muted);
   margin-bottom: 1rem;
 }
 
@@ -157,10 +143,10 @@ img.characters {
   width: 12px;
   height: 12px;
   border-radius: 3px;
-  border: 1px solid var(--border);
+  border: 1px solid var(--sumi-line);
 
   &[data-band='lesson'] {
-    background: var(--surface);
+    background: var(--sumi-surface);
   }
 
   &[data-band='apprentice'] { background: var(--band-apprentice); }
@@ -230,10 +216,10 @@ img.characters {
   display: flex;
   align-items: center;
   justify-content: center;
-  border-radius: var(--radius);
-  border: 1px solid var(--border);
-  background: var(--surface);
-  color: var(--text);
+  border-radius: var(--sumi-radius);
+  border: 1px solid var(--sumi-line);
+  background: var(--sumi-surface);
+  color: var(--sumi-text);
   font-family: inherit;
   padding: 0;
   cursor: pointer;
@@ -305,12 +291,12 @@ button.tile {
   /* Selection never rests on colour alone: a thick outline plus the badge
      below both carry it, so the state reads the same in greyscale. */
   &.selected {
-    outline: 3px solid var(--accent);
+    outline: 3px solid var(--sumi-accent);
     outline-offset: -3px;
   }
 
   &:focus-visible {
-    outline: 3px solid var(--accent);
+    outline: 3px solid var(--sumi-accent);
     outline-offset: 1px;
   }
 }
@@ -322,12 +308,12 @@ button.tile {
   width: 18px;
   height: 18px;
   border-radius: 50%;
-  background: var(--ok);
+  background: var(--sumi-correct);
   color: #fff;
   font-size: 0.7rem;
   line-height: 18px;
   text-align: center;
-  border: 2px solid var(--surface);
+  border: 2px solid var(--sumi-surface);
 }
 
 .action-bar {
@@ -339,10 +325,10 @@ button.tile {
   gap: 0.75rem;
   margin-top: 1.25rem;
   padding: 0.75rem;
-  border-radius: var(--radius);
-  border: 1px solid var(--border);
-  background: var(--surface);
-  box-shadow: var(--shadow);
+  border-radius: var(--sumi-radius);
+  border: 1px solid var(--sumi-line);
+  background: var(--sumi-surface);
+  box-shadow: var(--sumi-shadow);
 }
 
 .selected-count {
@@ -358,22 +344,10 @@ button.tile {
   align-items: center;
   gap: 0.4rem;
   font-size: 0.9rem;
-  color: var(--muted);
+  color: var(--sumi-muted);
 }
 
 /* --- quiz phase --------------------------------------------------------- */
-
-.head {
-  display: flex;
-  align-items: baseline;
-  justify-content: space-between;
-  gap: 1rem;
-  flex-wrap: wrap;
-}
-
-.dim {
-  opacity: 0.7;
-}
 
 .progress {
   display: flex;
@@ -391,7 +365,7 @@ button.tile {
     font-size: 0.85rem;
     text-transform: uppercase;
     letter-spacing: 0.08em;
-    color: var(--muted);
+    color: var(--sumi-muted);
     margin-bottom: 0.4rem;
   }
 
@@ -410,18 +384,18 @@ button.tile {
     border-color: #2b2f38;
   }
 
-  /* The tint is mixed into `--surface`, so the text has to come back to
-     `--text`: a reading field is white on dark until a verdict lands. */
+  /* The tint has to come back to `--sumi-text`: a reading field is white on
+     dark until a verdict lands. */
   input.correct {
-    border-color: var(--ok);
-    background: color-mix(in srgb, var(--ok) 15%, var(--surface));
-    color: var(--text);
+    border-color: var(--sumi-correct);
+    background: var(--sumi-correct-soft);
+    color: var(--sumi-text);
   }
 
   input.wrong {
-    border-color: var(--bad);
-    background: color-mix(in srgb, var(--bad) 15%, var(--surface));
-    color: var(--text);
+    border-color: var(--sumi-wrong);
+    background: var(--sumi-wrong-soft);
+    color: var(--sumi-text);
   }
 }
 
@@ -432,21 +406,21 @@ button.tile {
 
 .feedback {
   margin-top: 1rem;
-  border-radius: var(--radius);
-  border: 1px solid var(--border);
-  background: var(--surface);
-  padding: var(--gap);
+  border-radius: var(--sumi-radius);
+  border: 1px solid var(--sumi-line);
+  background: var(--sumi-surface);
+  padding: var(--sumi-space-4);
 
   &.correct {
-    border-color: color-mix(in srgb, var(--ok) 45%, var(--border));
+    border-color: color-mix(in srgb, var(--sumi-correct) 45%, var(--sumi-line));
   }
 
   &.wrong {
-    border-color: color-mix(in srgb, var(--bad) 45%, var(--border));
+    border-color: color-mix(in srgb, var(--sumi-wrong) 45%, var(--sumi-line));
   }
 
   .hint {
-    color: var(--warn);
+    color: var(--sumi-retry);
     margin: 0.5rem 0 0;
   }
 

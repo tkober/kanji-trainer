@@ -1,0 +1,50 @@
+/* App-specific tokens that Sumi UI does not provide, plus the handful of
+   element styles that are built directly from them. Everything else now
+   comes from sumi-ui's own `--sumi-*` tokens (see styles.scss). */
+
+:root {
+  /* Item types keep WaniKani's colour coding -- the learner reads these
+     faster than any label, and changing them would cost that for nothing. */
+  --radical: #00a1f1;
+  --kanji: #f100a1;
+  --vocabulary: #a100f1;
+}
+
+/* WaniKani tags the pieces of a mnemonic, `highlightMnemonic` turns those
+   tags into spans, and this is what makes them readable: the same three
+   colours the rest of the app uses for radicals, kanji and vocabulary, as a
+   tint rather than as text, so the sentence still reads as a sentence.
+
+   Global, because emulated view encapsulation does not reach content
+   inserted through `innerHTML` -- a component style sheet would simply not
+   apply. */
+.wk {
+  border-radius: 4px;
+  padding: 0.08em 0.28em;
+}
+
+.wk-radical {
+  background: color-mix(in srgb, var(--radical) 18%, transparent);
+}
+
+.wk-kanji {
+  background: color-mix(in srgb, var(--kanji) 18%, transparent);
+}
+
+.wk-vocabulary {
+  background: color-mix(in srgb, var(--vocabulary) 18%, transparent);
+}
+
+/* Readings and meanings are the answer being spelled out, not a third kind of
+   item, so they get the neutral tint rather than a fourth hue. */
+.wk-reading,
+.wk-meaning {
+  background: color-mix(in srgb, var(--sumi-text) 12%, transparent);
+}
+
+/* <ja> only marks Japanese text: the font stack lives on `.jp`/`.wk-ja`/
+   `.wk-reading` in styles.scss, no highlight here. */
+.wk-ja {
+  padding: 0;
+  background: none;
+}

@@ -1,6 +1,5 @@
 :host {
   display: block;
-  max-width: 760px;
 }
 
 section + section {
@@ -16,7 +15,7 @@ label {
   flex-direction: column;
   gap: 0.2rem;
   font-size: 0.8rem;
-  color: var(--muted);
+  color: var(--sumi-muted);
 }
 
 label.block {
@@ -46,7 +45,7 @@ label.check {
 }
 
 code {
-  background: var(--surface-alt);
+  background: var(--sumi-sunken);
   border-radius: 4px;
   padding: 0.05rem 0.3rem;
   font-size: 0.9em;
@@ -59,13 +58,13 @@ code {
 .bar {
   height: 6px;
   border-radius: 999px;
-  background: var(--surface-alt);
+  background: var(--sumi-sunken);
   overflow: hidden;
 }
 
 .fill {
   height: 100%;
-  background: var(--accent);
+  background: var(--sumi-accent);
   transition: width 400ms ease;
 }
 

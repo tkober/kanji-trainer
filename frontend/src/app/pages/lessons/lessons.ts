@@ -8,6 +8,7 @@ import {
   viewChild,
 } from '@angular/core';
 import { RouterLink } from '@angular/router';
+import { SumiPage } from 'sumi-ui/layout';
 
 import { Api } from '../../core/api';
 import type {
@@ -124,6 +125,7 @@ function chunk<T>(items: T[], size: number): T[][] {
     RadicalIllustration,
     Readings,
     RouterLink,
+    SumiPage,
     Synonyms,
   ],
   templateUrl: './lessons.html',

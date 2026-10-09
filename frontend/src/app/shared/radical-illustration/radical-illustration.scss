@@ -12,11 +12,11 @@
     max-height: 12rem;
     /* WaniKani draws these as dark line art with no background, meant for a
        white page. The app's surface can be dark, so a fixed light backdrop
-       — not `var(--surface)`, which would go dark right along with it — is
-       what keeps the art visible instead of merging into the card. */
+       — not `var(--sumi-surface)`, which would go dark right along with it —
+       is what keeps the art visible instead of merging into the card. */
     background: #ffffff;
-    border-radius: var(--radius);
+    border-radius: var(--sumi-radius);
     padding: 0.5rem;
-    box-shadow: var(--shadow);
+    box-shadow: var(--sumi-shadow);
   }
 }

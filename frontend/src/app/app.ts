@@ -1,12 +1,12 @@
-import { Component, inject, signal } from '@angular/core';
-import { RouterLink, RouterLinkActive, RouterOutlet } from '@angular/router';
+import { Component, computed, inject } from '@angular/core';
+import { RouterLink, RouterOutlet } from '@angular/router';
+import { SUMI_LAYOUT, type SumiAppShellBrand, type SumiNavItem } from 'sumi-ui/layout';
 
 import { Counters } from './core/counters';
 
 @Component({
-  imports: [RouterOutlet, RouterLink, RouterLinkActive],
+  imports: [...SUMI_LAYOUT, RouterLink, RouterOutlet],
   selector: 'app-root',
-  styleUrl: './app.scss',
   templateUrl: './app.html',
 })
 export class App {
@@ -16,14 +16,18 @@ export class App {
   protected readonly lessons = this.counters.lessons;
   protected readonly level = this.counters.level;
 
-  /**
-   * The narrow-screen nav, open or not.
-   *
-   * Only the stylesheet decides whether the button that flips this is even
-   * visible: on a wide screen the nav is always shown, so a menu left open
-   * on a phone cannot leak into the desktop layout.
-   */
-  protected readonly menuOpen = signal(false);
+  protected readonly brand: SumiAppShellBrand = { glyph: '漢', name: 'Kanji Trainer' };
+
+  // `computed()`, not a plain array, so the due/lessons badges update as the
+  // counters change -- `sumi-app-shell` reads `nav()` reactively.
+  protected readonly nav = computed<SumiNavItem[]>(() => [
+    { label: 'Dashboard', link: '', icon: 'home', exact: true },
+    { label: 'Reviews', link: 'review', icon: 'review', badge: this.due(), badgeTone: 'accent' },
+    { label: 'Lessons', link: 'lessons', icon: 'lessons', badge: this.lessons(), badgeTone: 'neutral' },
+    { label: 'Forecast', link: 'forecast', icon: 'forecast' },
+    { label: 'Items', link: 'browse', icon: 'list' },
+    { label: 'Settings', link: 'settings', icon: 'settings' },
+  ]);
 
   constructor() {
     void this.counters.refresh();
@@ -32,13 +36,5 @@ export class App {
     // it happens, so this is the correction for drift, not the count itself.
     // A minute is well under the shortest interval (four hours).
     setInterval(() => void this.counters.refresh(), 60_000);
-  }
-
-  toggleMenu(): void {
-    this.menuOpen.update((open) => !open);
-  }
-
-  closeMenu(): void {
-    this.menuOpen.set(false);
   }
 }

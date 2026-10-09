@@ -12,7 +12,7 @@ table {
   flex-direction: column;
   gap: 0.2rem;
   font-size: 0.8rem;
-  color: var(--muted);
+  color: var(--sumi-muted);
 }
 
 .filters select {
@@ -30,7 +30,7 @@ table {
   z-index: 5;
 
   &.armed {
-    border-color: var(--accent);
+    border-color: var(--sumi-accent);
   }
 }
 
@@ -39,7 +39,7 @@ table {
   align-items: center;
   gap: 0.4rem;
   font-size: 0.9rem;
-  color: var(--muted);
+  color: var(--sumi-muted);
 }
 
 .spacer {
@@ -47,17 +47,17 @@ table {
 }
 
 .known {
-  border-color: color-mix(in srgb, var(--ok) 45%, var(--border));
-  color: var(--ok);
+  border-color: color-mix(in srgb, var(--sumi-correct) 45%, var(--sumi-line));
+  color: var(--sumi-correct);
   font-weight: 600;
 }
 
 table {
   width: 100%;
   border-collapse: collapse;
-  background: var(--surface);
-  border: 1px solid var(--border);
-  border-radius: var(--radius);
+  background: var(--sumi-surface);
+  border: 1px solid var(--sumi-line);
+  border-radius: var(--sumi-radius);
   overflow: hidden;
   font-size: 0.92rem;
 }
@@ -66,15 +66,15 @@ th,
 td {
   text-align: left;
   padding: 0.45rem 0.6rem;
-  border-bottom: 1px solid var(--border);
+  border-bottom: 1px solid var(--sumi-line);
 }
 
 th {
-  background: var(--surface-alt);
+  background: var(--sumi-sunken);
   font-size: 0.78rem;
   text-transform: uppercase;
   letter-spacing: 0.05em;
-  color: var(--muted);
+  color: var(--sumi-muted);
 }
 
 tbody tr:last-child td {
@@ -82,7 +82,7 @@ tbody tr:last-child td {
 }
 
 tbody tr.selected {
-  background: color-mix(in srgb, var(--accent) 10%, transparent);
+  background: var(--sumi-accent-soft);
 }
 
 tbody tr.clickable {
@@ -90,7 +90,7 @@ tbody tr.clickable {
 }
 
 tbody tr.clickable:hover {
-  background: var(--surface-alt);
+  background: var(--sumi-sunken);
 }
 
 .character {
@@ -127,7 +127,7 @@ tbody tr.clickable:hover {
 }
 
 .declared {
-  color: var(--ok);
+  color: var(--sumi-correct);
   font-size: 0.8rem;
 }
 
@@ -140,11 +140,11 @@ dialog.detail {
   width: min(44rem, calc(100vw - 2rem));
   max-height: min(82vh, 50rem);
   padding: 0;
-  border: 1px solid var(--border);
-  border-radius: var(--radius);
-  background: var(--surface);
-  color: var(--text);
-  box-shadow: var(--shadow);
+  border: 1px solid var(--sumi-line);
+  border-radius: var(--sumi-radius);
+  background: var(--sumi-surface);
+  color: var(--sumi-text);
+  box-shadow: var(--sumi-shadow);
 
   &::backdrop {
     background: rgb(0 0 0 / 45%);
@@ -158,7 +158,7 @@ dialog.detail {
   }
 
   article {
-    padding: var(--gap);
+    padding: var(--sumi-space-4);
   }
 
   header {
@@ -214,7 +214,7 @@ dialog.detail {
     font-size: 0.8rem;
     text-transform: uppercase;
     letter-spacing: 0.06em;
-    color: var(--muted);
+    color: var(--sumi-muted);
     margin-top: 0.75rem;
   }
 

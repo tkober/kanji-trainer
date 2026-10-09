@@ -1,300 +1,308 @@
-<div class="head">
-  <h1>Lessons</h1>
-  @if (levels().length > 0) {
-    <app-level-picker [levels]="levels()" [level]="level()" (picked)="pickLevel($event)" />
+<sumi-page
+  [title]="phase() === 'select' ? 'Lessons' : undefined"
+  width="wide"
+  [inkEnd]="phase() === 'select'"
+>
+  @if (phase() === 'select' && levels().length > 0) {
+    <app-level-picker
+      sumiPageActions
+      [levels]="levels()"
+      [level]="level()"
+      (picked)="pickLevel($event)"
+    />
   }
-</div>
 
-@if (error(); as message) {
-  <p class="error">{{ message }}</p>
-}
+  @if (error(); as message) {
+    <p class="error">{{ message }}</p>
+  }
 
-@if (loading()) {
-  <p class="muted">Loading …</p>
-} @else if (phase() === 'select') {
-  @if (tiles().length === 0) {
-    <section class="card empty">
-      <h2>No lessons left</h2>
-      @if (totalAvailable() > 0) {
-        <p class="muted">
-          Nothing to learn in this level. {{ totalAvailable() }} items are still waiting in
-          other levels.
-        </p>
-      } @else {
-        <p class="muted">Everything learned. Import new content or do some reviews.</p>
+  @if (loading()) {
+    <p class="muted">Loading …</p>
+  } @else if (phase() === 'select') {
+    @if (tiles().length === 0) {
+      <section class="card empty">
+        <h2>No lessons left</h2>
+        @if (totalAvailable() > 0) {
+          <p class="muted">
+            Nothing to learn in this level. {{ totalAvailable() }} items are still waiting in
+            other levels.
+          </p>
+        } @else {
+          <p class="muted">Everything learned. Import new content or do some reviews.</p>
+        }
+        <a routerLink="/review"><button class="primary">Go to reviews</button></a>
+      </section>
+    } @else {
+      <div class="legend">
+        <span class="key"><span class="swatch" data-band="lesson"></span>Lesson</span>
+        <span class="key"><span class="swatch" data-band="apprentice"></span>Apprentice (1–4)</span>
+        <span class="key"><span class="swatch" data-band="guru"></span>Guru (5–6)</span>
+        <span class="key"><span class="swatch" data-band="master"></span>Master (7)</span>
+        <span class="key"><span class="swatch" data-band="enlightened"></span>Enlightened (8)</span>
+        <span class="key"><span class="swatch" data-band="burned"></span>Burned (9)</span>
+      </div>
+
+      @if (totalInLevel() === 0) {
+        <p class="muted note">Nothing left to learn in this level.</p>
       }
-      <a routerLink="/review"><button class="primary">Go to reviews</button></a>
+      @if (remainingToday() !== null) {
+        <p class="muted note">Daily limit: {{ remainingToday() }} lessons left today.</p>
+      }
+
+      @for (group of groups(); track group.key) {
+        @if (group.tiles.length > 0) {
+          <section class="group">
+            <div class="group-head">
+              <h2>{{ group.label }} <span class="muted count">({{ group.tiles.length }})</span></h2>
+              <div class="group-actions">
+                <button type="button" (click)="selectAllIn(group.tiles)">Select all</button>
+                <button type="button" (click)="noneIn(group.tiles)">None</button>
+              </div>
+            </div>
+            <div class="tile-grid" [class.flow]="group.key === 'vocabulary'">
+              @for (tile of group.tiles; track tile.subject.id) {
+                @if (tile.state === 'new') {
+                  <button
+                    type="button"
+                    class="tile"
+                    [attr.data-band]="band(tile.srs_stage)"
+                    [class.selected]="isSelected(tile.subject.id)"
+                    [disabled]="!isSelected(tile.subject.id) && capReached()"
+                    [attr.aria-pressed]="isSelected(tile.subject.id)"
+                    [title]="tileLabel(tile)"
+                    [attr.aria-label]="tileLabel(tile)"
+                    (click)="toggleTile(tile)"
+                  >
+                    @if (tile.subject.characters) {
+                      <span class="jp">{{ tile.subject.characters }}</span>
+                    } @else if (tile.subject.character_image_url) {
+                      <img [src]="tile.subject.character_image_url" [alt]="tile.subject.slug" />
+                    }
+                    @if (isSelected(tile.subject.id)) {
+                      <span class="badge" aria-hidden="true">✓</span>
+                    }
+                  </button>
+                } @else {
+                  <span
+                    class="tile static"
+                    [attr.data-band]="band(tile.srs_stage)"
+                    [class.known]="tile.state === 'known'"
+                    [class.suspended]="tile.state === 'suspended'"
+                    [title]="tileLabel(tile)"
+                    [attr.aria-label]="tileLabel(tile)"
+                  >
+                    @if (tile.subject.characters) {
+                      <span class="jp">{{ tile.subject.characters }}</span>
+                    } @else if (tile.subject.character_image_url) {
+                      <img [src]="tile.subject.character_image_url" [alt]="tile.subject.slug" />
+                    }
+                    @if (tile.state === 'known') {
+                      <span class="badge" aria-hidden="true">✓</span>
+                    }
+                  </span>
+                }
+              }
+            </div>
+          </section>
+        }
+      }
+
+      <section class="action-bar">
+        <span class="selected-count">{{ selectedCount() }} selected</span>
+        <label class="check">
+          <input type="checkbox" [checked]="batching()" (change)="toggleBatching($event)" />
+          In batches of {{ batchSize() }}
+        </label>
+        <span class="spacer"></span>
+        <button
+          class="known"
+          [disabled]="selectedCount() === 0 || busy()"
+          (click)="markSelectedKnown()"
+        >
+          I already know these {{ selectedCount() }}
+        </button>
+        <button class="primary" [disabled]="selectedCount() === 0 || busy()" (click)="startSelected()">
+          Start lessons ({{ selectedCount() }})
+        </button>
+      </section>
+    }
+  } @else if (phase() === 'reading') {
+    <p class="muted count">
+      @if (totalChunks() > 1) {
+        Batch {{ chunkIndex() + 1 }} of {{ totalChunks() }} · {{ items().length }} in this batch
+      } @else {
+        {{ items().length }} in this batch
+      }
+    </p>
+
+    @if (current(); as item) {
+      <section class="prompt" [attr.data-type]="item.subject.object_type">
+        @if (item.subject.characters) {
+          <div class="characters jp" [style.--glyphs]="glyphCount(item.subject.characters)">
+            {{ item.subject.characters }}
+          </div>
+        } @else if (item.subject.character_image_url) {
+          <img class="characters" [src]="item.subject.character_image_url" [alt]="item.subject.slug" />
+        }
+        <div class="meta">
+          <span>{{ typeLabel(item.subject.object_type) }}</span>
+          <span>Level {{ item.subject.level }}</span>
+          <span>{{ index() + 1 }} / {{ items().length }}</span>
+        </div>
+      </section>
+
+      <section class="card detail">
+        <dl>
+          <dt>Meaning</dt>
+          <dd>{{ meanings(item.subject) }}</dd>
+        </dl>
+
+        <app-synonyms
+          [subjectId]="item.subject.id"
+          [synonyms]="item.subject.synonyms"
+          (synonymsChange)="onSynonymsChange(item.subject.id, $event)"
+        />
+
+        <app-readings [readings]="item.subject.readings" [objectType]="item.subject.object_type" />
+
+        <dl>
+          @if (item.subject.parts_of_speech.length > 0) {
+            <dt>Part of speech</dt>
+            <dd>{{ item.subject.parts_of_speech.join(', ') }}</dd>
+          }
+          @if (item.subject.meaning_mnemonic) {
+            <dt>Meaning mnemonic</dt>
+            <dd [innerHTML]="item.subject.meaning_mnemonic | mnemonic"></dd>
+          }
+          @if (item.subject.reading_mnemonic) {
+            <dt>Reading mnemonic</dt>
+            <dd [innerHTML]="item.subject.reading_mnemonic | mnemonic"></dd>
+          }
+          @if (item.subject.wanikani_url; as url) {
+            <dt>Source</dt>
+            <dd>
+              <a [href]="url" target="_blank" rel="noopener">Open the original on WaniKani ↗</a>
+            </dd>
+          }
+        </dl>
+
+        <app-context-sentences
+          [sentences]="item.subject.context_sentences"
+          [characters]="item.subject.characters"
+        />
+
+        <app-radical-illustration
+          [subjectId]="item.subject.id"
+          [objectType]="item.subject.object_type"
+        />
+
+        <div class="row nav">
+          <button [disabled]="index() === 0" (click)="previous()">Back</button>
+          @if (onLastItem()) {
+            <button class="primary" [disabled]="busy()" (click)="startQuiz()">
+              Start quiz ({{ items().length }} items)
+            </button>
+          } @else {
+            <button (click)="next()">Next</button>
+          }
+          <button class="known" [disabled]="busy()" (click)="markCurrentKnown()">
+            I know this one
+          </button>
+        </div>
+      </section>
+    }
+
+    <section class="card batch">
+      <div class="row">
+        <button class="known" [disabled]="busy()" (click)="markChunkKnown()">
+          I already know all {{ items().length }}
+        </button>
+        <button [disabled]="busy()" (click)="backToSelection()">Back to selection</button>
+      </div>
+      <p class="muted footnote">
+        The fast way through items you already know from elsewhere: they go straight to “known”,
+        with no quiz and without ever entering the review queue. “Back to selection” abandons any
+        batch not yet committed; batches already started stay started.
+      </p>
     </section>
-  } @else {
-    <div class="legend">
-      <span class="key"><span class="swatch" data-band="lesson"></span>Lesson</span>
-      <span class="key"><span class="swatch" data-band="apprentice"></span>Apprentice (1–4)</span>
-      <span class="key"><span class="swatch" data-band="guru"></span>Guru (5–6)</span>
-      <span class="key"><span class="swatch" data-band="master"></span>Master (7)</span>
-      <span class="key"><span class="swatch" data-band="enlightened"></span>Enlightened (8)</span>
-      <span class="key"><span class="swatch" data-band="burned"></span>Burned (9)</span>
+  } @else if (card(); as card) {
+    <div class="progress">
+      @if (totalChunks() > 1) {
+        <span>Batch {{ chunkIndex() + 1 }} of {{ totalChunks() }}</span>
+        <span class="muted">·</span>
+      }
+      <span>{{ passed() }} / {{ items().length }} done</span>
+      <span class="muted">·</span>
+      <span class="muted">{{ queue().length }} left in this quiz</span>
     </div>
 
-    @if (totalInLevel() === 0) {
-      <p class="muted note">Nothing left to learn in this level.</p>
-    }
-    @if (remainingToday() !== null) {
-      <p class="muted note">Daily limit: {{ remainingToday() }} lessons left today.</p>
-    }
-
-    @for (group of groups(); track group.key) {
-      @if (group.tiles.length > 0) {
-        <section class="group">
-          <div class="group-head">
-            <h2>{{ group.label }} <span class="muted count">({{ group.tiles.length }})</span></h2>
-            <div class="group-actions">
-              <button type="button" (click)="selectAllIn(group.tiles)">Select all</button>
-              <button type="button" (click)="noneIn(group.tiles)">None</button>
-            </div>
-          </div>
-          <div class="tile-grid" [class.flow]="group.key === 'vocabulary'">
-            @for (tile of group.tiles; track tile.subject.id) {
-              @if (tile.state === 'new') {
-                <button
-                  type="button"
-                  class="tile"
-                  [attr.data-band]="band(tile.srs_stage)"
-                  [class.selected]="isSelected(tile.subject.id)"
-                  [disabled]="!isSelected(tile.subject.id) && capReached()"
-                  [attr.aria-pressed]="isSelected(tile.subject.id)"
-                  [title]="tileLabel(tile)"
-                  [attr.aria-label]="tileLabel(tile)"
-                  (click)="toggleTile(tile)"
-                >
-                  @if (tile.subject.characters) {
-                    <span class="jp">{{ tile.subject.characters }}</span>
-                  } @else if (tile.subject.character_image_url) {
-                    <img [src]="tile.subject.character_image_url" [alt]="tile.subject.slug" />
-                  }
-                  @if (isSelected(tile.subject.id)) {
-                    <span class="badge" aria-hidden="true">✓</span>
-                  }
-                </button>
-              } @else {
-                <span
-                  class="tile static"
-                  [attr.data-band]="band(tile.srs_stage)"
-                  [class.known]="tile.state === 'known'"
-                  [class.suspended]="tile.state === 'suspended'"
-                  [title]="tileLabel(tile)"
-                  [attr.aria-label]="tileLabel(tile)"
-                >
-                  @if (tile.subject.characters) {
-                    <span class="jp">{{ tile.subject.characters }}</span>
-                  } @else if (tile.subject.character_image_url) {
-                    <img [src]="tile.subject.character_image_url" [alt]="tile.subject.slug" />
-                  }
-                  @if (tile.state === 'known') {
-                    <span class="badge" aria-hidden="true">✓</span>
-                  }
-                </span>
-              }
-            }
-          </div>
-        </section>
-      }
-    }
-
-    <section class="action-bar">
-      <span class="selected-count">{{ selectedCount() }} selected</span>
-      <label class="check">
-        <input type="checkbox" [checked]="batching()" (change)="toggleBatching($event)" />
-        In batches of {{ batchSize() }}
-      </label>
-      <span class="spacer"></span>
-      <button
-        class="known"
-        [disabled]="selectedCount() === 0 || busy()"
-        (click)="markSelectedKnown()"
-      >
-        I already know these {{ selectedCount() }}
-      </button>
-      <button class="primary" [disabled]="selectedCount() === 0 || busy()" (click)="startSelected()">
-        Start lessons ({{ selectedCount() }})
-      </button>
-    </section>
-  }
-} @else if (phase() === 'reading') {
-  <p class="muted count">
-    @if (totalChunks() > 1) {
-      Batch {{ chunkIndex() + 1 }} of {{ totalChunks() }} · {{ items().length }} in this batch
-    } @else {
-      {{ items().length }} in this batch
-    }
-  </p>
-
-  @if (current(); as item) {
-    <section class="prompt" [attr.data-type]="item.subject.object_type">
-      @if (item.subject.characters) {
-        <div class="characters jp" [style.--glyphs]="glyphCount(item.subject.characters)">
-          {{ item.subject.characters }}
+    <section class="prompt" [attr.data-type]="card.subject.object_type">
+      @if (card.subject.characters) {
+        <div class="characters jp" [style.--glyphs]="glyphCount(card.subject.characters)">
+          {{ card.subject.characters }}
         </div>
-      } @else if (item.subject.character_image_url) {
-        <img class="characters" [src]="item.subject.character_image_url" [alt]="item.subject.slug" />
+      } @else if (card.subject.character_image_url) {
+        <img class="characters" [src]="card.subject.character_image_url" [alt]="card.subject.slug" />
       }
       <div class="meta">
-        <span>{{ typeLabel(item.subject.object_type) }}</span>
-        <span>Level {{ item.subject.level }}</span>
-        <span>{{ index() + 1 }} / {{ items().length }}</span>
+        <span>{{ typeLabel(card.subject.object_type) }}</span>
+        <span>Level {{ card.subject.level }}</span>
       </div>
     </section>
 
-    <section class="card detail">
-      <dl>
-        <dt>Meaning</dt>
-        <dd>{{ meanings(item.subject) }}</dd>
-      </dl>
-
-      <app-synonyms
-        [subjectId]="item.subject.id"
-        [synonyms]="item.subject.synonyms"
-        (synonymsChange)="onSynonymsChange(item.subject.id, $event)"
+    <section class="question" [class.reading]="question() === 'reading'">
+      <label for="quiz-answer">{{ question() === 'reading' ? 'Reading' : 'Meaning' }}</label>
+      <input
+        #answerField
+        id="quiz-answer"
+        type="text"
+        class="jp"
+        autocomplete="off"
+        autocorrect="off"
+        autocapitalize="off"
+        spellcheck="false"
+        [attr.enterkeyhint]="feedback() ? 'next' : 'go'"
+        [value]="display()"
+        [class.correct]="feedback()?.correct === true"
+        [class.wrong]="feedback()?.correct === false"
+        (input)="onInput($event)"
+        (keydown)="onKeydown($event)"
       />
+    </section>
 
-      <app-readings [readings]="item.subject.readings" [objectType]="item.subject.object_type" />
-
-      <dl>
-        @if (item.subject.parts_of_speech.length > 0) {
-          <dt>Part of speech</dt>
-          <dd>{{ item.subject.parts_of_speech.join(', ') }}</dd>
-        }
-        @if (item.subject.meaning_mnemonic) {
-          <dt>Meaning mnemonic</dt>
-          <dd [innerHTML]="item.subject.meaning_mnemonic | mnemonic"></dd>
-        }
-        @if (item.subject.reading_mnemonic) {
-          <dt>Reading mnemonic</dt>
-          <dd [innerHTML]="item.subject.reading_mnemonic | mnemonic"></dd>
-        }
-        @if (item.subject.wanikani_url; as url) {
-          <dt>Source</dt>
-          <dd>
-            <a [href]="url" target="_blank" rel="noopener">Open the original on WaniKani ↗</a>
-          </dd>
-        }
-      </dl>
-
-      <app-context-sentences
-        [sentences]="item.subject.context_sentences"
-        [characters]="item.subject.characters"
-      />
-
-      <app-radical-illustration
-        [subjectId]="item.subject.id"
-        [objectType]="item.subject.object_type"
-      />
-
-      <div class="row nav">
-        <button [disabled]="index() === 0" (click)="previous()">Back</button>
-        @if (onLastItem()) {
-          <button class="primary" [disabled]="busy()" (click)="startQuiz()">
-            Start quiz ({{ items().length }} items)
-          </button>
+    @if (feedback(); as result) {
+      <section class="feedback" [class.correct]="result.correct" [class.wrong]="!result.correct">
+        @if (result.correct) {
+          <strong>Correct.</strong>
+          @if (result.typo) {
+            <span> It is spelled <em>{{ result.expected }}</em>.</span>
+          } @else if (result.secondary) {
+            <span> The primary answer is <em class="jp">{{ result.expected }}</em>.</span>
+          }
+        } @else if (result.retry) {
+          <!-- A real reading, just not this item's: there is no expected answer
+               to name, only the hint below saying which reading was meant. -->
+          <strong>Doesn't count.</strong>
         } @else {
-          <button (click)="next()">Next</button>
+          <strong>Not yet.</strong>
+          <span> Expected: <em class="jp">{{ result.expected }}</em></span>
         }
-        <button class="known" [disabled]="busy()" (click)="markCurrentKnown()">
-          I know this one
+        @if (result.hint) {
+          <p class="hint">{{ result.hint }}</p>
+        }
+        <p class="muted no-cost">
+          The quiz costs no SRS stage — wrong answers simply come round again.
+        </p>
+        <div class="row">
+          <button class="primary" appHoldFocus (click)="advance()">Next (Enter)</button>
+        </div>
+      </section>
+    } @else {
+      <div class="row actions">
+        <button class="primary" appHoldFocus [disabled]="busy()" (click)="submit()">
+          Answer (Enter)
         </button>
       </div>
-    </section>
-  }
-
-  <section class="card batch">
-    <div class="row">
-      <button class="known" [disabled]="busy()" (click)="markChunkKnown()">
-        I already know all {{ items().length }}
-      </button>
-      <button [disabled]="busy()" (click)="backToSelection()">Back to selection</button>
-    </div>
-    <p class="muted footnote">
-      The fast way through items you already know from elsewhere: they go straight to “known”,
-      with no quiz and without ever entering the review queue. “Back to selection” abandons any
-      batch not yet committed; batches already started stay started.
-    </p>
-  </section>
-} @else if (card(); as card) {
-  <div class="progress">
-    @if (totalChunks() > 1) {
-      <span>Batch {{ chunkIndex() + 1 }} of {{ totalChunks() }}</span>
-      <span class="muted">·</span>
     }
-    <span>{{ passed() }} / {{ items().length }} done</span>
-    <span class="muted">·</span>
-    <span class="muted">{{ queue().length }} left in this quiz</span>
-  </div>
-
-  <section class="prompt" [attr.data-type]="card.subject.object_type">
-    @if (card.subject.characters) {
-      <div class="characters jp" [style.--glyphs]="glyphCount(card.subject.characters)">
-        {{ card.subject.characters }}
-      </div>
-    } @else if (card.subject.character_image_url) {
-      <img class="characters" [src]="card.subject.character_image_url" [alt]="card.subject.slug" />
-    }
-    <div class="meta">
-      <span>{{ typeLabel(card.subject.object_type) }}</span>
-      <span>Level {{ card.subject.level }}</span>
-    </div>
-  </section>
-
-  <section class="question" [class.reading]="question() === 'reading'">
-    <label for="quiz-answer">{{ question() === 'reading' ? 'Reading' : 'Meaning' }}</label>
-    <input
-      #answerField
-      id="quiz-answer"
-      type="text"
-      class="jp"
-      autocomplete="off"
-      autocorrect="off"
-      autocapitalize="off"
-      spellcheck="false"
-      [attr.enterkeyhint]="feedback() ? 'next' : 'go'"
-      [value]="display()"
-      [class.correct]="feedback()?.correct === true"
-      [class.wrong]="feedback()?.correct === false"
-      (input)="onInput($event)"
-      (keydown)="onKeydown($event)"
-    />
-  </section>
-
-  @if (feedback(); as result) {
-    <section class="feedback" [class.correct]="result.correct" [class.wrong]="!result.correct">
-      @if (result.correct) {
-        <strong>Correct.</strong>
-        @if (result.typo) {
-          <span> It is spelled <em>{{ result.expected }}</em>.</span>
-        } @else if (result.secondary) {
-          <span> The primary answer is <em class="jp">{{ result.expected }}</em>.</span>
-        }
-      } @else if (result.retry) {
-        <!-- A real reading, just not this item's: there is no expected answer
-             to name, only the hint below saying which reading was meant. -->
-        <strong>Doesn't count.</strong>
-      } @else {
-        <strong>Not yet.</strong>
-        <span> Expected: <em class="jp">{{ result.expected }}</em></span>
-      }
-      @if (result.hint) {
-        <p class="hint">{{ result.hint }}</p>
-      }
-      <p class="muted no-cost">
-        The quiz costs no SRS stage — wrong answers simply come round again.
-      </p>
-      <div class="row">
-        <button class="primary" appHoldFocus (click)="advance()">Next (Enter)</button>
-      </div>
-    </section>
-  } @else {
-    <div class="row actions">
-      <button class="primary" appHoldFocus [disabled]="busy()" (click)="submit()">
-        Answer (Enter)
-      </button>
-    </div>
   }
-}
+</sumi-page>

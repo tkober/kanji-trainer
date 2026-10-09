@@ -26,16 +26,16 @@
   height: 2.75rem;
   padding: 0;
   border-radius: 50%;
-  box-shadow: var(--shadow);
+  box-shadow: var(--sumi-shadow);
 }
 
 .panel {
   width: 18rem;
   max-width: calc(100vw - 2rem);
-  background: var(--surface);
-  border: 1px solid var(--border);
-  border-radius: var(--radius);
-  box-shadow: var(--shadow);
+  background: var(--sumi-surface);
+  border: 1px solid var(--sumi-line);
+  border-radius: var(--sumi-radius);
+  box-shadow: var(--sumi-shadow);
   padding: 0.75rem;
 
   h2 {
@@ -66,16 +66,16 @@
   }
 
   .label {
-    color: var(--muted);
+    color: var(--sumi-muted);
   }
 
   kbd {
     font: inherit;
     font-weight: 700;
-    border: 1px solid var(--border);
+    border: 1px solid var(--sumi-line);
     border-radius: 4px;
     padding: 0 0.3rem;
-    background: var(--surface-alt);
-    color: var(--text);
+    background: var(--sumi-sunken);
+    color: var(--sumi-text);
   }
 }

@@ -1,4 +1,5 @@
 import { Component, computed, inject, signal } from '@angular/core';
+import { SumiPage } from 'sumi-ui/layout';
 
 import { Api } from '../../core/api';
 import type { Forecast, ForecastBucket } from '../../core/api.types';
@@ -48,6 +49,7 @@ const RADIUS = 4;
 
 @Component({
   selector: 'app-forecast',
+  imports: [SumiPage],
   templateUrl: './forecast.html',
   styleUrl: './forecast.scss',
 })
