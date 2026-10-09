@@ -221,6 +221,23 @@ fetches what it needs, and the only cross-screen state is what the header
 shows — the two badges and the current level — which `Counters` holds and
 `app.ts` polls for once a minute.
 
+**The frontend's UI comes from Sumi UI** (issue #37), the shared library the
+four WaniKani-adjacent apps use, included as a git submodule at
+`frontend/sumi-ui` rather than an npm package — the app compiles its
+TypeScript source directly (`tsconfig.json`'s `paths`) and `@use`s its styles,
+see the library's own README ("Using Sumi UI in an app") for the exact
+mechanism. Clone this repo with `git clone --recurse-submodules`, or run `git
+submodule update --init` afterwards; bump the pinned commit with `git -C
+frontend/sumi-ui pull origin main` and commit the result like any other
+dependency bump. `app.config.ts`'s `provideSumi({ accent, motif, pattern,
+companion })` call is all placeholders for now, until the real choices land in
+tkober/sumi-ui#25. What is left of the app's own design tokens
+(`styles/app-tokens.scss`) is WaniKani's radical/kanji/vocabulary colour
+coding plus the mnemonic highlight classes built from them (`.wk`,
+`.wk-radical`, …) — everything else now comes from Sumi UI's own `--sumi-*`
+tokens. The light/dark choice itself is no longer this app's concern either:
+`SumiTheme` resolves and persists it (`localStorage`, per device).
+
 **The review queue's order is a setting, built in SQL, before the `LIMIT`.**
 `_review_order()` in `study.py` composes the `ORDER BY` from two independent
 choices — `review_item_order` (random / oldest due first / lowest SRS stage
