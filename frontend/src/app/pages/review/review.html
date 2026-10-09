@@ -81,30 +81,36 @@
             (gaveUp)="onGaveUp()"
           />
 
-          <div class="row actions">
-            <button
-              type="button"
-              sumiButton
-              variant="primary"
-              sumiHoldFocus
-              [disabled]="submitting()"
-              (click)="field.submit()"
-            >
-              {{ checkButtonLabel() }}
-            </button>
-            <button type="button" sumiButton sumiHoldFocus title="Alt+K" (click)="requestKnown()">
-              I know this
-            </button>
-            @if (settledKind() === 'wrong') {
-              <button type="button" sumiButton variant="danger" sumiHoldFocus (click)="resetCurrent()">
-                Relearn from scratch
+          @if (!confirmKnown()) {
+            <div class="row actions">
+              <button
+                type="button"
+                sumiButton
+                variant="primary"
+                sumiHoldFocus
+                [disabled]="submitting()"
+                (click)="field.submit()"
+              >
+                {{ checkButtonLabel() }}
               </button>
+              @if (settledKind() === null) {
+                <button type="button" sumiButton sumiHoldFocus title="Alt+K" (click)="requestKnown()">
+                  I know this
+                </button>
+              }
+              @if (settledKind() === 'wrong') {
+                <button type="button" sumiButton variant="danger" sumiHoldFocus (click)="resetCurrent()">
+                  Relearn from scratch
+                </button>
+              }
+            </div>
+            @if (settledKind() === null) {
+              <p class="muted hint-line">
+                “I know this” retires the whole item immediately — meaning and reading together, no
+                waiting on intervals.
+              </p>
             }
-          </div>
-          <p class="muted hint-line">
-            “I know this” retires the whole item immediately — meaning and reading together, no waiting
-            on intervals.
-          </p>
+          }
 
           @if (settledKind(); as kind) {
             <sumi-verdict
