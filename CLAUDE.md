@@ -239,27 +239,20 @@ tokens. The light/dark choice itself is no longer this app's concern either:
 `SumiTheme` resolves and persists it (`localStorage`, per device).
 
 **No base styles of the app's own remain anywhere** (issue #40): `styles.scss`
-is just the two `@use`s above, every `<button>`/`<input>`/`<select>`/`<kbd>`
-is a Sumi UI directive (`sumiButton`, `sumiInput`, `sumiSelect`, `sumiKbd`,
-`sumiCheckbox`), `<sumi-card>`/`<sumi-banner>`/`<sumi-empty-state>`/
-`<sumi-error-state>` replaced the old `.card`/`.error`/`.notice` classes, and
-`styles/app-tokens.scss` holds only what Sumi UI genuinely does not provide:
-the WaniKani radical/kanji/vocabulary colours, the mnemonic highlight classes
-built from them (`.wk`, `.wk-radical`, …), and `.wk-ja`/`.wk-reading`'s font
-stack — kept global because `highlightMnemonic` (`core/mnemonic.ts`) bakes
-those classes into markup rendered through `innerHTML`, which a component
-style sheet or a `lang="ja"` attribute cannot reach. Every other screen's own
-Japanese text uses `lang="ja"` directly (Sumi's base already gives
-`[lang='ja']` the JP font stack) rather than a class. A handful of small
-layout/typography rules (`.muted`, `.row`, a card's own `h2`, a page's
-`.field` label) are component-local now — real local styles scoped by
-Angular's view encapsulation, not global utility classes revived under a
-different name, each written out again per component rather than shared,
-exactly like `.error`/`.hint` already were in `shared/synonyms` before this
-issue. The three not-yet-migrated widgets (the items table, its detail
-`<dialog>`, and the settings import progress bar) are deliberately
-self-contained in their own stylesheet instead, since they are getting
-`sumi-data-table`, `sumi-dialog` and `sumi-progress` in tkober/sumi-ui#66.
+is just the two `@use`s above, every control is a Sumi UI directive or
+component (`sumiButton`, `sumiInput`, `sumi-card`, `sumi-data-table`,
+`sumi-dialog`, `sumi-progress`, …), and `styles/app-tokens.scss` holds only
+what Sumi UI genuinely does not provide: the WaniKani radical/kanji/
+vocabulary colours, the mnemonic highlight classes built from them (`.wk`,
+`.wk-radical`, …), and `.wk-ja`/`.wk-reading`'s font stack — kept global
+because `highlightMnemonic` (`core/mnemonic.ts`) bakes those classes into
+markup rendered through `innerHTML`, which neither a component style sheet
+nor a `lang="ja"` attribute can reach. Every other screen's own Japanese text
+uses `lang="ja"` directly instead (Sumi's base already gives `[lang='ja']`
+the JP font stack). A handful of small layout rules (`.muted`, `.row`, a
+card's own `h2`, a page's `.field` label) are component-local now, written
+out again per component rather than shared, same as `.error`/`.hint` already
+were in `shared/synonyms` before this issue.
 
 **Reviews and the lesson quiz are sessions, not just screens** (issue #38).
 Each is `idle → active → ended`: a `sumi-session-gate` starts one (with the
