@@ -1,6 +1,10 @@
 /* App-specific tokens that Sumi UI does not provide, plus the handful of
-   element styles that are built directly from them. Everything else now
-   comes from sumi-ui's own `--sumi-*` tokens (see styles.scss). */
+   element and utility styles that are built directly from them and still
+   need to be global (WaniKani's mnemonic highlight spans, inserted through
+   `innerHTML`, where emulated view encapsulation cannot reach). Everything
+   else now comes from Sumi UI's own components and `--sumi-*` tokens, or
+   lives as a component-local style where only one component ever needed it
+   (see styles.scss). */
 
 :root {
   /* Item types keep WaniKani's colour coding -- the learner reads these
@@ -42,9 +46,24 @@
   background: color-mix(in srgb, var(--sumi-text) 12%, transparent);
 }
 
-/* <ja> only marks Japanese text: the font stack lives on `.jp`/`.wk-ja`/
-   `.wk-reading` in styles.scss, no highlight here. */
+/* <ja> only marks Japanese text, no highlight here -- just the font stack
+   below. */
 .wk-ja {
   padding: 0;
   background: none;
+}
+
+/* Japanese text wants a font stack that will not fall back to a Chinese
+   glyph set -- 直 and 今 are drawn differently and the wrong one teaches the
+   wrong stroke order. Sumi UI's own base already gives `[lang='ja']` this
+   same stack (styles/_base.scss), which covers every element the templates
+   render directly; `.wk-ja`/`.wk-reading` stay global rather than becoming
+   `lang="ja"` because they are classes `highlightMnemonic` bakes into a
+   fixed string of markup rendered through `innerHTML` -- there is no
+   attribute to add there, only a class. */
+.wk-ja,
+.wk-reading {
+  font-family:
+    'Zen Kaku Gothic New', 'Hiragino Kaku Gothic ProN', 'Hiragino Sans', 'Yu Gothic',
+    'Noto Sans JP', sans-serif;
 }
