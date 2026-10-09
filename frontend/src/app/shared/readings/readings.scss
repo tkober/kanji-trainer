@@ -25,10 +25,10 @@ dt {
     font-weight: 700;
   }
 
-  /* A reading WaniKani knows but never asks for (CLAUDE.md, "pending flags"
-     is unrelated -- see the module doc above): shown, because a learner
-     looking at 女 wants to know おんな exists, but named as such since typing
-     it in a review buys a retry, not a right answer. */
+  /* A reading WaniKani knows but never asks for -- the kun'yomi of a kanji
+     taught by its on'yomi, and vice versa. Shown, because a learner looking
+     at 女 wants to know おんな exists; muted and named as such, because typing
+     it in a review buys a retry rather than a right answer. */
   .not-asked {
     text-transform: none;
     letter-spacing: 0;
