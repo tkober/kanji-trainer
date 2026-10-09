@@ -2,12 +2,17 @@ import { Component, computed, inject, signal } from '@angular/core';
 import { RouterLink } from '@angular/router';
 import { SUMI_KEYS, SumiHotkeys, injectHotkey } from 'sumi-ui/core';
 import {
+  SumiBanner,
+  SumiCard,
+  SumiEmptyState,
+  SumiErrorState,
   SumiFocusModeDirective,
   SumiHanko,
   SumiPage,
   SumiShellFocusActionsDirective,
 } from 'sumi-ui/layout';
-import { SumiButtonDirective } from 'sumi-ui/forms';
+import { SumiButtonDirective, SumiCheckboxDirective } from 'sumi-ui/forms';
+import { SumiLegend, type SumiLegendItem } from 'sumi-ui/charts';
 import { SUMI_PRACTICE, type SumiVerdict } from 'sumi-ui/practice';
 
 import { Api } from '../../core/api';
@@ -46,6 +51,19 @@ interface TileGroup {
 }
 
 const BATCHING_KEY = 'kt-lesson-batching';
+
+/** The band legend, in `lessons.scss`'s own custom properties. "Lesson" uses
+ * `--sumi-line` rather than `--sumi-surface` (what the tile itself shows) --
+ * `sumi-legend`'s swatch has no border of its own, so the page-background
+ * colour the tile uses would be invisible against the card behind it. */
+const LEGEND_ITEMS: readonly SumiLegendItem[] = [
+  { label: 'Lesson', color: 'var(--sumi-line)' },
+  { label: 'Apprentice (1–4)', color: 'var(--band-apprentice)' },
+  { label: 'Guru (5–6)', color: 'var(--band-guru)' },
+  { label: 'Master (7)', color: 'var(--band-master)' },
+  { label: 'Enlightened (8)', color: 'var(--band-enlightened)' },
+  { label: 'Burned (9)', color: 'var(--band-burned)' },
+];
 
 /** WaniKani's stage names, with stage 0 relabelled: on a tile it names a
  * lesson waiting to be picked, never "Unlearned" -- there is nothing to have
@@ -124,9 +142,15 @@ function chunk<T>(items: T[], size: number): T[][] {
     Readings,
     RouterLink,
     Synonyms,
+    SumiBanner,
     SumiButtonDirective,
+    SumiCard,
+    SumiCheckboxDirective,
+    SumiEmptyState,
+    SumiErrorState,
     SumiFocusModeDirective,
     SumiHanko,
+    SumiLegend,
     SumiPage,
     SumiShellFocusActionsDirective,
     ...SUMI_PRACTICE,
@@ -206,6 +230,13 @@ export class LessonsPage {
   protected readonly loading = signal(true);
   protected readonly busy = signal(false);
   protected readonly error = signal<string | null>(null);
+  /** Whether the selection view has ever loaded successfully -- a failure
+   * before that point is the T6 scene; one after it (e.g. picking another
+   * level) stays a banner. */
+  protected readonly loaded = signal(false);
+  protected readonly loadFailed = signal(false);
+
+  protected readonly legendItems = LEGEND_ITEMS;
 
   protected readonly current = computed(() => this.items()[this.index()] ?? null);
   protected readonly card = computed(() => this.queue()[0] ?? null);
@@ -305,8 +336,14 @@ export class LessonsPage {
       this.chunkIndex.set(0);
       this.phase.set('select');
       this.error.set(null);
+      this.loaded.set(true);
+      this.loadFailed.set(false);
     } catch (err) {
-      this.error.set((err as Error).message);
+      if (this.loaded()) {
+        this.error.set((err as Error).message);
+      } else {
+        this.loadFailed.set(true);
+      }
     } finally {
       this.loading.set(false);
     }

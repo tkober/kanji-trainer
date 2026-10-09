@@ -3,6 +3,14 @@
   width="wide"
   [inkEnd]="phase() === 'select'"
 >
+  @if (loadFailed()) {
+    <sumi-error-state title="Can't reach the server" companion="tsuru">
+      Your progress is safe. Check the connection and try again.
+      <button sumiErrorAction type="button" sumiButton variant="secondary" (click)="load()">
+        Try again
+      </button>
+    </sumi-error-state>
+  } @else {
   @if (phase() === 'select' && levels().length > 0) {
     <app-level-picker
       sumiPageActions
@@ -13,34 +21,24 @@
   }
 
   @if (error(); as message) {
-    <p class="error">{{ message }}</p>
+    <sumi-banner tone="error">{{ message }}</sumi-banner>
   }
 
   @if (loading()) {
     <p class="muted">Loading …</p>
   } @else if (phase() === 'select') {
     @if (tiles().length === 0) {
-      <section class="card empty">
-        <h2>No lessons left</h2>
+      <sumi-empty-state title="No lessons left" companion="tsuru">
         @if (totalAvailable() > 0) {
-          <p class="muted">
-            Nothing to learn in this level. {{ totalAvailable() }} items are still waiting in
-            other levels.
-          </p>
+          Nothing to learn in this level. {{ totalAvailable() }} items are still waiting in
+          other levels.
         } @else {
-          <p class="muted">Everything learned. Import new content or do some reviews.</p>
+          Everything learned. Import new content or do some reviews.
         }
-        <a routerLink="/review"><button class="primary">Go to reviews</button></a>
-      </section>
+        <a sumiEmptyAction routerLink="/review" sumiButton variant="primary">Go to reviews</a>
+      </sumi-empty-state>
     } @else {
-      <div class="legend">
-        <span class="key"><span class="swatch" data-band="lesson"></span>Lesson</span>
-        <span class="key"><span class="swatch" data-band="apprentice"></span>Apprentice (1–4)</span>
-        <span class="key"><span class="swatch" data-band="guru"></span>Guru (5–6)</span>
-        <span class="key"><span class="swatch" data-band="master"></span>Master (7)</span>
-        <span class="key"><span class="swatch" data-band="enlightened"></span>Enlightened (8)</span>
-        <span class="key"><span class="swatch" data-band="burned"></span>Burned (9)</span>
-      </div>
+      <sumi-legend [items]="legendItems" />
 
       @if (totalInLevel() === 0) {
         <p class="muted note">Nothing left to learn in this level.</p>
@@ -55,8 +53,12 @@
             <div class="group-head">
               <h2>{{ group.label }} <span class="muted count">({{ group.tiles.length }})</span></h2>
               <div class="group-actions">
-                <button type="button" (click)="selectAllIn(group.tiles)">Select all</button>
-                <button type="button" (click)="noneIn(group.tiles)">None</button>
+                <button type="button" sumiButton variant="ghost" size="sm" (click)="selectAllIn(group.tiles)">
+                  Select all
+                </button>
+                <button type="button" sumiButton variant="ghost" size="sm" (click)="noneIn(group.tiles)">
+                  None
+                </button>
               </div>
             </div>
             <div class="tile-grid" [class.flow]="group.key === 'vocabulary'">
@@ -74,7 +76,7 @@
                     (click)="toggleTile(tile)"
                   >
                     @if (tile.subject.characters) {
-                      <span class="jp">{{ tile.subject.characters }}</span>
+                      <span lang="ja">{{ tile.subject.characters }}</span>
                     } @else if (tile.subject.character_image_url) {
                       <img [src]="tile.subject.character_image_url" [alt]="tile.subject.slug" />
                     }
@@ -92,7 +94,7 @@
                     [attr.aria-label]="tileLabel(tile)"
                   >
                     @if (tile.subject.characters) {
-                      <span class="jp">{{ tile.subject.characters }}</span>
+                      <span lang="ja">{{ tile.subject.characters }}</span>
                     } @else if (tile.subject.character_image_url) {
                       <img [src]="tile.subject.character_image_url" [alt]="tile.subject.slug" />
                     }
@@ -109,19 +111,20 @@
 
       <section class="action-bar">
         <span class="selected-count">{{ selectedCount() }} selected</span>
-        <label class="check">
-          <input type="checkbox" [checked]="batching()" (change)="toggleBatching($event)" />
+        <label>
+          <input type="checkbox" sumiCheckbox [checked]="batching()" (change)="toggleBatching($event)" />
           In batches of {{ batchSize() }}
         </label>
         <span class="spacer"></span>
         <button
-          class="known"
+          type="button"
+          sumiButton
           [disabled]="selectedCount() === 0 || busy()"
           (click)="markSelectedKnown()"
         >
           I already know these {{ selectedCount() }}
         </button>
-        <button class="primary" [disabled]="selectedCount() === 0 || busy()" (click)="startSelected()">
+        <button type="button" sumiButton variant="primary" [disabled]="selectedCount() === 0 || busy()" (click)="startSelected()">
           Start lessons ({{ selectedCount() }})
         </button>
       </section>
@@ -146,7 +149,7 @@
         }
       </sumi-prompt-card>
 
-      <section class="card detail">
+      <sumi-card class="detail">
         <dl>
           <dt>Meaning</dt>
           <dd>{{ meanings(item.subject) }}</dd>
@@ -192,34 +195,34 @@
         />
 
         <div class="row nav">
-          <button [disabled]="index() === 0" (click)="previous()">Back</button>
+          <button type="button" sumiButton [disabled]="index() === 0" (click)="previous()">Back</button>
           @if (onLastItem()) {
-            <button class="primary" [disabled]="busy()" (click)="goToQuizGate()">
+            <button type="button" sumiButton variant="primary" [disabled]="busy()" (click)="goToQuizGate()">
               Continue to quiz
             </button>
           } @else {
-            <button (click)="next()">Next</button>
+            <button type="button" sumiButton (click)="next()">Next</button>
           }
-          <button class="known" [disabled]="busy()" (click)="markCurrentKnown()">
+          <button type="button" sumiButton [disabled]="busy()" (click)="markCurrentKnown()">
             I know this one
           </button>
         </div>
-      </section>
+      </sumi-card>
     }
 
-    <section class="card batch">
+    <sumi-card class="batch">
       <div class="row">
-        <button class="known" [disabled]="busy()" (click)="markChunkKnown()">
+        <button type="button" sumiButton [disabled]="busy()" (click)="markChunkKnown()">
           I already know all {{ items().length }}
         </button>
-        <button [disabled]="busy()" (click)="backToSelection()">Back to selection</button>
+        <button type="button" sumiButton [disabled]="busy()" (click)="backToSelection()">Back to selection</button>
       </div>
       <p class="muted footnote">
         The fast way through items you already know from elsewhere: they go straight to “known”,
         with no quiz and without ever entering the review queue. “Back to selection” abandons any
         batch not yet committed; batches already started stay started.
       </p>
-    </section>
+    </sumi-card>
   } @else if (phase() === 'gate') {
     <sumi-session-gate
       title="Quiz time"
@@ -311,5 +314,6 @@
         />
       }
     </div>
+  }
   }
 </sumi-page>
