@@ -7,7 +7,7 @@
           {{ synonym }}
           <button
             type="button"
-            appHoldFocus
+            sumiHoldFocus
             class="remove"
             [disabled]="busy()"
             [attr.aria-label]="'Remove synonym ' + synonym"
@@ -36,7 +36,7 @@
           />
           <button
             type="button"
-            appHoldFocus
+            sumiHoldFocus
             class="confirm"
             [disabled]="busy()"
             aria-label="Save synonym"
@@ -46,7 +46,7 @@
           </button>
         </span>
       } @else {
-        <button type="button" appHoldFocus class="add" (click)="startAdding()">
+        <button type="button" sumiHoldFocus class="add" (click)="startAdding()">
           + Add synonym
         </button>
       }

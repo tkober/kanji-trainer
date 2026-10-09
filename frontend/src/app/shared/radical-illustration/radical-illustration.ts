@@ -14,7 +14,7 @@ import type { ObjectType } from '../../core/api.types';
  *
  * Never used where the answer is not revealed yet -- see the review question
  * and the lesson quiz, which do not include this component at all. An
- * `<img>` cannot steal focus, so it is safe next to the `appHoldFocus`
+ * `<img>` cannot steal focus, so it is safe next to the `sumiHoldFocus`
  * buttons on the answering screens even so.
  *
  * Errors are swallowed: a missing illustration is not worth an error banner,

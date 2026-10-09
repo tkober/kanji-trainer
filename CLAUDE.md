@@ -238,6 +238,18 @@ coding plus the mnemonic highlight classes built from them (`.wk`,
 tokens. The light/dark choice itself is no longer this app's concern either:
 `SumiTheme` resolves and persists it (`localStorage`, per device).
 
+**Reviews and the lesson quiz are sessions, not just screens** (issue #38).
+Each is `idle → active → ended`: a `sumi-session-gate` starts one (with the
+due/batch count and a companion) and, projected inside another gate, ends it
+too, as a `sumi-session-summary` carrying a hanko (合格/"Passed" at ≥ 80 %
+accuracy, else 練習/"Practice") and an optional `levelUp` when
+`Counters.level()` rose during the session. The round itself runs inside
+`sumiFocusMode` (hides the nav) with a `sumi-session-bar` registered into the
+shell header via `*sumiShellFocusActions`. Lessons adds one more gate of its
+own, between reading a batch and being quizzed on it, and only ends the whole
+multi-batch run in a summary once the last batch commits — an intermediate
+batch goes straight on to the next one's reading phase.
+
 **The review queue's order is a setting, built in SQL, before the `LIMIT`.**
 `_review_order()` in `study.py` composes the `ORDER BY` from two independent
 choices — `review_item_order` (random / oldest due first / lowest SRS stage
@@ -349,6 +361,15 @@ learner is about to answer this same question again, and a warning carrying the
 answer would be a reveal button with extra steps. Neither commits, so the
 `begin_review` that ran before them is rolled back with the session.
 
+**`gave_up` is a third way to answer, and the only one that reveals anything
+on purpose.** Alt+H (issue #38, `AnswerIn.gave_up` / `QuizIn.gave_up`) counts
+as wrong whatever `answer` holds, skips both `held` and `retry` — it is not an
+attempt, let alone one worth a second chance — and commits exactly like a
+confirmed wrong answer, so `expected` and the subject detail come back same as
+any other miss. Implemented by checking against an empty answer rather than a
+separate code path: `check_meaning`/`check_reading` already treat `''` as a
+plain wrong answer with `expected` set, no retry, no typo.
+
 **`expected` names what the learner has not said yet.** On a secondary answer
 it is the *primary* meaning or reading, not the one they typed — "Gemeint war
 vor allem いつ" after answering いつ reads as nonsense. On a forgiven typo it is
@@ -381,20 +402,23 @@ because the import ran today.
 **The answer field keeps the caret for the whole item.** On a phone the caret
 *is* the on-screen keyboard: every blur closes it, and a `focus()` call that
 lands after the tap that caused it — after an answer round trip, after change
-detection — does not bring it back. So the field is never blurred rather than
-re-focused afterwards. Two halves hold that up, and reviewing on a phone breaks
-the moment either goes: the field is not locked with `readonly` while feedback
-is up (a read-only field is one the keyboard retracts from, so `onInput`
-discards the keystroke instead), and every button on the two answering screens
-carries `appHoldFocus`, which cancels the focus change `mousedown` would make.
-The same reasoning extends to the review screen's bare-key shortcuts (`F`,
-`?`): `Review.onKeydown` only acts on them while feedback is on screen, since
-before that the field has focus and every keystroke belongs to the answer —
-`onInput` does not start discarding keystrokes until then either. `app-hotkeys`
-(the shortcut reference flyout) is hidden outright on a device without a fine
-pointer and hover, since a phone has no hardware keyboard for it to remind
-anyone about, and a button floating over the answer area there would only be
-clutter.
+detection — does not bring it back. `sumi-answer-field` (issue #38) is built
+around exactly that: it is never blurred and never `readonly` while a verdict
+is up (a read-only field is one the keyboard retracts from, so its `onInput`
+discards the keystroke instead of applying it), and keeps itself focused via
+its own internal effect that re-runs on every verdict change, first render
+included — the review and lesson-quiz screens no longer call `focus()`
+themselves at all. The other half is still this app's job: every button on
+the two answering screens carries `sumiHoldFocus` (the library's port of the
+old `appHoldFocus`), which cancels the focus change `mousedown` would make, so
+a click never has the chance to blur the field in the first place. The bare
+keys `F` (toggle `sumi-verdict`'s details) and `?` (toggle `sumi-hotkey-help`)
+are both `SumiHotkeys` registrations with `allowInEditable: true` gated by
+`enabled()` on a settled verdict — exactly the old rule ("only once feedback
+is on screen, since before that the field has focus and every keystroke
+belongs to the answer") expressed as hotkey metadata instead of a page's own
+`onKeydown`. `sumi-hotkey-help` is hidden outright without a fine pointer and
+hover, since a phone has no hardware keyboard for it to remind anyone about.
 
 ## The import, in detail
 

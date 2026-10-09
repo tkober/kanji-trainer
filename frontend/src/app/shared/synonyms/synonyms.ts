@@ -1,7 +1,7 @@
 import { Component, ElementRef, effect, inject, input, model, output, signal, viewChild } from '@angular/core';
+import { SumiHoldFocus } from 'sumi-ui/practice';
 
 import { Api } from '../../core/api';
-import { HoldFocus } from '../../core/hold-focus';
 
 /**
  * The learner's own synonyms for one item's *meaning* (issue #33), modelled
@@ -13,8 +13,8 @@ import { HoldFocus } from '../../core/hold-focus';
  * three hosts above each keep their own copy of the subject around (the
  * browse list item, the lessons item, the review result's subject), and all
  * of them need it updated in place after a save so reopening the same item
- * shows the new list without a refetch -- exactly the reason `Hotkeys.open`
- * is a `model()` too.
+ * shows the new list without a refetch -- the same reasoning the library's
+ * own two-way `model()`s (e.g. `sumi-verdict`'s `detailsOpen`) follow.
  *
  * `done` fires after every save *and* every cancel. `Review` listens for it
  * to hand focus back to the answer field: this component's own text input
@@ -25,7 +25,7 @@ import { HoldFocus } from '../../core/hold-focus';
  */
 @Component({
   selector: 'app-synonyms',
-  imports: [HoldFocus],
+  imports: [SumiHoldFocus],
   templateUrl: './synonyms.html',
   styleUrl: './synonyms.scss',
 })
@@ -66,9 +66,10 @@ export class Synonyms {
 
   /**
    * Enter saves, Esc cancels -- and neither must reach the surrounding
-   * screen. `Review.onKeydown` reacts to a bare `Enter`/`Esc`/`F`/`?` while
-   * feedback is on screen, which is exactly when this component is shown, so
-   * every keydown here is stopped before it can bubble into that handler.
+   * screen. `SumiHotkeys` listens on `document`, and its bare `F`/`?`
+   * registrations are enabled while feedback is on screen, which is exactly
+   * when this component is shown, so every keydown here is stopped before it
+   * can bubble up to that listener.
    */
   protected onKeydown(event: KeyboardEvent): void {
     event.stopPropagation();

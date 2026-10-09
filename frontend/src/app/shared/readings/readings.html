@@ -5,7 +5,7 @@
       @if (group.type) {
         <button
           type="button"
-          appHoldFocus
+          sumiHoldFocus
           class="info"
           aria-label="What is {{ group.label }}?"
           [attr.popovertarget]="popoverId(group.type)"
@@ -28,7 +28,7 @@
         @if (entry.converted) {
           <button
             type="button"
-            appHoldFocus
+            sumiHoldFocus
             class="kana-toggle"
             [class.revealed]="isRevealed(group, $index)"
             [attr.title]="entry.reading"

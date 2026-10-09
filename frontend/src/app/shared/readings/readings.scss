@@ -68,7 +68,7 @@ dd {
 /* The native Popover API: light-dismiss (outside click, a second click on the
    invoker, Esc) and the top layer come for free, and its default UA position
    — centred in the viewport — needs no anchoring maths to stay on screen at
-   390px. `appHoldFocus` on the invoking button keeps this from taking the
+   390px. `sumiHoldFocus` on the invoking button keeps this from taking the
    caret on the review screen; opening the popover itself moves no focus. */
 .info-popover {
   max-width: min(22rem, calc(100vw - 2rem));
