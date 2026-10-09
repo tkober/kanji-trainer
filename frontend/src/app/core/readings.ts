@@ -35,7 +35,7 @@ import type { Reading } from './api.types';
 
 /** One reading, ready to print — `display` is what the dictionary convention
  *  shows, `reading` is always the stored (hiragana) form underneath it. */
-export interface ReadingEntry {
+interface ReadingEntry {
   /** The reading as WaniKani stores it — always kana, always hiragana. */
   reading: string;
   /** What is actually shown: katakana for on'yomi, `reading` unchanged for

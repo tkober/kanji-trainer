@@ -13,17 +13,18 @@
  * bypassed here -- WaniKani's payload still goes through it -- and anything
  * that is not one of the six known tags is left for it to deal with.
  *
- * The colours live in styles.scss rather than in the components that use this:
- * emulated view encapsulation tags the elements the template renders, and
- * content inserted through `innerHTML` never gets that attribute, so a
- * component style sheet cannot reach it.
+ * The colours (and `.wk-ja`'s font stack) live in styles/app-tokens.scss
+ * rather than in the components that use this: emulated view encapsulation
+ * tags the elements the template renders, and content inserted through
+ * `innerHTML` never gets that attribute, so a component style sheet cannot
+ * reach it.
  */
 
 import { Pipe, type PipeTransform } from '@angular/core';
 
 const TAG = /<(\/?)(radical|kanji|vocabulary|reading|meaning|ja)>/gi;
 
-export function highlightMnemonic(text: string): string {
+function highlightMnemonic(text: string): string {
   return text.replace(TAG, (_match, closing: string, tag: string) =>
     closing ? '</span>' : `<span class="wk wk-${tag.toLowerCase()}">`,
   );
