@@ -1,4 +1,4 @@
-import { Component, DestroyRef, computed, inject, signal } from '@angular/core';
+import { Component, computed, inject, signal } from '@angular/core';
 import { SumiBanner, SumiCard, SumiEmptyState, SumiPage } from 'sumi-ui/layout';
 import {
   SumiBarChart,
@@ -57,7 +57,6 @@ const RANGES = [
 })
 export class ForecastPage {
   private readonly api = inject(Api);
-  private readonly destroyRef = inject(DestroyRef);
 
   protected readonly ranges = RANGES;
   protected readonly rangeOptions: SumiSegmentedOption<number>[] = RANGES.map((r) => ({
@@ -85,20 +84,8 @@ export class ForecastPage {
     color: s.color!,
   }));
 
-  // `sumi-bar-chart` keeps its x-axis labels at a fixed real px size (see
-  // its doc comment) rather than shrinking them with the viewBox the way
-  // the app's old hand-rolled SVG did, so a label count that fits a wide
-  // card can collide on a phone. `labelEvery` is the app's own knob for
-  // that (not a library gap — the library leaves the choice to the
-  // caller), so `tickEvery` below also takes the viewport width into
-  // account for the 7-day range's 7 columns.
-  private readonly viewportWidth = signal(window.innerWidth);
-
   constructor() {
     void this.load();
-    const onResize = () => this.viewportWidth.set(window.innerWidth);
-    window.addEventListener('resize', onResize);
-    this.destroyRef.onDestroy(() => window.removeEventListener('resize', onResize));
   }
 
   async load(): Promise<void> {
@@ -169,12 +156,11 @@ export class ForecastPage {
     Math.max(1, ...this.slots().map((slot) => slot.cumulative)),
   );
 
-  /** Label every nth column, so the axis stays readable at any range and
-   *  width (see the `viewportWidth` comment above). */
+  /** At most eight labels per range; `sumi-bar-chart` thins further on
+   *  its own when the card is narrower than that needs (sumi-ui#61). */
   protected readonly tickEvery = computed(() => {
     const count = this.slots().length;
-    const maxLabels = this.viewportWidth() < 480 ? 5 : 8;
-    return count <= maxLabels ? 1 : Math.ceil(count / maxLabels);
+    return count <= 8 ? 1 : Math.ceil(count / 8);
   });
 
   protected readonly numbersColumns: readonly SumiTableColumn[] = [
