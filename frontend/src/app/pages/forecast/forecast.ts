@@ -1,5 +1,5 @@
 import { Component, computed, inject, signal } from '@angular/core';
-import { SumiBanner, SumiCard, SumiEmptyState, SumiPage } from 'sumi-ui/layout';
+import { SumiBanner, SumiCard, SumiEmptyState, SumiErrorState, SumiPage } from 'sumi-ui/layout';
 import {
   SumiBarChart,
   SumiDataTable,
@@ -43,6 +43,7 @@ const RANGES = [
     SumiBanner,
     SumiCard,
     SumiEmptyState,
+    SumiErrorState,
     SumiStatGrid,
     SumiStatTile,
     SumiBarChart,

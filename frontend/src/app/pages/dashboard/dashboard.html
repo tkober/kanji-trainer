@@ -1,4 +1,4 @@
-<sumi-page title="Dashboard">
+<sumi-page title="Dashboard" [inkEnd]="!!stats() || !error()">
   @if (stats(); as stats) {
     @if (stats.total_subjects === 0) {
       <sumi-empty-state title="No items yet" companion="tsuru">
@@ -77,7 +77,9 @@
       </sumi-card>
     }
   } @else if (error(); as message) {
-    <sumi-error-state title="Can't reach the server" companion="tsuru">
+    <!-- No pattern and no page-end landscape: the page title already carries
+         the band (T4), and the error state brings its own landscape. -->
+    <sumi-error-state title="Can't reach the server" companion="tsuru" pattern="none">
       {{ message }}
       <button sumiErrorAction type="button" sumiButton variant="secondary" (click)="load()">
         Try again

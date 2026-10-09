@@ -1,6 +1,8 @@
-<sumi-page title="Items" width="wide">
+<sumi-page title="Items" width="wide" [inkEnd]="!loadFailed()">
   @if (loadFailed()) {
-    <sumi-error-state title="Can't reach the server" companion="tsuru">
+    <!-- No pattern and no page-end landscape: the page title already carries
+         the band (T4), and the error state brings its own landscape. -->
+    <sumi-error-state title="Can't reach the server" companion="tsuru" pattern="none">
       Your progress is safe. Check the connection and try again.
       <button sumiErrorAction type="button" sumiButton variant="secondary" (click)="load()">
         Try again
