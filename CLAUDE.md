@@ -222,7 +222,7 @@ shows — the two badges and the current level — which `Counters` holds and
 `app.ts` polls for once a minute.
 
 **The frontend's UI comes from Sumi UI** (issue #37), the shared library the
-four WaniKani-adjacent apps use, included as a git submodule at
+four Japanese-learning apps use, included as a git submodule at
 `frontend/sumi-ui` rather than an npm package — the app compiles its
 TypeScript source directly (`tsconfig.json`'s `paths`) and `@use`s its styles,
 see the library's own README ("Using Sumi UI in an app") for the exact
