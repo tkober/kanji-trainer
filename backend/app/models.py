@@ -140,6 +140,11 @@ class AnswerIn(BaseModel):
     #: Set by the second Enter after a "that looks wrong" warning. Without
     #: it a wrong answer is held rather than applied -- see `held` below.
     confirm: bool = False
+    #: Alt+H: give up and have the answer revealed on purpose. Counts as
+    #: wrong whatever `answer` holds, skips both second chances (`held` and
+    #: `retry` below) and commits exactly like a confirmed wrong answer --
+    #: the one way to answer that is allowed to reveal anything.
+    gave_up: bool = False
 
 
 class AnswerOut(BaseModel):
@@ -252,6 +257,9 @@ class QuizIn(BaseModel):
     subject_id: int
     question: QuestionType
     answer: str
+    #: Alt+H in the lesson quiz. Counts as wrong and reveals `expected`, same
+    #: as any other wrong quiz answer -- the quiz moves nothing either way.
+    gave_up: bool = False
 
 
 class QuizOut(BaseModel):

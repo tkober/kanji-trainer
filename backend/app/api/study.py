@@ -210,9 +210,15 @@ async def submit_answer(
     # and the synonym editor saves a whole list -- an empty one shown after a
     # reading would overwrite every synonym the item has on the first add.
     synonyms = await load_synonyms(session, subject.id)
+    # Alt+H gives up regardless of what was typed -- check against an empty
+    # answer instead, which both checkers already treat as a plain wrong
+    # answer (no retry, no typo, `expected` the primary meaning or reading).
+    # That is exactly the one way to answer that is allowed to reveal
+    # anything on purpose.
+    answer_text = "" if payload.gave_up else payload.answer
     if payload.question is QuestionType.MEANING:
         check = check_meaning(
-            payload.answer,
+            answer_text,
             subject.meanings,
             subject.auxiliary_meanings,
             config.meaning_typo_tolerance_divisor,
@@ -221,7 +227,7 @@ async def submit_answer(
     else:
         kanji_readings = await _kanji_readings_for(session, subject, payload.question)
         check = check_reading(
-            payload.answer, subject.readings, subject.object_type, kanji_readings
+            answer_text, subject.readings, subject.object_type, kanji_readings
         )
 
     # --- the two second chances, both of which leave the item untouched ---
@@ -229,7 +235,8 @@ async def submit_answer(
     # Neither commits, so the `begin_review` above is rolled back with the
     # session and the item is exactly as it was. Neither reveals the expected
     # answer either: the question is still open, and a warning that showed the
-    # answer would be a free reveal on demand.
+    # answer would be a free reveal on demand. A given-up answer skips both --
+    # it is not an attempt, let alone one worth a second chance.
 
     if check.retry:
         # A real reading of this character, of the type that was not asked.
@@ -237,7 +244,12 @@ async def submit_answer(
         # would punish knowing more than the question wanted.
         return _still_open(progress, subject, retry=True, hint=check.hint)
 
-    if not check.correct and not payload.confirm and config.soft_answer_enabled:
+    if (
+        not payload.gave_up
+        and not check.correct
+        and not payload.confirm
+        and config.soft_answer_enabled
+    ):
         # Hold it and ask once. A typo otherwise costs exactly what not
         # knowing the item costs, and below four characters there is no typo
         # tolerance at all to catch it.
@@ -258,7 +270,7 @@ async def submit_answer(
             subject_id=subject.id,
             question_type=payload.question.value,
             correct=check.correct,
-            given_answer=payload.answer[:200],
+            given_answer="" if payload.gave_up else payload.answer[:200],
             srs_stage_before=outcome.stage_before,
             srs_stage_after=outcome.stage_after,
             answered_at=now,
@@ -529,10 +541,14 @@ async def quiz_answer(
             status_code=409, detail="This item is not a lesson; it has already been learned."
         )
 
+    # Alt+H gives up regardless of what was typed -- same empty-answer trick
+    # as the review endpoint, which both checkers already treat as a plain
+    # wrong answer with `expected` filled in.
+    answer_text = "" if payload.gave_up else payload.answer
     if payload.question is QuestionType.MEANING:
         synonyms = await load_synonyms(session, subject.id)
         check = check_meaning(
-            payload.answer,
+            answer_text,
             subject.meanings,
             subject.auxiliary_meanings,
             config.meaning_typo_tolerance_divisor,
@@ -541,7 +557,7 @@ async def quiz_answer(
     else:
         kanji_readings = await _kanji_readings_for(session, subject, payload.question)
         check = check_reading(
-            payload.answer, subject.readings, subject.object_type, kanji_readings
+            answer_text, subject.readings, subject.object_type, kanji_readings
         )
 
     return QuizOut(

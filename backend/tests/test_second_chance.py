@@ -46,7 +46,7 @@ async def seed(session, *, stage: int = 3) -> int:
     return subject.id
 
 
-async def answer(client, subject_id, question, text, confirm=False):
+async def answer(client, subject_id, question, text, confirm=False, gave_up=False):
     return (
         await client.post(
             "/api/reviews/answer",
@@ -55,6 +55,7 @@ async def answer(client, subject_id, question, text, confirm=False):
                 "question": question,
                 "answer": text,
                 "confirm": confirm,
+                "gave_up": gave_up,
             },
         )
     ).json()
@@ -267,3 +268,79 @@ async def test_a_secondary_reading_names_the_primary_one(client, session):
     assert body["correct"] is True
     assert body["secondary"] is True
     assert body["expected"] == "いち"
+
+
+# --- giving up (Alt+H) ------------------------------------------------------
+
+
+async def test_giving_up_counts_as_wrong(client, session):
+    subject_id = await seed(session)
+
+    body = await answer(client, subject_id, "meaning", "", gave_up=True)
+
+    assert body["correct"] is False
+    assert body["held"] is False
+    assert body["retry"] is False
+    # Counted like a real wrong answer -- a wrong answer never demotes
+    # immediately (see CLAUDE.md), so the question stays outstanding for a
+    # retry within the same session, exactly as a confirmed wrong answer
+    # would leave it.
+    assert body["remaining"] == ["meaning", "reading"]
+
+    item = (await client.get(f"/api/items/{subject_id}")).json()
+    assert item["progress"]["incorrect_count"] == 1
+
+
+async def test_giving_up_is_not_held_even_with_soft_answers_on(client, session):
+    """Soft answers are for a typo someone might want to correct -- Alt+H is
+    the opposite signal, and must not be met with "sure?"."""
+    subject_id = await seed(session)
+
+    body = await answer(client, subject_id, "meaning", "", gave_up=True)
+
+    assert body["held"] is False
+    assert body["correct"] is False
+    assert await log_count(session) == 1
+
+
+async def test_giving_up_reveals_the_expected_answer(client, session):
+    subject_id = await seed(session)
+
+    body = await answer(client, subject_id, "meaning", "", gave_up=True)
+
+    assert body["expected"] == "Above"
+    assert body["subject"] is not None
+
+
+async def test_giving_up_ignores_whatever_was_typed(client, session):
+    """`gave_up` wins regardless of `answer` -- the frontend sends '', but the
+    backend does not trust that and never checks the typed text either."""
+    subject_id = await seed(session)
+
+    body = await answer(client, subject_id, "meaning", "above", gave_up=True)
+
+    assert body["correct"] is False
+    assert body["expected"] == "Above"
+
+
+async def test_giving_up_on_a_reading_question_is_not_a_retry(client, session):
+    """Even though うえ is a real reading of 上, a given-up answer never goes
+    through the retry path -- it is not a real attempt at all."""
+    subject_id = await seed(session)
+
+    body = await answer(client, subject_id, "reading", "うえ", gave_up=True)
+
+    assert body["retry"] is False
+    assert body["correct"] is False
+    assert body["expected"] == "じょう"
+
+
+async def test_giving_up_is_logged(client, session):
+    subject_id = await seed(session)
+
+    await answer(client, subject_id, "meaning", "", gave_up=True)
+
+    result = await session.execute(select(ReviewLog))
+    log = result.scalar_one()
+    assert log.correct is False
+    assert log.given_answer == ""
