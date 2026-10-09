@@ -2,110 +2,13 @@
   display: block;
 }
 
-section + section {
-  margin-top: 1rem;
-}
-
-.tiles {
-  display: grid;
-  grid-template-columns: repeat(auto-fit, minmax(160px, 1fr));
-  gap: 0.75rem;
-}
-
-.tile {
-  display: flex;
-  flex-direction: column;
-  gap: 0.15rem;
-  background: var(--sumi-surface);
-  border: 1px solid var(--sumi-line);
-  border-radius: var(--sumi-radius);
-  box-shadow: var(--sumi-shadow);
-  padding: 1rem;
-  text-decoration: none;
-  color: var(--sumi-text);
-}
-
-a.tile:hover {
-  border-color: var(--sumi-accent);
-}
-
-.tile.due .value {
-  color: var(--sumi-accent-ink);
-}
-
-.value {
-  font-size: 2rem;
-  font-weight: 700;
-  line-height: 1.1;
-}
-
-.label {
-  font-size: 0.85rem;
-  color: var(--sumi-muted);
-}
-
 .summary {
   margin-top: 0;
-}
-
-.breakdown {
-  display: grid;
-  grid-template-columns: repeat(auto-fit, minmax(140px, 1fr));
-  gap: 0.5rem;
-  margin: 0.75rem 0 0;
-
-  div {
-    background: var(--sumi-sunken);
-    border-radius: var(--sumi-radius);
-    padding: 0.6rem 0.75rem;
-  }
-
-  div.declared {
-    border: 1px dashed color-mix(in srgb, var(--sumi-correct) 50%, var(--sumi-line));
-    background: var(--sumi-correct-soft);
-  }
-
-  dt {
-    font-size: 0.8rem;
-    color: var(--sumi-muted);
-  }
-
-  dd {
-    margin: 0;
-    font-size: 1.25rem;
-    font-weight: 600;
-  }
 }
 
 .footnote {
   font-size: 0.85rem;
   margin-bottom: 0;
-}
-
-.upcoming {
-  gap: 1.5rem;
-}
-
-.empty {
-  text-align: center;
-
-  p {
-    max-width: 52ch;
-    margin: 0.5rem auto 1rem;
-  }
-}
-
-
-/* --- the compact forecast ----------------------------------------------- */
-
-/* One series, so one hue: slot 1 of the validated categorical palette, which
-   clears 3:1 against both surfaces. The stage split lives on the forecast
-   page — see CLAUDE.md before changing either. `light-dark()`, not a media
-   query on the OS setting, so the value follows Sumi UI's theme toggle
-   (which pins `color-scheme` via `<html data-theme>`) rather than only the
-   OS preference. */
-.viz-root {
-  --bar: light-dark(#2a78d6, #3987e5);
 }
 
 .coming-up {
@@ -132,43 +35,12 @@ a.tile:hover {
     }
   }
 
-  svg {
-    display: block;
-    width: 100%;
-    height: auto;
-  }
-
   .quiet {
     margin: 0.5rem 0 0;
   }
 }
 
-.bar {
-  fill: var(--bar);
-}
-
-.grid,
-.baseline {
-  stroke: var(--sumi-line);
-  stroke-width: 1;
-}
-
-.axis {
-  fill: var(--sumi-muted);
-  font-size: 10px;
-  font-family: inherit;
-}
-
-.hit {
-  fill: transparent;
-}
-
-.column.active .hit {
-  fill: color-mix(in srgb, var(--sumi-accent) 7%, transparent);
-}
-
 .readout {
-  margin: 0.4rem 0 0;
+  margin: 0.5rem 0 0;
   font-size: 0.88rem;
-  min-height: 1.3em;
 }
