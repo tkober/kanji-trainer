@@ -2,15 +2,25 @@
   display: block;
 }
 
+.hint {
+  color: var(--sumi-muted);
+}
+
 section + section {
   margin-top: 1rem;
 }
 
-.card p {
+h2 {
+  margin: 0 0 0.5rem;
+  font-size: 1.15rem;
+  line-height: 1.25;
+}
+
+p {
   max-width: 68ch;
 }
 
-label {
+.field {
   display: flex;
   flex-direction: column;
   gap: 0.2rem;
@@ -18,15 +28,17 @@ label {
   color: var(--sumi-muted);
 }
 
-label.block {
+.field.block {
   margin-top: 0.75rem;
 }
 
-label.check {
+.check {
+  display: flex;
   flex-direction: row;
   align-items: center;
   gap: 0.4rem;
   font-size: 0.9rem;
+  color: var(--sumi-muted);
 }
 
 .grow {
@@ -35,6 +47,9 @@ label.check {
 }
 
 .row {
+  display: flex;
+  gap: 0.5rem;
+  flex-wrap: wrap;
   margin-top: 0.75rem;
   align-items: flex-end;
 }
@@ -68,14 +83,7 @@ code {
   transition: width 400ms ease;
 }
 
-label.check.block {
+.toggle {
+  display: block;
   margin-top: 1rem;
-}
-
-kbd {
-  font: inherit;
-  font-weight: 700;
-  border: 1px solid currentColor;
-  border-radius: 4px;
-  padding: 0 0.3rem;
 }
