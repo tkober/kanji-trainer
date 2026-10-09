@@ -86,6 +86,14 @@
   top: calc(100% + 0.35rem);
   right: 0;
   min-width: max-content;
+
+  /* sumi-page wraps its actions slot under the title on a narrow screen,
+     which puts the trigger at the left edge; opening towards the right
+     there keeps the panel on screen (see `openPanel()`). */
+  &.align-start {
+    right: auto;
+    left: 0;
+  }
   width: max-content;
   max-width: calc(100vw - 2rem);
   max-height: min(60vh, 22rem);
@@ -184,10 +192,5 @@
 @media (max-width: 480px) {
   .trigger .label {
     font-size: 0.85rem;
-  }
-
-  .panel {
-    right: 0;
-    left: auto;
   }
 }

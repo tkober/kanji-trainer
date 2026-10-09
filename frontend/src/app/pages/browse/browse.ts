@@ -1,9 +1,22 @@
 import { DatePipe } from '@angular/common';
 import { Component, computed, inject, signal } from '@angular/core';
 import { FormsModule } from '@angular/forms';
-import { SumiBanner, SumiCard, SumiDialog, SumiDialogHeader, SumiEmptyState, SumiErrorState, SumiPage } from 'sumi-ui/layout';
+import {
+  SumiBanner,
+  SumiCard,
+  SumiDialog,
+  SumiDialogHeader,
+  SumiEmptyState,
+  SumiErrorState,
+  SumiPage,
+} from 'sumi-ui/layout';
 import { SumiButtonDirective, SumiInputDirective, SumiSelectDirective } from 'sumi-ui/forms';
-import { SumiDataTable, SumiTableCellTemplate, type SumiTableColumn, type SumiTableRow } from 'sumi-ui/charts';
+import {
+  SumiDataTable,
+  SumiTableCellTemplate,
+  type SumiTableColumn,
+  type SumiTableRow,
+} from 'sumi-ui/charts';
 
 import { Api } from '../../core/api';
 import type { Item, ObjectType } from '../../core/api.types';

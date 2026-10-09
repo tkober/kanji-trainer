@@ -45,6 +45,9 @@ export class LevelPicker {
   private readonly optionEls = viewChildren<ElementRef<HTMLElement>>('optionEl');
 
   protected readonly open = signal(false);
+  /** Open the panel from the trigger's left edge rather than its right one --
+   * set on open, from where the trigger actually sits on screen. */
+  protected readonly alignStart = signal(false);
   /** The level under keyboard focus while the panel is open -- not necessarily
    * the picked one, exactly like a native listbox's active descendant. */
   protected readonly activeLevel = signal<number | null>(null);
@@ -100,6 +103,8 @@ export class LevelPicker {
     if (this.levels().length === 0) {
       return;
     }
+    const rect = this.trigger()?.nativeElement.getBoundingClientRect();
+    this.alignStart.set(!!rect && rect.left + rect.width / 2 < window.innerWidth / 2);
     this.open.set(true);
   }
 
