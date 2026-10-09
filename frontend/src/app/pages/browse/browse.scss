@@ -46,57 +46,12 @@ h2 {
   }
 }
 
-.check {
-  display: inline-flex;
-  align-items: center;
-  gap: 0.4rem;
-  font-size: 0.9rem;
-  color: var(--sumi-muted);
+.selected-count {
+  font-weight: 600;
 }
 
 .spacer {
   flex: 1;
-}
-
-table {
-  width: 100%;
-  border-collapse: collapse;
-  background: var(--sumi-surface);
-  border: 1px solid var(--sumi-line);
-  border-radius: var(--sumi-radius);
-  overflow: hidden;
-  font-size: 0.92rem;
-}
-
-th,
-td {
-  text-align: left;
-  padding: 0.45rem 0.6rem;
-  border-bottom: 1px solid var(--sumi-line);
-}
-
-th {
-  background: var(--sumi-sunken);
-  font-size: 0.78rem;
-  text-transform: uppercase;
-  letter-spacing: 0.05em;
-  color: var(--sumi-muted);
-}
-
-tbody tr:last-child td {
-  border-bottom: none;
-}
-
-tbody tr.selected {
-  background: var(--sumi-accent-soft);
-}
-
-tbody tr.clickable {
-  cursor: pointer;
-}
-
-tbody tr.clickable:hover {
-  background: var(--sumi-sunken);
 }
 
 .character {
@@ -142,38 +97,15 @@ tbody tr.clickable:hover {
   justify-content: center;
 }
 
-dialog.detail {
-  width: min(44rem, calc(100vw - 2rem));
-  max-height: min(82vh, 50rem);
-  padding: 0;
-  border: 1px solid var(--sumi-line);
-  border-radius: var(--sumi-radius);
-  background: var(--sumi-surface);
-  color: var(--sumi-text);
-  box-shadow: var(--sumi-shadow);
+/* The detail dialog's own header -- sumi-dialog supplies the surface,
+   backdrop, focus trap and close button; this is only the big glyph next to
+   the title and the meta line, projected into [sumiDialogHeader]. */
+[sumiDialogHeader] {
+  display: flex;
+  align-items: flex-start;
+  gap: 0.8rem;
 
-  &::backdrop {
-    background: rgb(0 0 0 / 45%);
-  }
-
-  /* `showModal()` focuses the dialog itself, which the browser then rings like
-     a control. The ring belongs on the buttons and links inside it, which keep
-     theirs. */
-  &:focus {
-    outline: none;
-  }
-
-  article {
-    padding: var(--sumi-space-4);
-  }
-
-  header {
-    display: flex;
-    align-items: flex-start;
-    gap: 0.8rem;
-  }
-
-  header .character {
+  .character {
     font-size: 2.6rem;
     line-height: 1.1;
 
@@ -191,59 +123,41 @@ dialog.detail {
     margin: 0.2rem 0 0;
     font-size: 0.85rem;
   }
+}
 
-  /* The global `button` rule is gone, so this stays self-contained: font,
-     colour, border, background and cursor, same as a plain `sumiButton`
-     secondary would give it, just sized for a corner close icon. */
-  .close {
-    font: inherit;
-    cursor: pointer;
-    border-radius: var(--sumi-radius);
-    border: 1px solid var(--sumi-line);
-    background: var(--sumi-surface);
-    color: var(--sumi-text);
-    font-size: 1.1rem;
-    line-height: 1;
-    padding: 0.3rem 0.6rem;
-    transition: background-color 120ms ease;
+/* The dialog body: meanings, synonyms, readings, mnemonics, context
+   sentences, the radical illustration and the WaniKani link. */
+dl {
+  margin: 1rem 0 0;
+}
 
-    &:hover {
-      background: var(--sumi-sunken);
-    }
-  }
+/* The readings render their own <dl> (shared/readings); the list after them
+   carries on from it rather than opening a new block. */
+app-readings {
+  margin-top: 1rem;
+}
 
-  dl {
-    margin: 1rem 0 0;
-  }
+app-readings + dl {
+  margin-top: 0;
+}
 
-  /* The readings render their own <dl> (shared/readings); the list after them
-     carries on from it rather than opening a new block. */
-  app-readings {
-    margin-top: 1rem;
-  }
+app-context-sentences {
+  margin-top: 1rem;
+}
 
-  app-readings + dl {
-    margin-top: 0;
-  }
+dt {
+  font-size: 0.8rem;
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+  color: var(--sumi-muted);
+  margin-top: 0.75rem;
+}
 
-  app-context-sentences {
-    margin-top: 1rem;
-  }
+dd {
+  margin: 0.15rem 0 0;
+}
 
-  dt {
-    font-size: 0.8rem;
-    text-transform: uppercase;
-    letter-spacing: 0.06em;
-    color: var(--sumi-muted);
-    margin-top: 0.75rem;
-  }
-
-  dd {
-    margin: 0.15rem 0 0;
-  }
-
-  .source {
-    margin: 1rem 0 0;
-    font-size: 0.9rem;
-  }
+.source {
+  margin: 1rem 0 0;
+  font-size: 0.9rem;
 }
