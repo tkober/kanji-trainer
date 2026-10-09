@@ -123,10 +123,6 @@ export class Api {
     return this.get('/api/items/levels');
   }
 
-  item(subjectId: number): Promise<Item> {
-    return this.get(`/api/items/${subjectId}`);
-  }
-
   /** Triggers the lazy fetch on the backend if nothing fresh is cached yet.
    * Never fetches from wanikani.com itself -- see `app.illustrations`. */
   illustration(subjectId: number): Promise<Illustration> {

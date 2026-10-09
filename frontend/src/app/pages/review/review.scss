@@ -7,6 +7,17 @@
   margin: 0 0 0.75rem;
 }
 
+.muted {
+  color: var(--sumi-muted);
+}
+
+.row {
+  display: flex;
+  gap: 0.5rem;
+  align-items: center;
+  flex-wrap: wrap;
+}
+
 .progress {
   font-size: 0.9rem;
   margin-bottom: 0.75rem;

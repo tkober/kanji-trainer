@@ -238,6 +238,22 @@ coding plus the mnemonic highlight classes built from them (`.wk`,
 tokens. The light/dark choice itself is no longer this app's concern either:
 `SumiTheme` resolves and persists it (`localStorage`, per device).
 
+**No base styles of the app's own remain anywhere** (issue #40): `styles.scss`
+is just the two `@use`s above, every control is a Sumi UI directive or
+component (`sumiButton`, `sumiInput`, `sumi-card`, `sumi-data-table`,
+`sumi-dialog`, `sumi-progress`, …), and `styles/app-tokens.scss` holds only
+what Sumi UI genuinely does not provide: the WaniKani radical/kanji/
+vocabulary colours, the mnemonic highlight classes built from them (`.wk`,
+`.wk-radical`, …), and `.wk-ja`/`.wk-reading`'s font stack — kept global
+because `highlightMnemonic` (`core/mnemonic.ts`) bakes those classes into
+markup rendered through `innerHTML`, which neither a component style sheet
+nor a `lang="ja"` attribute can reach. Every other screen's own Japanese text
+uses `lang="ja"` directly instead (Sumi's base already gives `[lang='ja']`
+the JP font stack). A handful of small layout rules (`.muted`, `.row`, a
+card's own `h2`, a page's `.field` label) are component-local now, written
+out again per component rather than shared, same as `.error`/`.hint` already
+were in `shared/synonyms` before this issue.
+
 **Reviews and the lesson quiz are sessions, not just screens** (issue #38).
 Each is `idle → active → ended`: a `sumi-session-gate` starts one (with the
 due/batch count and a companion) and, projected inside another gate, ends it

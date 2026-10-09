@@ -1,169 +1,209 @@
-<sumi-page title="Items" width="wide">
-  <section class="card filters">
-    <div class="row">
-      <label>
-        State
-        <select [(ngModel)]="state" (change)="applyFilters()">
-          <option value="">all</option>
-          <option value="new">new</option>
-          <option value="learning">in review cycle</option>
-          <option value="known">known</option>
-          <option value="suspended">hidden</option>
-        </select>
-      </label>
-
-      <label>
-        Type
-        <select [(ngModel)]="objectType" (change)="applyFilters()">
-          <option value="">all</option>
-          <option value="radical">radical</option>
-          <option value="kanji">kanji</option>
-          <option value="vocabulary">vocabulary</option>
-          <option value="kana_vocabulary">vocabulary (kana)</option>
-        </select>
-      </label>
-
-      <label>
-        Level
-        <select [(ngModel)]="level" (change)="applyFilters()">
-          <option [ngValue]="null">all</option>
-          @for (value of levels(); track value) {
-            <option [ngValue]="value">{{ value }}</option>
-          }
-        </select>
-      </label>
-
-      <label class="grow">
-        Search
-        <input
-          type="text"
-          class="jp"
-          placeholder="character or slug"
-          [(ngModel)]="search"
-          (keyup.enter)="applyFilters()"
-        />
-      </label>
-
-      <button (click)="applyFilters()">Filter</button>
-    </div>
-  </section>
-
-  @if (error(); as message) {
-    <p class="error">{{ message }}</p>
-  }
-  @if (status(); as message) {
-    <p class="notice">{{ message }}</p>
-  }
-
-  <section class="card actions" [class.armed]="selectedCount() > 0">
-    <div class="row">
-      <label class="check">
-        <input type="checkbox" [checked]="allSelected()" (change)="toggleAll()" />
-        {{ selectedCount() }} of {{ items().length }} selected
-      </label>
-
-      <span class="spacer"></span>
-
-      <button
-        class="known"
-        [disabled]="selectedCount() === 0 || busy()"
-        (click)="markKnown()"
-        title="Straight to Burned — never comes up again"
-      >
-        I know these
+<sumi-page title="Items" width="wide" [inkEnd]="!loadFailed()">
+  @if (loadFailed()) {
+    <!-- No pattern and no page-end landscape: the page title already carries
+         the band (T4), and the error state brings its own landscape. -->
+    <sumi-error-state title="Can't reach the server" companion="tsuru" pattern="none">
+      Your progress is safe. Check the connection and try again.
+      <button sumiErrorAction type="button" sumiButton variant="secondary" (click)="load()">
+        Try again
       </button>
-      <button
-        [disabled]="selectedCount() === 0 || busy()"
-        (click)="markKnown(8)"
-        title="Enlightened — one last check-up in four months"
-      >
-        Fairly sure
-      </button>
-      <button [disabled]="selectedCount() === 0 || busy()" (click)="reset()">
-        Relearn from scratch
-      </button>
-      <button [disabled]="selectedCount() === 0 || busy()" (click)="suspend()">Hide</button>
-      <button [disabled]="selectedCount() === 0 || busy()" (click)="unsuspend()">Unhide</button>
-    </div>
-  </section>
-
-  @if (loading()) {
-    <p class="muted">Loading …</p>
-  } @else if (items().length === 0) {
-    <p class="muted">No items match these filters.</p>
+    </sumi-error-state>
   } @else {
-    <table>
-      <thead>
-        <tr>
-          <th></th>
-          <th>Item</th>
-          <th>Meaning</th>
-          <th>Type</th>
-          <th>Lvl</th>
-          <th>Stage</th>
-          <th>State</th>
-        </tr>
-      </thead>
-      <tbody>
-        @for (item of items(); track item.subject.id) {
-          <tr
-            class="clickable"
-            [class.selected]="selected().has(item.subject.id)"
-            (click)="openDetail(item)"
-          >
-            <td (click)="$event.stopPropagation()">
-              <input
-                type="checkbox"
-                [checked]="selected().has(item.subject.id)"
-                (change)="toggle(item.subject.id)"
-              />
-            </td>
-            <td class="character jp" [attr.data-type]="item.subject.object_type">
-              <!-- A real button, so the detail is reachable by keyboard too;
-                   the row click is the convenience on top of it. -->
-              <button type="button" class="glyph" (click)="$event.stopPropagation(); openDetail(item)">
-                @if (item.subject.characters) {
-                  {{ item.subject.characters }}
-                } @else if (item.subject.character_image_url) {
-                  <img [src]="item.subject.character_image_url" [alt]="item.subject.slug" />
-                } @else {
-                  {{ item.subject.slug }}
-                }
-              </button>
-            </td>
-            <td>{{ meanings(item) }}</td>
-            <td class="muted">{{ typeLabel(item.subject.object_type) }}</td>
-            <td class="muted">{{ item.subject.level }}</td>
-            <td class="muted">{{ item.progress.stage_name }}</td>
-            <td class="muted">
-              {{ stateLabel(item.progress.state) }}
-              @if (item.progress.known_at) {
-                <span class="declared" title="marked as known by you">·&nbsp;declared</span>
+    <sumi-card class="filters">
+      <div class="row">
+        <label class="field">
+          <span>State</span>
+          <select sumiSelect [(ngModel)]="state" (change)="applyFilters()">
+            <option value="">all</option>
+            <option value="new">new</option>
+            <option value="learning">in review cycle</option>
+            <option value="known">known</option>
+            <option value="suspended">hidden</option>
+          </select>
+        </label>
+
+        <label class="field">
+          <span>Type</span>
+          <select sumiSelect [(ngModel)]="objectType" (change)="applyFilters()">
+            <option value="">all</option>
+            <option value="radical">radical</option>
+            <option value="kanji">kanji</option>
+            <option value="vocabulary">vocabulary</option>
+            <option value="kana_vocabulary">vocabulary (kana)</option>
+          </select>
+        </label>
+
+        <label class="field">
+          <span>Level</span>
+          <select sumiSelect [(ngModel)]="level" (change)="applyFilters()">
+            <option [ngValue]="null">all</option>
+            @for (value of levels(); track value) {
+              <option [ngValue]="value">{{ value }}</option>
+            }
+          </select>
+        </label>
+
+        <label class="field grow">
+          <span>Search</span>
+          <input
+            type="text"
+            sumiInput
+            lang="ja"
+            placeholder="character or slug"
+            [(ngModel)]="search"
+            (keyup.enter)="applyFilters()"
+          />
+        </label>
+
+        <button type="button" sumiButton variant="primary" (click)="applyFilters()">Filter</button>
+      </div>
+    </sumi-card>
+
+    @if (error(); as message) {
+      <sumi-banner tone="error">{{ message }}</sumi-banner>
+    }
+    @if (status(); as message) {
+      <sumi-banner tone="success">{{ message }}</sumi-banner>
+    }
+
+    <sumi-card class="actions" [class.armed]="selectedCount() > 0">
+      <div class="row">
+        <span class="selected-count">{{ selectedCount() }} of {{ items().length }} selected</span>
+
+        <span class="spacer"></span>
+
+        <button
+          type="button"
+          sumiButton
+          [disabled]="selectedCount() === 0 || busy()"
+          (click)="markKnown()"
+          title="Straight to Burned — never comes up again"
+        >
+          I know these
+        </button>
+        <button
+          type="button"
+          sumiButton
+          [disabled]="selectedCount() === 0 || busy()"
+          (click)="markKnown(8)"
+          title="Enlightened — one last check-up in four months"
+        >
+          Fairly sure
+        </button>
+        <button
+          type="button"
+          sumiButton
+          variant="danger"
+          [disabled]="selectedCount() === 0 || busy()"
+          (click)="reset()"
+        >
+          Relearn from scratch
+        </button>
+        <button
+          type="button"
+          sumiButton
+          [disabled]="selectedCount() === 0 || busy()"
+          (click)="suspend()"
+        >
+          Hide
+        </button>
+        <button
+          type="button"
+          sumiButton
+          [disabled]="selectedCount() === 0 || busy()"
+          (click)="unsuspend()"
+        >
+          Unhide
+        </button>
+      </div>
+    </sumi-card>
+
+    @if (loading()) {
+      <p class="muted">Loading …</p>
+    } @else if (items().length === 0) {
+      <sumi-empty-state title="No matches" companion="tsuru">
+        No items match these filters. Try another state, type, level or search.
+      </sumi-empty-state>
+    } @else {
+      <sumi-data-table
+        [columns]="columns"
+        [rows]="rows()"
+        rowKey="id"
+        rowLabel="label"
+        [selectable]="true"
+        [activatable]="true"
+        [(selection)]="selectedIds"
+        (rowActivate)="openDetailRow($event)"
+      >
+        <ng-template sumiTableCell="item" let-row>
+          <span class="character" lang="ja" [attr.data-type]="row.item.subject.object_type">
+            <!-- A real button, so the detail is reachable by keyboard too;
+                 a row click (outside it) is the convenience on top of it. -->
+            <button type="button" class="glyph" (click)="openDetail(row.item)">
+              @if (row.item.subject.characters) {
+                {{ row.item.subject.characters }}
+              } @else if (row.item.subject.character_image_url) {
+                <img [src]="row.item.subject.character_image_url" [alt]="row.item.subject.slug" />
+              } @else {
+                {{ row.item.subject.slug }}
               }
-            </td>
-          </tr>
-        }
-      </tbody>
-    </table>
+            </button>
+          </span>
+        </ng-template>
+        <ng-template sumiTableCell="type" let-row>
+          <span class="muted">{{ row.type }}</span>
+        </ng-template>
+        <ng-template sumiTableCell="level" let-row>
+          <span class="muted">{{ row.level }}</span>
+        </ng-template>
+        <ng-template sumiTableCell="stage" let-row>
+          <span class="muted">{{ row.stage }}</span>
+        </ng-template>
+        <ng-template sumiTableCell="state" let-row>
+          <span class="muted">
+            {{ row.state }}
+            @if (row.item.progress.known_at) {
+              <span class="declared" title="marked as known by you">·&nbsp;declared</span>
+            }
+          </span>
+        </ng-template>
+      </sumi-data-table>
 
-    <div class="row pager">
-      <button [disabled]="offset() === 0" (click)="pageBack()">Back</button>
-      <span class="muted">
-        {{ offset() + 1 }}–{{ offset() + items().length }} of {{ total() }}
-      </span>
-      <button [disabled]="offset() + items().length >= total()" (click)="pageForward()">
-        Next
-      </button>
-    </div>
-  }
+      <div class="row pager">
+        <button
+          type="button"
+          sumiButton
+          variant="ghost"
+          size="sm"
+          [disabled]="offset() === 0"
+          (click)="pageBack()"
+        >
+          Back
+        </button>
+        <span class="muted">
+          {{ offset() + 1 }}–{{ offset() + items().length }} of {{ total() }}
+        </span>
+        <button
+          type="button"
+          sumiButton
+          variant="ghost"
+          size="sm"
+          [disabled]="offset() + items().length >= total()"
+          (click)="pageForward()"
+        >
+          Next
+        </button>
+      </div>
+    }
 
-  <!-- Everything about one item. The list already carries the full subject, so
-       opening this fetches nothing. -->
-  <dialog #detailDialog class="detail" (close)="closeDetail()" (click)="backdropClick($event)">
-    @if (detail(); as item) {
-      <article>
-        <header>
-          <span class="character jp" [attr.data-type]="item.subject.object_type">
+    <!-- Everything about one item. The list already carries the full subject, so
+         opening this fetches nothing. -->
+    <sumi-dialog [(open)]="detailOpen" width="wide">
+      <!-- Split from the body @if below: a control-flow block with more than
+           one root node cannot project into [sumiDialogHeader] (NG8011). -->
+      @if (detail(); as item) {
+        <div sumiDialogHeader>
+          <span class="character" lang="ja" [attr.data-type]="item.subject.object_type">
             @if (item.subject.characters) {
               {{ item.subject.characters }}
             } @else if (item.subject.character_image_url) {
@@ -179,9 +219,9 @@
               {{ item.progress.stage_name }} · {{ stateLabel(item.progress.state) }}
             </p>
           </div>
-          <button type="button" class="close" aria-label="Close" (click)="closeDetail()">×</button>
-        </header>
-
+        </div>
+      }
+      @if (detail(); as item) {
         <app-synonyms
           [subjectId]="item.subject.id"
           [synonyms]="item.subject.synonyms"
@@ -236,7 +276,7 @@
             <a [href]="url" target="_blank" rel="noopener">Open the original on WaniKani ↗</a>
           </p>
         }
-      </article>
-    }
-  </dialog>
+      }
+    </sumi-dialog>
+  }
 </sumi-page>

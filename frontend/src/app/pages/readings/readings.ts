@@ -1,5 +1,5 @@
 import { Component } from '@angular/core';
-import { SumiPage } from 'sumi-ui/layout';
+import { SumiCard, SumiPage } from 'sumi-ui/layout';
 
 /**
  * "How do kanji readings work" — reached only through the info flyout next to
@@ -10,7 +10,7 @@ import { SumiPage } from 'sumi-ui/layout';
  */
 @Component({
   selector: 'app-readings-page',
-  imports: [SumiPage],
+  imports: [SumiCard, SumiPage],
   templateUrl: './readings.html',
   styleUrl: './readings.scss',
 })

@@ -2,16 +2,16 @@
   display: block;
 }
 
-.card + .card {
-  margin-top: 1rem;
+h2 {
+  margin: 0 0 0.5rem;
+  font-size: 1.15rem;
+  line-height: 1.25;
 }
 
-.card {
-  p {
-    margin: 0 0 0.6rem;
+p {
+  margin: 0 0 0.6rem;
 
-    &:last-child {
-      margin-bottom: 0;
-    }
+  &:last-child {
+    margin-bottom: 0;
   }
 }

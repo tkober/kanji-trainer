@@ -1,6 +1,14 @@
 import { Component, OnDestroy, inject, signal } from '@angular/core';
 import { FormsModule } from '@angular/forms';
-import { SumiPage } from 'sumi-ui/layout';
+import { SumiBanner, SumiCard, SumiErrorState, SumiPage, SumiProgress } from 'sumi-ui/layout';
+import {
+  SumiButtonDirective,
+  SumiCheckboxDirective,
+  SumiInputDirective,
+  SumiKbdDirective,
+  SumiSelectDirective,
+  SumiToggle,
+} from 'sumi-ui/forms';
 
 import { Api } from '../../core/api';
 import type {
@@ -13,7 +21,20 @@ import type {
 
 @Component({
   selector: 'app-settings',
-  imports: [FormsModule, SumiPage],
+  imports: [
+    FormsModule,
+    SumiBanner,
+    SumiButtonDirective,
+    SumiCard,
+    SumiCheckboxDirective,
+    SumiErrorState,
+    SumiInputDirective,
+    SumiKbdDirective,
+    SumiPage,
+    SumiProgress,
+    SumiSelectDirective,
+    SumiToggle,
+  ],
   templateUrl: './settings.html',
   styleUrl: './settings.scss',
 })
@@ -26,6 +47,11 @@ export class SettingsPage implements OnDestroy {
   protected readonly error = signal<string | null>(null);
   protected readonly status = signal<string | null>(null);
   protected readonly busy = signal(false);
+  /** Whether the page has ever loaded successfully -- a failure before that
+   * point is the T6 scene; one afterwards (saving, checking the account,
+   * importing) stays a banner. */
+  protected readonly loaded = signal(false);
+  protected readonly loadFailed = signal(false);
 
   protected token = '';
   protected importThreshold = 5;
@@ -61,8 +87,14 @@ export class SettingsPage implements OnDestroy {
         this.watch(run.id);
       }
       this.error.set(null);
+      this.loaded.set(true);
+      this.loadFailed.set(false);
     } catch (err) {
-      this.error.set((err as Error).message);
+      if (this.loaded()) {
+        this.error.set((err as Error).message);
+      } else {
+        this.loadFailed.set(true);
+      }
     }
   }
 
@@ -165,12 +197,5 @@ export class SettingsPage implements OnDestroy {
 
   ngOnDestroy(): void {
     this.stopWatching();
-  }
-
-  protected percent(run: ImportRun): number {
-    if (!run.subjects_total) {
-      return 0;
-    }
-    return Math.min(100, Math.round((run.subjects_imported / run.subjects_total) * 100));
   }
 }

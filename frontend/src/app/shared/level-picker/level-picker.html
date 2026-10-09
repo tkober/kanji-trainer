@@ -2,6 +2,7 @@
   <button
     #trigger
     type="button"
+    sumiButton
     class="trigger"
     aria-haspopup="listbox"
     [attr.aria-expanded]="open()"
@@ -41,6 +42,7 @@
       #panel
       [id]="panelId"
       class="panel"
+      [class.align-start]="alignStart()"
       role="listbox"
       aria-label="Level"
     >

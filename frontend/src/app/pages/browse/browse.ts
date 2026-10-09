@@ -1,7 +1,22 @@
 import { DatePipe } from '@angular/common';
-import { Component, ElementRef, computed, effect, inject, signal, viewChild } from '@angular/core';
+import { Component, computed, inject, signal } from '@angular/core';
 import { FormsModule } from '@angular/forms';
-import { SumiPage } from 'sumi-ui/layout';
+import {
+  SumiBanner,
+  SumiCard,
+  SumiDialog,
+  SumiDialogHeader,
+  SumiEmptyState,
+  SumiErrorState,
+  SumiPage,
+} from 'sumi-ui/layout';
+import { SumiButtonDirective, SumiInputDirective, SumiSelectDirective } from 'sumi-ui/forms';
+import {
+  SumiDataTable,
+  SumiTableCellTemplate,
+  type SumiTableColumn,
+  type SumiTableRow,
+} from 'sumi-ui/charts';
 
 import { Api } from '../../core/api';
 import type { Item, ObjectType } from '../../core/api.types';
@@ -12,6 +27,21 @@ import { Readings } from '../../shared/readings/readings';
 import { Synonyms } from '../../shared/synonyms/synonyms';
 
 const PAGE_SIZE = 100;
+
+/** One table row: the flat fields `sumi-data-table` renders, plus the
+ * original `Item` so the cell templates and `rowActivate` can reach
+ * everything else (synonyms, readings, mnemonics, …) without a second
+ * lookup. */
+interface BrowseRow extends SumiTableRow {
+  id: number;
+  label: string;
+  item: Item;
+  meaning: string;
+  type: string;
+  level: number;
+  stage: string;
+  state: string;
+}
 
 /**
  * Browsing and bulk-declaring.
@@ -30,7 +60,18 @@ const PAGE_SIZE = 100;
     Mnemonic,
     RadicalIllustration,
     Readings,
+    SumiBanner,
+    SumiButtonDirective,
+    SumiCard,
+    SumiDataTable,
+    SumiDialog,
+    SumiDialogHeader,
+    SumiEmptyState,
+    SumiErrorState,
+    SumiInputDirective,
     SumiPage,
+    SumiSelectDirective,
+    SumiTableCellTemplate,
     Synonyms,
   ],
   templateUrl: './browse.html',
@@ -38,48 +79,58 @@ const PAGE_SIZE = 100;
 })
 export class Browse {
   private readonly api = inject(Api);
-  private readonly dialog = viewChild<ElementRef<HTMLDialogElement>>('detailDialog');
 
   protected state = '';
   protected objectType = '';
   protected level: number | null = null;
   protected search = '';
 
+  protected readonly columns: SumiTableColumn[] = [
+    { key: 'item', label: 'Item' },
+    { key: 'meaning', label: 'Meaning' },
+    { key: 'type', label: 'Type' },
+    { key: 'level', label: 'Lvl' },
+    { key: 'stage', label: 'Stage' },
+    { key: 'state', label: 'State' },
+  ];
+
   protected readonly levels = signal<number[]>([]);
   protected readonly items = signal<Item[]>([]);
+  protected readonly rows = computed<BrowseRow[]>(() =>
+    this.items().map((item) => ({
+      id: item.subject.id,
+      label: item.subject.characters ?? item.subject.slug,
+      item,
+      meaning: this.meanings(item),
+      type: this.typeLabel(item.subject.object_type),
+      level: item.subject.level,
+      stage: item.progress.stage_name,
+      state: this.stateLabel(item.progress.state),
+    })),
+  );
   /** The row whose details are open, or null. Never fetched: the list
       already carries the full subject. */
   protected readonly detail = signal<Item | null>(null);
+  protected readonly detailOpen = signal(false);
   protected readonly total = signal(0);
   protected readonly offset = signal(0);
-  protected readonly selected = signal<Set<number>>(new Set());
+  /** The table's own selection model -- see sumi-data-table's `[(selection)]`. */
+  protected readonly selectedIds = signal<readonly (string | number)[]>([]);
   protected readonly loading = signal(false);
   protected readonly busy = signal(false);
   protected readonly error = signal<string | null>(null);
   protected readonly status = signal<string | null>(null);
+  /** Whether the list has ever loaded successfully -- a failure before that
+   * point is the T6 "can't reach the server" scene; a failure afterwards
+   * (paging, a re-filter) stays a banner, same as any other action error. */
+  protected readonly loaded = signal(false);
+  protected readonly loadFailed = signal(false);
 
-  protected readonly selectedCount = computed(() => this.selected().size);
-  protected readonly allSelected = computed(
-    () => this.items().length > 0 && this.selected().size === this.items().length,
-  );
+  protected readonly selectedCount = computed(() => this.selectedIds().length);
 
   constructor() {
     void this.load();
     void this.loadLevels();
-
-    // `showModal()` is what gives the dialog its backdrop, its focus trap and
-    // Escape; no attribute does that, so the signal drives it imperatively.
-    effect(() => {
-      const element = this.dialog()?.nativeElement;
-      if (!element) {
-        return;
-      }
-      if (this.detail() && !element.open) {
-        element.showModal();
-      } else if (!this.detail() && element.open) {
-        element.close();
-      }
-    });
   }
 
   async load(): Promise<void> {
@@ -95,10 +146,16 @@ export class Browse {
       });
       this.items.set(page.items);
       this.total.set(page.total);
-      this.selected.set(new Set());
+      this.selectedIds.set([]);
       this.error.set(null);
+      this.loaded.set(true);
+      this.loadFailed.set(false);
     } catch (err) {
-      this.error.set((err as Error).message);
+      if (this.loaded()) {
+        this.error.set((err as Error).message);
+      } else {
+        this.loadFailed.set(true);
+      }
     } finally {
       this.loading.set(false);
     }
@@ -127,22 +184,6 @@ export class Browse {
   pageForward(): void {
     this.offset.update((value) => value + PAGE_SIZE);
     void this.load();
-  }
-
-  toggle(id: number): void {
-    const next = new Set(this.selected());
-    if (next.has(id)) {
-      next.delete(id);
-    } else {
-      next.add(id);
-    }
-    this.selected.set(next);
-  }
-
-  toggleAll(): void {
-    this.selected.set(
-      this.allSelected() ? new Set() : new Set(this.items().map((item) => item.subject.id)),
-    );
   }
 
   /** "I know this", for everything ticked. */
@@ -178,7 +219,7 @@ export class Browse {
     action: (ids: number[]) => Promise<{ changed: number }>,
     message: (changed: number) => string,
   ): Promise<void> {
-    const ids = [...this.selected()];
+    const ids = this.selectedIds().map((id) => id as number);
     if (ids.length === 0) {
       return;
     }
@@ -197,17 +238,13 @@ export class Browse {
 
   openDetail(item: Item): void {
     this.detail.set(item);
+    this.detailOpen.set(true);
   }
 
-  closeDetail(): void {
-    this.detail.set(null);
-  }
-
-  /** A click on the backdrop rather than on the card inside it. */
-  backdropClick(event: MouseEvent): void {
-    if (event.target === this.dialog()?.nativeElement) {
-      this.closeDetail();
-    }
+  /** `(rowActivate)` hands back the table's flat row, not the `Item` --
+   * unwrap it the same way the glyph cell template's own button does. */
+  protected openDetailRow(row: SumiTableRow): void {
+    this.openDetail((row as BrowseRow).item);
   }
 
   protected typeLabel(type: ObjectType): string {

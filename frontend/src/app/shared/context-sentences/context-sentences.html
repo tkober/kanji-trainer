@@ -4,7 +4,7 @@
     <dd>
       @for (item of sentences(); track item.ja + '#' + $index) {
         <p class="sentence">
-          <span class="jp">
+          <span class="ja" lang="ja">
             @for (part of segments(item.ja); track $index) {
               @if (part.match) {
                 <mark>{{ part.text }}</mark>
@@ -13,7 +13,7 @@
               }
             }
           </span>
-          <span class="en muted">{{ item.en }}</span>
+          <span class="en">{{ item.en }}</span>
         </p>
       }
     </dd>

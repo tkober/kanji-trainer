@@ -64,6 +64,7 @@ dd {
   border-radius: 999px;
   background: none;
   color: var(--sumi-muted);
+  font-family: inherit;
   font-size: 0.85rem;
   padding: 0.25rem 0.7rem;
   cursor: pointer;
@@ -124,4 +125,5 @@ dd {
 .hint {
   font-size: 0.8rem;
   margin: 0.3rem 0 0;
+  color: var(--sumi-muted);
 }

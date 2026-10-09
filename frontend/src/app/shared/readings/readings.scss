@@ -24,17 +24,31 @@ dt {
     color: var(--sumi-text);
     font-weight: 700;
   }
+
+  /* A reading WaniKani knows but never asks for -- the kun'yomi of a kanji
+     taught by its on'yomi, and vice versa. Shown, because a learner looking
+     at 女 wants to know おんな exists; muted and named as such, because typing
+     it in a review buys a retry rather than a right answer. */
+  .not-asked {
+    text-transform: none;
+    letter-spacing: 0;
+    font-weight: 400;
+  }
 }
 
 dd {
   margin: 0.15rem 0 0;
 
-  &.jp {
+  &[lang='ja'] {
     font-size: 1.15rem;
   }
 
   &.accepted {
     font-weight: 700;
+  }
+
+  &.not-asked {
+    color: var(--sumi-muted);
   }
 }
 
@@ -57,6 +71,7 @@ dd {
   line-height: 1;
   text-transform: none;
   letter-spacing: 0;
+  cursor: pointer;
 
   &:hover {
     border-color: var(--sumi-accent-ink);

@@ -1,9 +1,12 @@
 <sumi-page
   [title]="phase() === 'select' ? 'Lessons' : undefined"
   width="wide"
-  [inkEnd]="phase() === 'select'"
+  [inkEnd]="phase() === 'select' && !loadFailed()"
 >
-  @if (phase() === 'select' && levels().length > 0) {
+  <!-- Outside the error-state branch below: content projection only picks
+       up [sumiPageActions] from a top-level block, not from one nested in
+       another, so nesting it would drop the picker into the page body. -->
+  @if (phase() === 'select' && levels().length > 0 && !loadFailed()) {
     <app-level-picker
       sumiPageActions
       [levels]="levels()"
@@ -12,304 +15,355 @@
     />
   }
 
-  @if (error(); as message) {
-    <p class="error">{{ message }}</p>
-  }
+  @if (loadFailed()) {
+    <!-- No pattern and no page-end landscape: the page title already carries
+         the band (T4), and the error state brings its own landscape. -->
+    <sumi-error-state title="Can't reach the server" companion="tsuru" pattern="none">
+      Your progress is safe. Check the connection and try again.
+      <button sumiErrorAction type="button" sumiButton variant="secondary" (click)="load()">
+        Try again
+      </button>
+    </sumi-error-state>
+  } @else {
+    @if (error(); as message) {
+      <sumi-banner tone="error">{{ message }}</sumi-banner>
+    }
 
-  @if (loading()) {
-    <p class="muted">Loading …</p>
-  } @else if (phase() === 'select') {
-    @if (tiles().length === 0) {
-      <section class="card empty">
-        <h2>No lessons left</h2>
-        @if (totalAvailable() > 0) {
-          <p class="muted">
+    @if (loading()) {
+      <p class="muted">Loading …</p>
+    } @else if (phase() === 'select') {
+      @if (tiles().length === 0) {
+        <sumi-empty-state title="No lessons left" companion="tsuru">
+          @if (totalAvailable() > 0) {
             Nothing to learn in this level. {{ totalAvailable() }} items are still waiting in
             other levels.
-          </p>
-        } @else {
-          <p class="muted">Everything learned. Import new content or do some reviews.</p>
+          } @else {
+            Everything learned. Import new content or do some reviews.
+          }
+          <a sumiEmptyAction routerLink="/review" sumiButton variant="primary">Go to reviews</a>
+        </sumi-empty-state>
+      } @else {
+        <sumi-legend [items]="legendItems" />
+
+        @if (totalInLevel() === 0) {
+          <p class="muted note">Nothing left to learn in this level.</p>
         }
-        <a routerLink="/review"><button class="primary">Go to reviews</button></a>
-      </section>
-    } @else {
-      <div class="legend">
-        <span class="key"><span class="swatch" data-band="lesson"></span>Lesson</span>
-        <span class="key"><span class="swatch" data-band="apprentice"></span>Apprentice (1–4)</span>
-        <span class="key"><span class="swatch" data-band="guru"></span>Guru (5–6)</span>
-        <span class="key"><span class="swatch" data-band="master"></span>Master (7)</span>
-        <span class="key"><span class="swatch" data-band="enlightened"></span>Enlightened (8)</span>
-        <span class="key"><span class="swatch" data-band="burned"></span>Burned (9)</span>
-      </div>
+        @if (remainingToday() !== null) {
+          <p class="muted note">Daily limit: {{ remainingToday() }} lessons left today.</p>
+        }
 
-      @if (totalInLevel() === 0) {
-        <p class="muted note">Nothing left to learn in this level.</p>
-      }
-      @if (remainingToday() !== null) {
-        <p class="muted note">Daily limit: {{ remainingToday() }} lessons left today.</p>
-      }
-
-      @for (group of groups(); track group.key) {
-        @if (group.tiles.length > 0) {
-          <section class="group">
-            <div class="group-head">
-              <h2>{{ group.label }} <span class="muted count">({{ group.tiles.length }})</span></h2>
-              <div class="group-actions">
-                <button type="button" (click)="selectAllIn(group.tiles)">Select all</button>
-                <button type="button" (click)="noneIn(group.tiles)">None</button>
-              </div>
-            </div>
-            <div class="tile-grid" [class.flow]="group.key === 'vocabulary'">
-              @for (tile of group.tiles; track tile.subject.id) {
-                @if (tile.state === 'new') {
+        @for (group of groups(); track group.key) {
+          @if (group.tiles.length > 0) {
+            <section class="group">
+              <div class="group-head">
+                <h2>{{ group.label }} <span class="muted count">({{ group.tiles.length }})</span></h2>
+                <div class="group-actions">
                   <button
                     type="button"
-                    class="tile"
-                    [attr.data-band]="band(tile.srs_stage)"
-                    [class.selected]="isSelected(tile.subject.id)"
-                    [disabled]="!isSelected(tile.subject.id) && capReached()"
-                    [attr.aria-pressed]="isSelected(tile.subject.id)"
-                    [title]="tileLabel(tile)"
-                    [attr.aria-label]="tileLabel(tile)"
-                    (click)="toggleTile(tile)"
+                    sumiButton
+                    variant="ghost"
+                    size="sm"
+                    (click)="selectAllIn(group.tiles)"
                   >
-                    @if (tile.subject.characters) {
-                      <span class="jp">{{ tile.subject.characters }}</span>
-                    } @else if (tile.subject.character_image_url) {
-                      <img [src]="tile.subject.character_image_url" [alt]="tile.subject.slug" />
-                    }
-                    @if (isSelected(tile.subject.id)) {
-                      <span class="badge" aria-hidden="true">✓</span>
-                    }
+                    Select all
                   </button>
-                } @else {
-                  <span
-                    class="tile static"
-                    [attr.data-band]="band(tile.srs_stage)"
-                    [class.known]="tile.state === 'known'"
-                    [class.suspended]="tile.state === 'suspended'"
-                    [title]="tileLabel(tile)"
-                    [attr.aria-label]="tileLabel(tile)"
+                  <button
+                    type="button"
+                    sumiButton
+                    variant="ghost"
+                    size="sm"
+                    (click)="noneIn(group.tiles)"
                   >
-                    @if (tile.subject.characters) {
-                      <span class="jp">{{ tile.subject.characters }}</span>
-                    } @else if (tile.subject.character_image_url) {
-                      <img [src]="tile.subject.character_image_url" [alt]="tile.subject.slug" />
-                    }
-                    @if (tile.state === 'known') {
-                      <span class="badge" aria-hidden="true">✓</span>
-                    }
-                  </span>
+                    None
+                  </button>
+                </div>
+              </div>
+              <div class="tile-grid" [class.flow]="group.key === 'vocabulary'">
+                @for (tile of group.tiles; track tile.subject.id) {
+                  @if (tile.state === 'new') {
+                    <button
+                      type="button"
+                      class="tile"
+                      [attr.data-band]="band(tile.srs_stage)"
+                      [class.selected]="isSelected(tile.subject.id)"
+                      [disabled]="!isSelected(tile.subject.id) && capReached()"
+                      [attr.aria-pressed]="isSelected(tile.subject.id)"
+                      [title]="tileLabel(tile)"
+                      [attr.aria-label]="tileLabel(tile)"
+                      (click)="toggleTile(tile)"
+                    >
+                      @if (tile.subject.characters) {
+                        <span lang="ja">{{ tile.subject.characters }}</span>
+                      } @else if (tile.subject.character_image_url) {
+                        <img [src]="tile.subject.character_image_url" [alt]="tile.subject.slug" />
+                      }
+                      @if (isSelected(tile.subject.id)) {
+                        <span class="badge" aria-hidden="true">✓</span>
+                      }
+                    </button>
+                  } @else {
+                    <span
+                      class="tile static"
+                      [attr.data-band]="band(tile.srs_stage)"
+                      [class.known]="tile.state === 'known'"
+                      [class.suspended]="tile.state === 'suspended'"
+                      [title]="tileLabel(tile)"
+                      [attr.aria-label]="tileLabel(tile)"
+                    >
+                      @if (tile.subject.characters) {
+                        <span lang="ja">{{ tile.subject.characters }}</span>
+                      } @else if (tile.subject.character_image_url) {
+                        <img [src]="tile.subject.character_image_url" [alt]="tile.subject.slug" />
+                      }
+                      @if (tile.state === 'known') {
+                        <span class="badge" aria-hidden="true">✓</span>
+                      }
+                    </span>
+                  }
                 }
-              }
-            </div>
-          </section>
+              </div>
+            </section>
+          }
         }
-      }
 
-      <section class="action-bar">
-        <span class="selected-count">{{ selectedCount() }} selected</span>
-        <label class="check">
-          <input type="checkbox" [checked]="batching()" (change)="toggleBatching($event)" />
-          In batches of {{ batchSize() }}
-        </label>
-        <span class="spacer"></span>
-        <button
-          class="known"
-          [disabled]="selectedCount() === 0 || busy()"
-          (click)="markSelectedKnown()"
+        <section class="action-bar">
+          <span class="selected-count">{{ selectedCount() }} selected</span>
+          <label>
+            <input type="checkbox" sumiCheckbox [checked]="batching()" (change)="toggleBatching($event)" />
+            In batches of {{ batchSize() }}
+          </label>
+          <span class="spacer"></span>
+          <button
+            type="button"
+            sumiButton
+            [disabled]="selectedCount() === 0 || busy()"
+            (click)="markSelectedKnown()"
+          >
+            I already know these {{ selectedCount() }}
+          </button>
+          <button
+            type="button"
+            sumiButton
+            variant="primary"
+            [disabled]="selectedCount() === 0 || busy()"
+            (click)="startSelected()"
+          >
+            Start lessons ({{ selectedCount() }})
+          </button>
+        </section>
+      }
+    } @else if (phase() === 'reading') {
+      <p class="muted count">
+        @if (totalChunks() > 1) {
+          Batch {{ chunkIndex() + 1 }} of {{ totalChunks() }} · {{ items().length }} in this batch
+        } @else {
+          {{ items().length }} in this batch
+        }
+      </p>
+
+      @if (current(); as item) {
+        <sumi-prompt-card
+          [text]="item.subject.characters ?? undefined"
+          [meta]="[typeLabel(item.subject.object_type), 'Level ' + item.subject.level, (index() + 1) + ' / ' + items().length]"
+          [tone]="toneFor(item.subject.object_type)"
         >
-          I already know these {{ selectedCount() }}
-        </button>
-        <button class="primary" [disabled]="selectedCount() === 0 || busy()" (click)="startSelected()">
-          Start lessons ({{ selectedCount() }})
-        </button>
-      </section>
-    }
-  } @else if (phase() === 'reading') {
-    <p class="muted count">
-      @if (totalChunks() > 1) {
-        Batch {{ chunkIndex() + 1 }} of {{ totalChunks() }} · {{ items().length }} in this batch
-      } @else {
-        {{ items().length }} in this batch
-      }
-    </p>
-
-    @if (current(); as item) {
-      <sumi-prompt-card
-        [text]="item.subject.characters ?? undefined"
-        [meta]="[typeLabel(item.subject.object_type), 'Level ' + item.subject.level, (index() + 1) + ' / ' + items().length]"
-        [tone]="toneFor(item.subject.object_type)"
-      >
-        @if (!item.subject.characters && item.subject.character_image_url) {
-          <img sumiPromptVisual="ink" [src]="item.subject.character_image_url" [alt]="item.subject.slug" />
-        }
-      </sumi-prompt-card>
-
-      <section class="card detail">
-        <dl>
-          <dt>Meaning</dt>
-          <dd>{{ meanings(item.subject) }}</dd>
-        </dl>
-
-        <app-synonyms
-          [subjectId]="item.subject.id"
-          [synonyms]="item.subject.synonyms"
-          (synonymsChange)="onSynonymsChange(item.subject.id, $event)"
-        />
-
-        <app-readings [readings]="item.subject.readings" [objectType]="item.subject.object_type" />
-
-        <dl>
-          @if (item.subject.parts_of_speech.length > 0) {
-            <dt>Part of speech</dt>
-            <dd>{{ item.subject.parts_of_speech.join(', ') }}</dd>
+          @if (!item.subject.characters && item.subject.character_image_url) {
+            <img sumiPromptVisual="ink" [src]="item.subject.character_image_url" [alt]="item.subject.slug" />
           }
-          @if (item.subject.meaning_mnemonic) {
-            <dt>Meaning mnemonic</dt>
-            <dd [innerHTML]="item.subject.meaning_mnemonic | mnemonic"></dd>
-          }
-          @if (item.subject.reading_mnemonic) {
-            <dt>Reading mnemonic</dt>
-            <dd [innerHTML]="item.subject.reading_mnemonic | mnemonic"></dd>
-          }
-          @if (item.subject.wanikani_url; as url) {
-            <dt>Source</dt>
-            <dd>
-              <a [href]="url" target="_blank" rel="noopener">Open the original on WaniKani ↗</a>
-            </dd>
-          }
-        </dl>
+        </sumi-prompt-card>
 
-        <app-context-sentences
-          [sentences]="item.subject.context_sentences"
-          [characters]="item.subject.characters"
-        />
+        <sumi-card class="detail">
+          <dl>
+            <dt>Meaning</dt>
+            <dd>{{ meanings(item.subject) }}</dd>
+          </dl>
 
-        <app-radical-illustration
-          [subjectId]="item.subject.id"
-          [objectType]="item.subject.object_type"
-        />
+          <app-synonyms
+            [subjectId]="item.subject.id"
+            [synonyms]="item.subject.synonyms"
+            (synonymsChange)="onSynonymsChange(item.subject.id, $event)"
+          />
 
-        <div class="row nav">
-          <button [disabled]="index() === 0" (click)="previous()">Back</button>
-          @if (onLastItem()) {
-            <button class="primary" [disabled]="busy()" (click)="goToQuizGate()">
-              Continue to quiz
+          <app-readings [readings]="item.subject.readings" [objectType]="item.subject.object_type" />
+
+          <dl>
+            @if (item.subject.parts_of_speech.length > 0) {
+              <dt>Part of speech</dt>
+              <dd>{{ item.subject.parts_of_speech.join(', ') }}</dd>
+            }
+            @if (item.subject.meaning_mnemonic) {
+              <dt>Meaning mnemonic</dt>
+              <dd [innerHTML]="item.subject.meaning_mnemonic | mnemonic"></dd>
+            }
+            @if (item.subject.reading_mnemonic) {
+              <dt>Reading mnemonic</dt>
+              <dd [innerHTML]="item.subject.reading_mnemonic | mnemonic"></dd>
+            }
+            @if (item.subject.wanikani_url; as url) {
+              <dt>Source</dt>
+              <dd>
+                <a [href]="url" target="_blank" rel="noopener">Open the original on WaniKani ↗</a>
+              </dd>
+            }
+          </dl>
+
+          <app-context-sentences
+            [sentences]="item.subject.context_sentences"
+            [characters]="item.subject.characters"
+          />
+
+          <app-radical-illustration
+            [subjectId]="item.subject.id"
+            [objectType]="item.subject.object_type"
+          />
+
+          <div class="row nav">
+            <button
+              type="button"
+              sumiButton
+              [disabled]="index() === 0"
+              (click)="previous()"
+            >
+              Back
             </button>
-          } @else {
-            <button (click)="next()">Next</button>
-          }
-          <button class="known" [disabled]="busy()" (click)="markCurrentKnown()">
-            I know this one
+            @if (onLastItem()) {
+              <button
+                type="button"
+                sumiButton
+                variant="primary"
+                [disabled]="busy()"
+                (click)="goToQuizGate()"
+              >
+                Continue to quiz
+              </button>
+            } @else {
+              <button type="button" sumiButton (click)="next()">Next</button>
+            }
+            <button type="button" sumiButton [disabled]="busy()" (click)="markCurrentKnown()">
+              I know this one
+            </button>
+          </div>
+        </sumi-card>
+      }
+
+      <sumi-card class="batch">
+        <div class="row">
+          <button type="button" sumiButton [disabled]="busy()" (click)="markChunkKnown()">
+            I already know all {{ items().length }}
+          </button>
+          <button
+            type="button"
+            sumiButton
+            [disabled]="busy()"
+            (click)="backToSelection()"
+          >
+            Back to selection
           </button>
         </div>
-      </section>
-    }
-
-    <section class="card batch">
-      <div class="row">
-        <button class="known" [disabled]="busy()" (click)="markChunkKnown()">
-          I already know all {{ items().length }}
-        </button>
-        <button [disabled]="busy()" (click)="backToSelection()">Back to selection</button>
-      </div>
-      <p class="muted footnote">
-        The fast way through items you already know from elsewhere: they go straight to “known”,
-        with no quiz and without ever entering the review queue. “Back to selection” abandons any
-        batch not yet committed; batches already started stay started.
-      </p>
-    </section>
-  } @else if (phase() === 'gate') {
-    <sumi-session-gate
-      title="Quiz time"
-      [text]="gateText()"
-      companion="tsuru"
-      [showAction]="false"
-      (start)="startQuiz()"
-    >
-      <!-- Own buttons rather than the gate's, so "Back to reading" can sit
-           after the primary action instead of above it. Enter still starts. -->
-      <div class="row gate-actions">
-        <button type="button" sumiButton variant="primary" (click)="startQuiz()">Start quiz</button>
-        <button type="button" sumiButton variant="ghost" (click)="backToReading()">
-          Back to reading
-        </button>
-      </div>
-    </sumi-session-gate>
-  } @else if (phase() === 'ended') {
-    <!-- No title: sumi-session-summary supplies its own heading. -->
-    <sumi-session-gate [showAction]="false" companion="tsuru" (start)="restartFromEnded()">
-      <sumi-session-summary
-        [answered]="runAnswered()"
-        [correct]="runCorrect()"
-        [durationMs]="runDurationMs()"
-        [levelUp]="levelUp()"
-        (restart)="restartFromEnded()"
+        <p class="muted footnote">
+          The fast way through items you already know from elsewhere: they go straight to “known”,
+          with no quiz and without ever entering the review queue. “Back to selection” abandons any
+          batch not yet committed; batches already started stay started.
+        </p>
+      </sumi-card>
+    } @else if (phase() === 'gate') {
+      <sumi-session-gate
+        title="Quiz time"
+        [text]="gateText()"
+        companion="tsuru"
+        [showAction]="false"
+        (start)="startQuiz()"
       >
-        <sumi-hanko sumiSummaryArt [characters]="hankoCharacters()" [label]="hankoLabel()" />
-      </sumi-session-summary>
-    </sumi-session-gate>
-  } @else if (card(); as card) {
-    <!-- phase() === 'quiz' -->
-    <sumi-session-bar
-      *sumiShellFocusActions
-      [answered]="batchAnswered()"
-      [correct]="batchCorrect()"
-      [total]="items().length"
-      (end)="backToSelection()"
-    />
-
-    <div sumiFocusMode>
-      @if (totalChunks() > 1) {
-        <p class="muted count">Batch {{ chunkIndex() + 1 }} of {{ totalChunks() }}</p>
-      }
-
-      <sumi-prompt-card
-        [text]="card.subject.characters ?? undefined"
-        [kind]="question() === 'reading' ? 'Reading' : 'Meaning'"
-        [meta]="[typeLabel(card.subject.object_type), 'Level ' + card.subject.level]"
-        [tone]="toneFor(card.subject.object_type)"
-      >
-        @if (!card.subject.characters && card.subject.character_image_url) {
-          <img sumiPromptVisual="ink" [src]="card.subject.character_image_url" [alt]="card.subject.slug" />
-        }
-      </sumi-prompt-card>
-
-      <sumi-answer-field
-        #field
-        [mode]="question() === 'reading' ? 'kana' : 'latin'"
-        [label]="question() === 'reading' ? 'Reading' : 'Meaning'"
-        [iDontKnow]="true"
-        [(value)]="value"
-        [verdict]="fieldVerdict()"
-        (submitted)="onSubmitted($event)"
-        (edited)="onEdited()"
-        (next)="advance()"
-        (gaveUp)="onGaveUp()"
+        <!-- Own buttons rather than the gate's, so "Back to reading" can sit
+             after the primary action instead of above it. Enter still starts. -->
+        <div class="row gate-actions">
+          <button
+            type="button"
+            sumiButton
+            variant="primary"
+            (click)="startQuiz()"
+          >
+            Start quiz
+          </button>
+          <button type="button" sumiButton variant="ghost" (click)="backToReading()">
+            Back to reading
+          </button>
+        </div>
+      </sumi-session-gate>
+    } @else if (phase() === 'ended') {
+      <!-- No title: sumi-session-summary supplies its own heading. -->
+      <sumi-session-gate [showAction]="false" companion="tsuru" (start)="restartFromEnded()">
+        <sumi-session-summary
+          [answered]="runAnswered()"
+          [correct]="runCorrect()"
+          [durationMs]="runDurationMs()"
+          [levelUp]="levelUp()"
+          (restart)="restartFromEnded()"
+        >
+          <sumi-hanko sumiSummaryArt [characters]="hankoCharacters()" [label]="hankoLabel()" />
+        </sumi-session-summary>
+      </sumi-session-gate>
+    } @else if (card(); as card) {
+      <!-- phase() === 'quiz' -->
+      <sumi-session-bar
+        *sumiShellFocusActions
+        [answered]="batchAnswered()"
+        [correct]="batchCorrect()"
+        [total]="items().length"
+        (end)="backToSelection()"
       />
 
-      <div class="row actions">
-        <button
-          type="button"
-          sumiButton
-          variant="primary"
-          sumiHoldFocus
-          [disabled]="busy()"
-          (click)="field.submit()"
-        >
-          {{ checkButtonLabel() }}
-        </button>
-      </div>
+      <div sumiFocusMode>
+        @if (totalChunks() > 1) {
+          <p class="muted count">Batch {{ chunkIndex() + 1 }} of {{ totalChunks() }}</p>
+        }
 
-      @if (showVerdictCard()) {
-        <sumi-verdict
-          class="verdict"
-          kind="wrong"
-          [expected]="feedback()?.expected"
-          message="The quiz costs no SRS stage — wrong answers simply come round again."
+        <sumi-prompt-card
+          [text]="card.subject.characters ?? undefined"
+          [kind]="question() === 'reading' ? 'Reading' : 'Meaning'"
+          [meta]="[typeLabel(card.subject.object_type), 'Level ' + card.subject.level]"
+          [tone]="toneFor(card.subject.object_type)"
+        >
+          @if (!card.subject.characters && card.subject.character_image_url) {
+            <img sumiPromptVisual="ink" [src]="card.subject.character_image_url" [alt]="card.subject.slug" />
+          }
+        </sumi-prompt-card>
+
+        <sumi-answer-field
+          #field
+          [mode]="question() === 'reading' ? 'kana' : 'latin'"
+          [label]="question() === 'reading' ? 'Reading' : 'Meaning'"
+          [iDontKnow]="true"
+          [(value)]="value"
+          [verdict]="fieldVerdict()"
+          (submitted)="onSubmitted($event)"
+          (edited)="onEdited()"
+          (next)="advance()"
+          (gaveUp)="onGaveUp()"
         />
-      }
-    </div>
+
+        <div class="row actions">
+          <button
+            type="button"
+            sumiButton
+            variant="primary"
+            sumiHoldFocus
+            [disabled]="busy()"
+            (click)="field.submit()"
+          >
+            {{ checkButtonLabel() }}
+          </button>
+        </div>
+
+        @if (showVerdictCard()) {
+          <sumi-verdict
+            class="verdict"
+            kind="wrong"
+            [expected]="feedback()?.expected"
+            message="The quiz costs no SRS stage — wrong answers simply come round again."
+          />
+        }
+      </div>
+    }
   }
 </sumi-page>

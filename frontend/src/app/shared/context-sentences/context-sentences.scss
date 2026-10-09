@@ -29,7 +29,7 @@ dd {
   }
 }
 
-.jp {
+.ja {
   display: block;
   font-size: 1.05rem;
 }
@@ -38,6 +38,7 @@ dd {
   display: block;
   font-size: 0.85rem;
   margin-top: 0.1rem;
+  color: var(--sumi-muted);
 }
 
 /* The item's own characters inside the sentence -- the same purple every

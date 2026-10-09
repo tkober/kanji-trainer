@@ -7,7 +7,7 @@
 
 export type ObjectType = 'radical' | 'kanji' | 'vocabulary' | 'kana_vocabulary';
 export type QuestionType = 'meaning' | 'reading';
-export type ItemState = 'new' | 'learning' | 'known' | 'suspended';
+type ItemState = 'new' | 'learning' | 'known' | 'suspended';
 
 /** Mirrors backend/app/models.py REVIEW_ITEM_ORDERS / REVIEW_TYPE_ORDERS. */
 export type ReviewItemOrder = 'random' | 'oldest_first' | 'lowest_stage_first' | 'lowest_level_first';
@@ -67,7 +67,7 @@ export interface Illustration {
   alt: string | null;
 }
 
-export interface Progress {
+interface Progress {
   state: ItemState;
   srs_stage: number;
   stage_name: string;

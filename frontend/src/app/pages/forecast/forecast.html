@@ -1,77 +1,88 @@
-<sumi-page title="Forecast">
-  @if (error(); as message) {
-    <sumi-banner tone="error">{{ message }}</sumi-banner>
-  }
+<sumi-page title="Forecast" [inkEnd]="!!data() || !error()">
+  @if (!data() && error()) {
+    <!-- No pattern and no page-end landscape: the page title already carries
+         the band (T4), and the error state brings its own landscape. -->
+    <sumi-error-state title="Can't reach the server" companion="tsuru" pattern="none">
+      Your progress is safe. Check the connection and try again.
+      <button sumiErrorAction type="button" sumiButton variant="secondary" (click)="load()">
+        Try again
+      </button>
+    </sumi-error-state>
+  } @else {
+    @if (error(); as message) {
+      <sumi-banner tone="error">{{ message }}</sumi-banner>
+    }
 
-  <div class="controls row">
-    <sumi-segmented-control
-      [options]="rangeOptions"
-      [value]="range().hours"
-      (valueChange)="pick($event)"
-    />
-    <span class="spacer"></span>
-    <button type="button" sumiButton (click)="showTable.set(!showTable())">
-      {{ showTable() ? 'Hide numbers' : 'Show numbers' }}
-    </button>
-  </div>
+    <div class="controls row">
+      <sumi-segmented-control
+        [options]="rangeOptions"
+        [value]="range().hours"
+        (valueChange)="pick($event)"
+      />
+      <span class="spacer"></span>
+      <button type="button" sumiButton (click)="showTable.set(!showTable())">
+        {{ showTable() ? 'Hide numbers' : 'Show numbers' }}
+      </button>
+    </div>
 
-  @if (loading()) {
-    <p class="muted">Loading …</p>
-  } @else if (data(); as forecast) {
-    <sumi-stat-grid>
-      <sumi-stat-tile [value]="forecast.due_now" label="waiting right now" />
-      <sumi-stat-tile [value]="forecast.total" [label]="'arriving in ' + range().label" />
-      <sumi-stat-tile [value]="peakWaiting()" label="waiting if you do nothing" />
-    </sumi-stat-grid>
+    @if (loading()) {
+      <p class="muted">Loading …</p>
+    } @else if (data(); as forecast) {
+      <sumi-stat-grid>
+        <sumi-stat-tile [value]="forecast.due_now" label="waiting right now" />
+        <sumi-stat-tile [value]="forecast.total" [label]="'arriving in ' + range().label" />
+        <sumi-stat-tile [value]="peakWaiting()" label="waiting if you do nothing" />
+      </sumi-stat-grid>
 
-    @if (forecast.total === 0 && forecast.due_now === 0) {
-      <sumi-empty-state title="Nothing scheduled" companion="tsuru">
-        Reviews appear here once you have finished some lessons.
-      </sumi-empty-state>
-    } @else {
-      <sumi-card>
-        <div sumiCardHeader>
-          <h2>Reviews arriving</h2>
-          <p class="muted">
-            Each column is {{ range().bucket >= 24 ? 'one day' : range().bucket + 'h' }},
-            split by where the items currently stand.
-          </p>
-        </div>
+      @if (forecast.total === 0 && forecast.due_now === 0) {
+        <sumi-empty-state title="Nothing scheduled" companion="tsuru">
+          Reviews appear here once you have finished some lessons.
+        </sumi-empty-state>
+      } @else {
+        <sumi-card>
+          <div sumiCardHeader>
+            <h2>Reviews arriving</h2>
+            <p class="muted">
+              Each column is {{ range().bucket >= 24 ? 'one day' : range().bucket + 'h' }},
+              split by where the items currently stand.
+            </p>
+          </div>
 
-        <sumi-legend [items]="legendItems" />
+          <sumi-legend [items]="legendItems" />
 
-        <sumi-bar-chart
-          ariaLabel="Reviews arriving per time slot, stacked by SRS stage"
-          [rows]="stackedRows()"
-          [series]="series"
-          [labelEvery]="tickEvery()"
-          [height]="220"
-        />
-      </sumi-card>
+          <sumi-bar-chart
+            ariaLabel="Reviews arriving per time slot, stacked by SRS stage"
+            [rows]="stackedRows()"
+            [series]="series"
+            [labelEvery]="tickEvery()"
+            [height]="220"
+          />
+        </sumi-card>
 
-      <sumi-card>
-        <div sumiCardHeader>
-          <h2>Waiting in total</h2>
-          <p class="muted">
-            If you do nothing else — everything overdue plus everything that arrives. Peaks
-            at {{ cumulativeMax() }}.
-          </p>
-        </div>
+        <sumi-card>
+          <div sumiCardHeader>
+            <h2>Waiting in total</h2>
+            <p class="muted">
+              If you do nothing else — everything overdue plus everything that arrives. Peaks
+              at {{ cumulativeMax() }}.
+            </p>
+          </div>
 
-        <sumi-sparkline
-          ariaLabel="Cumulative reviews waiting over the same period"
-          [points]="cumulativePoints()"
-          [value]="peakWaiting()"
-          [height]="120"
-        />
-      </sumi-card>
+          <sumi-sparkline
+            ariaLabel="Cumulative reviews waiting over the same period"
+            [points]="cumulativePoints()"
+            [value]="peakWaiting()"
+            [height]="120"
+          />
+        </sumi-card>
 
-      @if (showTable()) {
-        <sumi-data-table
-          [columns]="numbersColumns"
-          [rows]="numbersRows()"
-          caption="The same data as numbers — also the accessible fallback for the two charts above."
-        />
+        @if (showTable()) {
+          <sumi-data-table
+            [columns]="numbersColumns"
+            [rows]="numbersRows()"
+            caption="The same data as numbers — also the accessible fallback for the two charts above."
+          />
+        }
       }
     }
   }
