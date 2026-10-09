@@ -224,11 +224,18 @@
     <sumi-session-gate
       title="Quiz time"
       [text]="gateText()"
-      actionLabel="Start quiz"
       companion="tsuru"
+      [showAction]="false"
       (start)="startQuiz()"
     >
-      <button type="button" sumiButton variant="ghost" (click)="backToReading()">Back to reading</button>
+      <!-- Own buttons rather than the gate's, so "Back to reading" can sit
+           after the primary action instead of above it. Enter still starts. -->
+      <div class="row gate-actions">
+        <button type="button" sumiButton variant="primary" (click)="startQuiz()">Start quiz</button>
+        <button type="button" sumiButton variant="ghost" (click)="backToReading()">
+          Back to reading
+        </button>
+      </div>
     </sumi-session-gate>
   } @else if (phase() === 'ended') {
     <!-- No title: sumi-session-summary supplies its own heading. -->

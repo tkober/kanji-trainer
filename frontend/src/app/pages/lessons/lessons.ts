@@ -251,9 +251,13 @@ export class LessonsPage {
   );
 
   protected readonly gateText = computed(
-    () =>
-      `${this.items().length} items. Give each meaning and reading once. Wrong answers come ` +
-      'round again and cost nothing.',
+    () => {
+      const n = this.items().length;
+      return (
+        `${n} ${n === 1 ? 'item' : 'items'}. Answer each question once; wrong answers ` +
+        'come round again and cost nothing.'
+      );
+    },
   );
 
   protected readonly checkButtonLabel = computed(() => (this.feedback() ? 'Next' : 'Check'));
