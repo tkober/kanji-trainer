@@ -1,14 +1,14 @@
-import {
-  Component,
-  ElementRef,
-  computed,
-  effect,
-  inject,
-  signal,
-  viewChild,
-} from '@angular/core';
+import { Component, computed, inject, signal } from '@angular/core';
 import { RouterLink } from '@angular/router';
-import { SumiPage } from 'sumi-ui/layout';
+import { SUMI_KEYS, SumiHotkeys, injectHotkey } from 'sumi-ui/core';
+import {
+  SumiFocusModeDirective,
+  SumiHanko,
+  SumiPage,
+  SumiShellFocusActionsDirective,
+} from 'sumi-ui/layout';
+import { SumiButtonDirective } from 'sumi-ui/forms';
+import { SUMI_PRACTICE, type SumiVerdict } from 'sumi-ui/practice';
 
 import { Api } from '../../core/api';
 import type {
@@ -22,9 +22,6 @@ import type {
   SubjectDetail,
 } from '../../core/api.types';
 import { Counters } from '../../core/counters';
-import { glyphCount } from '../../core/glyphs';
-import { HoldFocus } from '../../core/hold-focus';
-import { absorbInput, finaliseKana, isKana, romajiToKana } from '../../core/kana';
 import { Mnemonic } from '../../core/mnemonic';
 import { reinsert, shuffleQuestions } from '../../core/review-queue';
 import { LevelPicker } from '../../shared/level-picker/level-picker';
@@ -39,7 +36,7 @@ interface QuizCard {
   questions: QuestionType[];
 }
 
-type Phase = 'select' | 'reading' | 'quiz';
+type Phase = 'select' | 'reading' | 'gate' | 'quiz' | 'ended';
 
 /** One of the three tile groups the selection view is organised into. */
 interface TileGroup {
@@ -105,36 +102,42 @@ function chunk<T>(items: T[], size: number): T[][] {
  *
  * The picker is the point: WaniKani hands over a fixed batch in a fixed
  * order, and the one thing this app exists to add is the override. Letting
- * the learner choose exactly which items to spend a session on — including
- * skipping ones already known from elsewhere — is that override applied to
+ * the learner choose exactly which items to spend a session on -- including
+ * skipping ones already known from elsewhere -- is that override applied to
  * lessons instead of just to reviews.
  *
  * The quiz stays the gate it always was: nothing here goes to the SRS without
- * having been produced once. Failing it costs nothing — the card is
+ * having been produced once. Failing it costs nothing -- the card is
  * reinserted later in the current batch's queue. `/api/lessons/quiz` has no
  * side effects, and only `/api/lessons/start` moves anything, one batch at a
- * time.
+ * time. A `gate` phase sits between reading a batch and quizzing it (issue
+ * #38), and the whole run -- every batch, not just the last one -- ends in a
+ * summary, the same shape reviews use.
  */
 @Component({
   selector: 'app-lessons',
   imports: [
     ContextSentences,
-    HoldFocus,
     LevelPicker,
     Mnemonic,
     RadicalIllustration,
     Readings,
     RouterLink,
-    SumiPage,
     Synonyms,
+    SumiButtonDirective,
+    SumiFocusModeDirective,
+    SumiHanko,
+    SumiPage,
+    SumiShellFocusActionsDirective,
+    ...SUMI_PRACTICE,
   ],
   templateUrl: './lessons.html',
   styleUrl: './lessons.scss',
 })
 export class LessonsPage {
   private readonly api = inject(Api);
-  private readonly counters = inject(Counters);
-  private readonly field = viewChild<ElementRef<HTMLInputElement>>('answerField');
+  protected readonly counters = inject(Counters);
+  private readonly hotkeys = inject(SumiHotkeys);
 
   protected readonly phase = signal<Phase>('select');
 
@@ -183,9 +186,22 @@ export class LessonsPage {
   protected readonly index = signal(0);
 
   protected readonly queue = signal<QuizCard[]>([]);
-  protected readonly raw = signal('');
+  protected readonly value = signal('');
   protected readonly feedback = signal<QuizResult | null>(null);
-  protected readonly passed = signal(0);
+
+  /** This batch's own answered/correct, for the quiz's `sumi-session-bar`. */
+  protected readonly batchAnswered = signal(0);
+  protected readonly batchCorrect = signal(0);
+  /** The whole run's answered/correct, across every batch, for the summary. */
+  protected readonly runAnswered = signal(0);
+  protected readonly runCorrect = signal(0);
+  protected readonly runDurationMs = signal(0);
+  /** `0` means "the run has not reached a quiz yet" -- set once, by the
+   * first `startQuiz()` of the run, so the summary's duration is measured
+   * from the first quiz rather than from picking items or reading them. */
+  private runStartedAt = 0;
+  /** `counters.level()` when the run started, for `levelUp`. */
+  private runStartLevel: number | null = null;
 
   protected readonly loading = signal(true);
   protected readonly busy = signal(false);
@@ -198,26 +214,85 @@ export class LessonsPage {
   );
   protected readonly onLastItem = computed(() => this.index() >= this.items().length - 1);
 
-  /** Readings convert as they are typed; meanings are left as entered. */
-  protected readonly display = computed(() => {
-    const value = this.raw();
-    if (this.question() !== 'reading' || isKana(value)) {
-      return value;
-    }
-    return romajiToKana(value);
+  /** A settled (non-retry) quiz verdict is on screen. */
+  private readonly hasSettledFeedback = computed(() => {
+    const result = this.feedback();
+    return !!result && !result.retry;
   });
 
-  /** See the identical effect in review.ts — same reason, same shape, and the
-   * same reason for holding the caret through the feedback: the quiz is typed
-   * on a phone too. */
-  private readonly keepFocus = effect(() => {
-    this.question();
-    this.feedback();
-    this.field()?.nativeElement.focus();
+  /** The field's own one-line verdict. Unlike reviews, the quiz has no
+   * `held` state at all -- a typo is already forgiven by the typo
+   * tolerance, and nothing here is ever worth a second-chance prompt since
+   * the quiz has no stake to protect. */
+  protected readonly fieldVerdict = computed<SumiVerdict | null>(() => {
+    const result = this.feedback();
+    if (!result) {
+      return null;
+    }
+    if (result.retry) {
+      return { kind: 'retry', message: result.hint ?? undefined };
+    }
+    if (result.correct) {
+      const message = result.typo
+        ? `It is spelled ${result.expected}.`
+        : result.secondary
+          ? `The primary answer is ${result.expected}.`
+          : undefined;
+      return { kind: 'correct', message };
+    }
+    return { kind: 'wrong' };
+  });
+
+  /** `sumi-verdict` only ever appears for a settled wrong answer in the quiz
+   * -- a retry is "doesn't count", conveyed by the field alone, and a
+   * correct answer has nothing left to add beyond the field's own message. */
+  protected readonly showVerdictCard = computed(
+    () => this.hasSettledFeedback() && !this.feedback()!.correct,
+  );
+
+  protected readonly gateText = computed(
+    () => {
+      const n = this.items().length;
+      return (
+        `${n} ${n === 1 ? 'item' : 'items'}. Answer each question once; wrong answers ` +
+        'come round again and cost nothing.'
+      );
+    },
+  );
+
+  protected readonly checkButtonLabel = computed(() => (this.feedback() ? 'Next' : 'Check'));
+
+  private readonly runAccuracy = computed(() => {
+    const answered = this.runAnswered();
+    return answered > 0 ? this.runCorrect() / answered : 0;
+  });
+
+  /** Same hanko convention as reviews -- see docs/concept.md#tuschemotive. */
+  protected readonly hankoCharacters = computed(() => (this.runAccuracy() >= 0.8 ? '合格' : '練習'));
+  protected readonly hankoLabel = computed(() => (this.runAccuracy() >= 0.8 ? 'Passed' : 'Practice'));
+
+  protected readonly levelUp = computed<string | undefined>(() => {
+    const start = this.runStartLevel;
+    const level = this.counters.level();
+    if (start === null || level === null || level <= start) {
+      return undefined;
+    }
+    return `Level ${level}`;
   });
 
   constructor() {
     void this.load();
+
+    // `?` only becomes a hotkey once a settled quiz verdict is up -- same
+    // reasoning as the review screen.
+    injectHotkey({
+      keys: SUMI_KEYS.help,
+      label: 'Toggle this menu (after answering)',
+      scope: 'feedback',
+      allowInEditable: true,
+      enabled: () => this.phase() === 'quiz' && this.hasSettledFeedback(),
+      handler: () => this.hotkeys.toggleHelp(),
+    });
   }
 
   async load(level?: number | null): Promise<void> {
@@ -251,7 +326,7 @@ export class LessonsPage {
 
   /**
    * The badge counts the *lowest open* level, not whatever the picker is
-   * showing — see `Stats.lessons_available` on the backend. So the exact
+   * showing -- see `Stats.lessons_available` on the backend. So the exact
    * count from this response is only trustworthy for the header when the two
    * happen to be the same level; otherwise a full refresh is the honest move.
    */
@@ -344,6 +419,10 @@ export class LessonsPage {
       const size = this.batching() ? Math.max(1, this.batchSize()) : detailed.length;
       this.chunks.set(chunk(detailed, size));
       this.chunkIndex.set(0);
+      this.runAnswered.set(0);
+      this.runCorrect.set(0);
+      this.runStartedAt = 0;
+      this.runStartLevel = this.counters.level();
       this.openChunk(0);
       this.error.set(null);
     } catch (err) {
@@ -378,11 +457,12 @@ export class LessonsPage {
     this.phase.set('reading');
     this.queue.set([]);
     this.feedback.set(null);
-    this.raw.set('');
-    this.passed.set(0);
+    this.value.set('');
+    this.batchAnswered.set(0);
+    this.batchCorrect.set(0);
   }
 
-  /** Commit the current chunk, or wrap up the run if it was the last one. */
+  /** Commit the current chunk, or wrap up the whole run if it was the last one. */
   private async advanceChunk(): Promise<void> {
     const next = this.chunkIndex() + 1;
     if (next < this.chunks().length) {
@@ -392,12 +472,26 @@ export class LessonsPage {
     }
     this.chunks.set([]);
     this.chunkIndex.set(0);
-    await this.load();
+    this.finishRun();
+  }
+
+  /** The run's summary, in the same `ended` shape reviews end in. Reached
+   * only once the last batch has actually been committed, so `runAnswered`
+   * is always positive here. */
+  private finishRun(): void {
+    this.runDurationMs.set(Date.now() - this.runStartedAt);
+    void this.counters.refresh();
+    this.phase.set('ended');
+  }
+
+  /** "Practice again", or `Enter` on the summary -- back to the picker. */
+  protected restartFromEnded(): void {
+    void this.load();
   }
 
   /** Keep the level's own numbers roughly honest between full reloads,
    * without disturbing a run in progress. A full `load()` at the end of the
-   * run (see `advanceChunk`) reconciles everything exactly, tiles included. */
+   * run reconciles everything exactly, tiles included. */
   private spendLocally(n: number): void {
     const lowestOpen = this.levels().find((entry) => entry.open_count > 0) ?? null;
     if (lowestOpen && this.level() === lowestOpen.level) {
@@ -430,8 +524,21 @@ export class LessonsPage {
     this.index.update((i) => Math.min(this.items().length - 1, i + 1));
   }
 
-  /** Leave the reading phase and build the quiz queue for this batch. */
-  startQuiz(): void {
+  /** The last item's "Continue to quiz" button -- the new `gate` phase
+   * (issue #38) sits between reading a batch and being quizzed on it. */
+  protected goToQuizGate(): void {
+    this.phase.set('gate');
+  }
+
+  protected backToReading(): void {
+    this.phase.set('reading');
+  }
+
+  /** Leave the gate and build the quiz queue for this batch. */
+  protected startQuiz(): void {
+    if (this.runStartedAt === 0) {
+      this.runStartedAt = Date.now();
+    }
     this.queue.set(
       this.items().map((item) =>
         shuffleQuestions({
@@ -440,53 +547,49 @@ export class LessonsPage {
         }),
       ),
     );
-    this.passed.set(0);
-    this.raw.set('');
+    this.batchAnswered.set(0);
+    this.batchCorrect.set(0);
+    this.value.set('');
     this.feedback.set(null);
     this.phase.set('quiz');
-    this.focus();
   }
 
   // --- quiz phase -------------------------------------------------------
 
-  onInput(event: Event): void {
-    const input = event.target as HTMLInputElement;
-    // Frozen while the feedback is up, and not with `readonly` — see the same
-    // handler in review.ts.
-    if (this.feedback()) {
-      input.value = this.display();
-      return;
-    }
-    this.raw.set(absorbInput(input.value, this.display(), this.raw()));
+  protected onSubmitted(answer: string): void {
+    void this.submitQuizAnswer(answer, false);
   }
 
-  onKeydown(event: KeyboardEvent): void {
-    if (event.key !== 'Enter') {
-      return;
-    }
-    event.preventDefault();
-    if (this.feedback()) {
-      this.advance();
-    } else {
-      void this.submit();
-    }
+  /** Alt+H: reveal the answer, scored as a plain miss -- the quiz still
+   * moves nothing either way. */
+  protected onGaveUp(): void {
+    void this.submitQuizAnswer('', true);
   }
 
-  async submit(): Promise<void> {
+  /** Editing while a retry is up withdraws it -- the quiz has no `held`. */
+  protected onEdited(): void {
+    this.feedback.update((result) => (result?.retry ? null : result));
+  }
+
+  private async submitQuizAnswer(answer: string, gaveUp: boolean): Promise<void> {
     const card = this.card();
     const question = this.question();
     if (!card || !question || this.busy()) {
       return;
     }
 
-    const answer = question === 'reading' ? finaliseKana(this.display()) : this.raw().trim();
-    if (!answer) {
-      return;
-    }
-
     this.busy.set(true);
     try {
-      this.feedback.set(await this.api.quiz(card.subject.id, question, answer));
+      const result = await this.api.quiz(card.subject.id, question, answer, gaveUp);
+      this.feedback.set(result);
+      if (!result.retry) {
+        this.batchAnswered.update((n) => n + 1);
+        this.runAnswered.update((n) => n + 1);
+        if (result.correct) {
+          this.batchCorrect.update((n) => n + 1);
+          this.runCorrect.update((n) => n + 1);
+        }
+      }
     } catch (err) {
       this.error.set((err as Error).message);
     } finally {
@@ -494,10 +597,12 @@ export class LessonsPage {
     }
   }
 
-  /** Move past the feedback; a miss or a remaining half is reinserted later
-   * in the queue, not sent to the back (see `reinsert` in review-queue.ts —
-   * same reasoning as the review screen's `next()`, issue #27). */
-  advance(): void {
+  /** Move past the feedback; a miss, a retry or a remaining half is
+   * reinserted later in the queue, not sent to the back (see `reinsert` in
+   * review-queue.ts -- same reasoning as the review screen's `next()`,
+   * issue #27). A retry is treated exactly like a miss here -- it is
+   * reinserted rather than re-asked immediately, unlike in reviews. */
+  protected advance(): void {
     const result = this.feedback();
     const card = this.card();
     if (!result || !card) {
@@ -509,8 +614,6 @@ export class LessonsPage {
       const remaining = card.questions.slice(1);
       if (remaining.length > 0) {
         rest = reinsert(rest, { ...card, questions: remaining });
-      } else {
-        this.passed.update((n) => n + 1);
       }
     } else {
       rest = reinsert(rest, card);
@@ -518,12 +621,10 @@ export class LessonsPage {
 
     this.queue.set(rest);
     this.feedback.set(null);
-    this.raw.set('');
+    this.value.set('');
 
     if (rest.length === 0) {
       void this.commit();
-    } else {
-      this.focus();
     }
   }
 
@@ -543,7 +644,7 @@ export class LessonsPage {
 
   // --- the override -----------------------------------------------------
 
-  /** "I know this one" for the item on screen — skips the lesson entirely.
+  /** "I know this one" for the item on screen -- skips the lesson entirely.
    *
    * Drops the item from the current chunk in place rather than reloading it,
    * so working through the rest of the chunk keeps the reader where they
@@ -607,9 +708,11 @@ export class LessonsPage {
     }[type];
   }
 
-  /** Bound to `.characters` as `--glyphs`, so its font shrinks to fit the card. */
-  protected glyphCount(text: string): number {
-    return glyphCount(text);
+  protected toneFor(type: ObjectType): string {
+    if (type === 'radical') {
+      return 'var(--radical)';
+    }
+    return type === 'kanji' ? 'var(--kanji)' : 'var(--vocabulary)';
   }
 
   /** Keep the current item's synonyms current after a save in the reading
@@ -644,10 +747,6 @@ export class LessonsPage {
       label += ' (suspended)';
     }
     return label;
-  }
-
-  private focus(): void {
-    this.field()?.nativeElement.focus();
   }
 }
 

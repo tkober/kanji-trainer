@@ -1,7 +1,7 @@
 import { Component, computed, input, signal } from '@angular/core';
+import { SumiHoldFocus } from 'sumi-ui/practice';
 
 import type { ObjectType, Reading } from '../../core/api.types';
-import { HoldFocus } from '../../core/hold-focus';
 import { type ReadingGroup, readingGroups } from '../../core/readings';
 
 /** A flyout's worth of explanation for one reading type, plus the link every
@@ -43,7 +43,7 @@ let nextInstanceId = 0;
  */
 @Component({
   selector: 'app-readings',
-  imports: [HoldFocus],
+  imports: [SumiHoldFocus],
   templateUrl: './readings.html',
   styleUrl: './readings.scss',
 })

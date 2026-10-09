@@ -2,168 +2,27 @@
   display: block;
 }
 
+.error {
+  color: var(--sumi-wrong);
+  margin: 0 0 0.75rem;
+}
+
 .progress {
-  display: flex;
-  gap: 0.5rem;
   font-size: 0.9rem;
   margin-bottom: 0.75rem;
 }
 
-.prompt {
-  border-radius: var(--sumi-radius);
-  padding: 2rem 1rem 1rem;
-  text-align: center;
-  color: #fff;
-  box-shadow: var(--sumi-shadow);
-  /* Lets `.characters` size itself off this card's own width (`cqi`) below,
-     rather than the viewport — a block-level card, so containment here does
-     not affect anything outside it. */
-  container-type: inline-size;
-
-  &[data-type='radical'] {
-    background: var(--radical);
-  }
-
-  &[data-type='kanji'] {
-    background: var(--kanji);
-  }
-
-  &[data-type='vocabulary'],
-  &[data-type='kana_vocabulary'] {
-    background: var(--vocabulary);
-  }
+sumi-prompt-card {
+  display: block;
+  margin-bottom: 1rem;
 }
 
-.characters {
-  /* WaniKani glyphs (kanji and kana, including small っ) are full-width, so a
-     string of N of them needs about N em of inline space: `--glyphs` (set per
-     item in the template, see glyphCount()) turns that into `100cqi /
-     --glyphs`, the font size at which the string exactly fills the card's
-     content width. The previous clamp becomes the ceiling — a single kanji
-     still renders at the old max size — and 2rem is the floor. The 0.95
-     factor is a safety margin so rounding does not push the last glyph onto
-     a new line. Wrapping is left alone: only once the floor is reached does a
-     string that still does not fit wrap.
-     `overflow-wrap: anywhere` covers a run with no break opportunity at all. */
-  font-size: max(2rem, min(clamp(3.5rem, 18vw, 6rem), calc(100cqi / var(--glyphs, 1) * 0.95)));
-  line-height: 1.1;
-  font-weight: 400;
-  overflow-wrap: anywhere;
-}
-
-img.characters {
-  height: clamp(3.5rem, 18vw, 6rem);
-  /* WaniKani's radical SVGs are black on transparent; on these backgrounds
-     they would be invisible without the inversion. */
-  filter: brightness(0) invert(1);
-}
-
-.meta {
-  display: flex;
-  justify-content: center;
-  gap: 1rem;
-  font-size: 0.85rem;
-  opacity: 0.85;
-  margin-top: 1rem;
-}
-
-.question {
-  margin-top: 1rem;
-
-  label {
-    display: block;
-    text-align: center;
-    font-size: 0.85rem;
-    text-transform: uppercase;
-    letter-spacing: 0.08em;
-    color: var(--sumi-muted);
-    margin-bottom: 0.4rem;
-  }
-
-  input {
-    width: 100%;
-    font-size: 1.5rem;
-    text-align: center;
-    padding: 0.7rem;
-  }
-
-  /* Readings get the dark field WaniKani uses, so the two question types are
-     distinguishable before the label is read. */
-  &.reading input {
-    background: #2b2f38;
-    color: #fff;
-    border-color: #2b2f38;
-  }
-
-  /* Every verdict tint has to come back to `--sumi-text` -- a reading field
-     is white on dark until one of these lands, and white on a pale tint is
-     the answer the learner just gave, unreadable. */
-  input.correct {
-    border-color: var(--sumi-correct);
-    background: var(--sumi-correct-soft);
-    color: var(--sumi-text);
-  }
-
-  input.wrong {
-    border-color: var(--sumi-wrong);
-    background: var(--sumi-wrong-soft);
-    color: var(--sumi-text);
-  }
-
-  /* Held, not wrong: the answer has not been submitted, so it must not look
-     like a verdict. Amber says "look again", red would say "you failed". */
-  input.held {
-    border-color: var(--sumi-retry);
-    background: var(--sumi-retry-soft);
-    color: var(--sumi-text);
-  }
-
-  input.shake {
-    animation: shake 320ms ease;
-  }
-}
-
-@keyframes shake {
-  0%, 100% { transform: translateX(0); }
-  20% { transform: translateX(-6px); }
-  40% { transform: translateX(6px); }
-  60% { transform: translateX(-4px); }
-  80% { transform: translateX(3px); }
-}
-
-@media (prefers-reduced-motion: reduce) {
-  .question input.shake {
-    animation: none;
-  }
-}
-
-.warning {
-  margin: 0.75rem 0 0;
-  text-align: center;
-  color: var(--sumi-retry);
-  background: var(--sumi-retry-soft);
-  border: 1px solid color-mix(in srgb, var(--sumi-retry) 35%, transparent);
-  border-radius: var(--sumi-radius);
-  padding: 0.6rem 0.8rem;
-
-  kbd {
-    font: inherit;
-    font-weight: 700;
-    border: 1px solid currentColor;
-    border-radius: 4px;
-    padding: 0 0.3rem;
-  }
+sumi-answer-field {
+  display: block;
 }
 
 .actions {
   margin-top: 1rem;
-  justify-content: space-between;
-}
-
-.known {
-  border-color: color-mix(in srgb, var(--sumi-correct) 45%, var(--sumi-line));
-  color: var(--sumi-correct);
-  font-weight: 600;
 }
 
 .hint-line {
@@ -171,58 +30,20 @@ img.characters {
   margin-top: 0.5rem;
 }
 
-.feedback {
+.verdict {
+  display: block;
   margin-top: 1rem;
-  border-radius: var(--sumi-radius);
-  border: 1px solid var(--sumi-line);
-  background: var(--sumi-surface);
-  padding: var(--sumi-space-4);
+}
 
-  &.correct {
-    border-color: color-mix(in srgb, var(--sumi-correct) 45%, var(--sumi-line));
-  }
+.gave-up {
+  color: var(--sumi-retry);
+  margin: 0 0 0.6rem;
+}
 
-  &.wrong {
-    border-color: color-mix(in srgb, var(--sumi-wrong) 45%, var(--sumi-line));
-  }
-
-  &.retry {
-    border-color: color-mix(in srgb, var(--sumi-retry) 45%, var(--sumi-line));
-  }
-
-  .hint {
-    color: var(--sumi-retry);
-    margin: 0.5rem 0 0;
-  }
-
-  .stage {
-    color: var(--sumi-muted);
-    font-size: 0.9rem;
-    margin: 0.5rem 0 0;
-  }
-
-  details {
-    margin: 0.75rem 0;
-  }
-
-  summary {
-    cursor: pointer;
-    color: var(--sumi-muted);
-    font-size: 0.9rem;
-
-    kbd {
-      font: inherit;
-      font-weight: 700;
-      border: 1px solid var(--sumi-line);
-      border-radius: 4px;
-      padding: 0 0.3rem;
-      margin-left: 0.35rem;
-      /* Subtle: this hint is for the desktop user with a hand near the
-         keyboard already, not a call to action for everyone. */
-      opacity: 0.7;
-    }
-  }
-
+/* The verdict's details slot: app-specific item detail (meanings, synonyms,
+   readings, mnemonics, context sentences, the radical illustration and the
+   WaniKani link), which the library knows nothing about. */
+[sumiVerdictDetails] {
   dl {
     margin: 0.5rem 0 0;
   }
@@ -240,11 +61,12 @@ img.characters {
   }
 }
 
-.finished {
+.warning {
+  margin: 1rem 0 0;
   text-align: center;
-
-  .row {
-    justify-content: center;
-    margin-top: 1rem;
-  }
+  color: var(--sumi-retry);
+  background: var(--sumi-retry-soft);
+  border: 1px solid color-mix(in srgb, var(--sumi-retry) 35%, transparent);
+  border-radius: var(--sumi-radius);
+  padding: 0.6rem 0.8rem;
 }

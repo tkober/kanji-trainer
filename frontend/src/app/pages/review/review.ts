@@ -1,25 +1,29 @@
 import { DatePipe } from '@angular/common';
-import {
-  Component,
-  ElementRef,
-  computed,
-  effect,
-  inject,
-  signal,
-  viewChild,
-} from '@angular/core';
+import { Component, DestroyRef, computed, inject, signal } from '@angular/core';
 import { RouterLink } from '@angular/router';
-import { SumiPage } from 'sumi-ui/layout';
+import { SUMI_KEYS, SumiHotkeys, injectHotkey } from 'sumi-ui/core';
+import {
+  SumiEmptyState,
+  SumiErrorState,
+  SumiFocusModeDirective,
+  SumiHanko,
+  SumiPage,
+  SumiShellFocusActionsDirective,
+} from 'sumi-ui/layout';
+import { SumiButtonDirective } from 'sumi-ui/forms';
+import { SUMI_PRACTICE, type SumiVerdict, type SumiVerdictKind } from 'sumi-ui/practice';
 
 import { Api } from '../../core/api';
-import type { AnswerResult, ObjectType, QuestionType, QueueItem } from '../../core/api.types';
+import type {
+  AnswerResult,
+  ObjectType,
+  QuestionType,
+  QueueItem,
+  SubjectSummary,
+} from '../../core/api.types';
 import { Counters } from '../../core/counters';
-import { glyphCount } from '../../core/glyphs';
-import { HoldFocus } from '../../core/hold-focus';
-import { absorbInput, finaliseKana, isKana, romajiToKana } from '../../core/kana';
 import { Mnemonic } from '../../core/mnemonic';
 import { reinsert, shuffleQuestions } from '../../core/review-queue';
-import { type Hotkey, Hotkeys } from '../../shared/hotkeys/hotkeys';
 import { ContextSentences } from '../../shared/context-sentences/context-sentences';
 import { RadicalIllustration } from '../../shared/radical-illustration/radical-illustration';
 import { Readings } from '../../shared/readings/readings';
@@ -28,82 +32,94 @@ import { Synonyms } from '../../shared/synonyms/synonyms';
 /** A queue entry plus what it still owes. */
 type Card = QueueItem;
 
+type Phase = 'idle' | 'active' | 'ended';
+
+/**
+ * Reviews: an SRS session, gated by a start screen and ended by a summary.
+ *
+ * `sumi-answer-field` and `sumi-verdict` own the input/feedback mechanics
+ * that used to live here (see CLAUDE.md's "The answer field keeps the caret
+ * for the whole item") -- this component is left with the review-specific
+ * decisions: which question is being asked, what counts for the session
+ * tally, and the three ways an answer can resolve (settled, held, retry) or
+ * not resolve at all (given up, Alt+H).
+ */
 @Component({
   selector: 'app-review',
   imports: [
     ContextSentences,
-    DatePipe,
-    HoldFocus,
-    Hotkeys,
     Mnemonic,
     RadicalIllustration,
     Readings,
     RouterLink,
-    SumiPage,
     Synonyms,
+    SumiButtonDirective,
+    SumiEmptyState,
+    SumiErrorState,
+    SumiFocusModeDirective,
+    SumiHanko,
+    SumiPage,
+    SumiShellFocusActionsDirective,
+    ...SUMI_PRACTICE,
   ],
+  providers: [DatePipe],
   templateUrl: './review.html',
   styleUrl: './review.scss',
 })
 export class Review {
   private readonly api = inject(Api);
-  private readonly counters = inject(Counters);
-  private readonly field = viewChild<ElementRef<HTMLInputElement>>('answerField');
+  protected readonly counters = inject(Counters);
+  private readonly hotkeys = inject(SumiHotkeys);
+  private readonly datePipe = inject(DatePipe);
 
+  protected readonly phase = signal<Phase>('idle');
+  /** True while the idle gate's own queue fetch is in flight -- covers the
+   * very first load and every retry/restart, not an active round's page
+   * turn (the active screen never shows a loading state of its own). */
   protected readonly loading = signal(true);
+  protected readonly loadFailed = signal(false);
   protected readonly error = signal<string | null>(null);
+
   protected readonly queue = signal<Card[]>([]);
   /**
    * The same number the header badge shows, because it is the same number.
-   *
-   * Kept as its own signal here it drifted from the badge within one
-   * answer: "37 due in total" next to a badge reading 10.
+   * Also what the idle gate's text and the "N due in total" line read off.
    */
   protected readonly totalDue = this.counters.due;
+
   protected readonly feedback = signal<AnswerResult | null>(null);
-  protected readonly raw = signal('');
+  protected readonly value = signal('');
   protected readonly submitting = signal(false);
   /**
    * An answer that would be wrong, held back for one keypress.
    *
-   * The server has not applied anything and has deliberately not said what the
-   * right answer is — the question is still open, and a warning that revealed
-   * it would be a reveal button with extra steps.
+   * The server has not applied anything and has deliberately not said what
+   * the right answer is -- the question is still open, and a warning that
+   * revealed it would be a reveal button with extra steps.
    */
   protected readonly held = signal(false);
-  protected readonly shake = signal(false);
+  /** The verdict on screen came from Alt+H, not from a typed answer. */
+  protected readonly gaveUp = signal(false);
 
   /**
    * "I know this" was pressed while the item's other half is still open.
    *
-   * `mark_known` settles meaning and reading together, which is invisible from
-   * whichever half happens to be on screen — set once, by `requestKnown()`,
-   * to ask before it is irreversible rather than after.
+   * `mark_known` settles meaning and reading together, which is invisible
+   * from whichever half happens to be on screen -- set once, by
+   * `requestKnown()`, to ask before it is irreversible rather than after.
    */
   protected readonly confirmKnown = signal(false);
+  private confirmKnownUnregisters: Array<() => void> = [];
 
-  /**
-   * Whether the "Show item" details block is expanded.
-   *
-   * Controlled rather than left to the `<details>` element itself, because
-   * `F` needs to toggle it from `onKeydown` and the element must start
-   * collapsed again on the next item — a plain uncontrolled `<details>` has
-   * no signal to reset.
-   */
-  protected readonly showItem = signal(false);
-  protected readonly hotkeysOpen = signal(false);
-
-  /** Rows for the `app-hotkeys` flyout, in the order they read best. */
-  protected readonly hotkeys: Hotkey[] = [
-    { keys: ['Enter'], label: 'Submit answer / next item' },
-    { keys: ['Esc'], label: 'Edit a held answer' },
-    { keys: ['Alt', 'K'], label: 'I know this (press twice for the whole item)' },
-    { keys: ['F'], label: 'Show item info (after answering)' },
-    { keys: ['?'], label: 'Toggle this menu (after answering)' },
-  ];
+  /** Whether the verdict's details slot is expanded. Reset on every new item. */
+  protected readonly detailsOpen = signal(false);
 
   protected readonly answered = signal(0);
   protected readonly correct = signal(0);
+  private sessionStartedAt = 0;
+  protected readonly sessionDurationMs = signal(0);
+  /** `counters.level()` at the moment the session started, for `levelUp`. */
+  private startLevel: number | null = null;
 
   protected readonly current = computed(() => this.queue()[0] ?? null);
   protected readonly question = computed<QuestionType | null>(
@@ -115,9 +131,9 @@ export class Review {
    *
    * `card.questions` is the order fixed when the item was served and goes
    * stale the moment an answer lands, so once feedback is up the true
-   * picture is `remaining` from that answer instead — except after a `retry`,
-   * which leaves the current question open too (nothing was consumed), so it
-   * reads exactly like no feedback at all.
+   * picture is `remaining` from that answer instead -- except after a
+   * `retry`, which leaves the current question open too (nothing was
+   * consumed), so it reads exactly like no feedback at all.
    */
   protected readonly otherHalfOpen = computed(() => {
     const card = this.current();
@@ -131,210 +147,305 @@ export class Review {
     return card.questions.length > 1;
   });
 
-  /**
-   * What goes in the box. A reading is converted as it is typed — seeing かん
-   * appear while typing "kan" is half the feedback of a reading question — a
-   * meaning is left exactly as entered.
-   */
-  protected readonly display = computed(() => {
-    const value = this.raw();
-    if (this.question() !== 'reading' || isKana(value)) {
-      return value;
+  protected readonly gateText = computed(
+    () => `${this.totalDue()} reviews due. Meaning and reading are asked separately.`,
+  );
+
+  /** The field's own one-line verdict -- see docs/concept.md#eingabe and the
+   * issue brief for the exact mapping. `sumi-verdict` below carries the
+   * richer, settled-only feedback (expected answer, stage line, details). */
+  protected readonly fieldVerdict = computed<SumiVerdict | null>(() => {
+    if (this.held()) {
+      return { kind: 'held', message: 'That looks wrong. Enter to submit anyway, Esc to edit.' };
     }
-    return romajiToKana(value);
+    const result = this.feedback();
+    if (!result) {
+      return null;
+    }
+    if (result.retry) {
+      const card = this.current();
+      // On vocabulary the retry is the kanji's reading (issue #41), which is
+      // not a reading of this item; the hint carries that story on its own.
+      const generic =
+        card && card.subject.object_type !== 'vocabulary'
+          ? 'That is a real reading of this character — just not the one asked for.'
+          : undefined;
+      return { kind: 'retry', message: result.hint ?? generic };
+    }
+    if (result.correct) {
+      const message = result.typo
+        ? `It is spelled ${result.expected}.`
+        : result.secondary
+          ? `The primary answer is ${result.expected}.`
+          : undefined;
+      return { kind: 'correct', message };
+    }
+    return { kind: 'wrong' };
   });
 
-  protected readonly done = computed(() => !this.loading() && this.queue().length === 0);
+  /** `sumi-verdict`'s kind -- only for a settled correct/wrong, never for a
+   * held or open retry (those are still mid-answer, not a verdict to review). */
+  protected readonly settledKind = computed<SumiVerdictKind | null>(() => {
+    if (this.held()) {
+      return null;
+    }
+    const result = this.feedback();
+    if (!result || result.retry) {
+      return null;
+    }
+    return result.correct ? 'correct' : 'wrong';
+  });
 
-  /**
-   * Keep the caret in the answer field, always.
-   *
-   * An `effect` rather than a call after each state change: the field lives
-   * inside `@if` blocks, so right after `loading` flips or the queue advances
-   * it is not in the DOM yet and a focus call lands on nothing. The viewChild
-   * signal updates once it *is* rendered, and reading the question here makes
-   * the effect re-run for every new prompt.
-   *
-   * Feedback no longer hands the caret back. On a desktop that was invisible;
-   * on a phone the caret is the keyboard, and one that closes on every answer
-   * and has to be re-opened by tapping the field is the difference between
-   * reviewing on the sofa and not reviewing at all. Focus is cheapest to keep,
-   * so the field holds it from the first item to the last — see `HoldFocus`
-   * for the other half, and `onInput` for what stops a locked field being
-   * typed into.
-   */
-  private readonly keepFocus = effect(() => {
-    this.question();
-    this.feedback();
-    this.field()?.nativeElement.focus();
+  /** The stage line ("Apprentice IV → Guru I · due again …", only once the
+   * item has actually moved) plus the backend's hint, as one message. */
+  protected readonly verdictMessage = computed<string | undefined>(() => {
+    const result = this.feedback();
+    const card = this.current();
+    if (!result || result.retry) {
+      return undefined;
+    }
+    const parts: string[] = [];
+    if (result.hint) {
+      parts.push(result.hint);
+    }
+    if (result.completed && card) {
+      let line = `${card.stage_name} → ${result.stage_name_after}`;
+      const due = result.next_review_at
+        ? this.datePipe.transform(result.next_review_at, 'dd MMM, HH:mm')
+        : null;
+      if (due) {
+        line += ` · due again ${due}`;
+      }
+      parts.push(line);
+    }
+    return parts.length > 0 ? parts.join(' ') : undefined;
+  });
+
+  /** Primary "Check"/"Next"/"Submit anyway"/"Try again" button label --
+   * mirrors `sumi-answer-field`'s own Enter-label switching. */
+  protected readonly checkButtonLabel = computed(() => {
+    if (this.held()) {
+      return 'Submit anyway';
+    }
+    const result = this.feedback();
+    if (!result) {
+      return 'Check';
+    }
+    return result.retry ? 'Try again' : 'Next';
+  });
+
+  private readonly sessionAccuracy = computed(() => {
+    const answered = this.answered();
+    return answered > 0 ? this.correct() / answered : 0;
+  });
+
+  /** 合格 ("passed") at 80% or above, 練習 ("practice") otherwise -- see
+   * docs/concept.md#tuschemotive and sumi-ui#38's `sumi-hanko` example. */
+  protected readonly hankoCharacters = computed(() => (this.sessionAccuracy() >= 0.8 ? '合格' : '練習'));
+  protected readonly hankoLabel = computed(() => (this.sessionAccuracy() >= 0.8 ? 'Passed' : 'Practice'));
+
+  /** Set once `counters.level()` (refreshed at session end) is higher than
+   * it was when the session started. `undefined`, not a falsy level, so
+   * `sumi-session-summary`'s `levelUp` input stays unset without a rise. */
+  protected readonly levelUp = computed<string | undefined>(() => {
+    const start = this.startLevel;
+    const level = this.counters.level();
+    if (start === null || level === null || level <= start) {
+      return undefined;
+    }
+    return `Level ${level}`;
   });
 
   constructor() {
-    void this.load();
+    // `?` only becomes a hotkey once a settled verdict is on screen -- bare
+    // keys otherwise belong to the field. `F` is registered by
+    // `sumi-verdict` itself as soon as its details slot has content.
+    injectHotkey({
+      keys: SUMI_KEYS.help,
+      label: 'Toggle this menu (after answering)',
+      scope: 'feedback',
+      allowInEditable: true,
+      enabled: () => this.settledKind() !== null,
+      handler: () => this.hotkeys.toggleHelp(),
+    });
+
+    inject(DestroyRef).onDestroy(() => this.unregisterConfirmKnownHotkeys());
+
+    // Fetch once on open, the same way the page always has, so the idle
+    // screen can tell "loading" from "nothing due" from "can't reach the
+    // server" instead of reading `counters.due()` before its first poll has
+    // ever landed (which reads as "No reviews due" for a beat, and as the
+    // empty state rather than an error if the backend happens to be down).
+    void this.fetchQueue();
   }
 
-  async load(): Promise<void> {
+  // --- the session ---------------------------------------------------------
+
+  /** The idle gate's own "Start reviews" (and `Enter`, via the gate's
+   * hotkey) -- goes straight to `active` on the queue `fetchQueue()` already
+   * loaded, no second request, so Enter is instant. */
+  protected start(): void {
+    if (this.queue().length === 0) {
+      return;
+    }
+    this.answered.set(0);
+    this.correct.set(0);
+    this.sessionStartedAt = Date.now();
+    this.startLevel = this.counters.level();
+    this.resetItemState();
+    this.phase.set('active');
+  }
+
+  /** The idle gate's error state's "Try again". */
+  protected retryLoad(): void {
+    void this.fetchQueue();
+  }
+
+  /** "Practice again" after a summary, or `Enter` on that gate -- unlike
+   * `start()`, this one *does* re-fetch: the queue the session began with is
+   * gone (answered through, or the session was abandoned minutes ago), so
+   * there is nothing to reuse. Goes straight into a fresh round once the
+   * fetch lands, same as `start()` would right after it. */
+  protected async restart(): Promise<void> {
+    this.answered.set(0);
+    this.correct.set(0);
+    this.startLevel = this.counters.level();
+    this.phase.set('idle');
+    const ok = await this.fetchQueue();
+    if (ok && this.queue().length > 0) {
+      this.sessionStartedAt = Date.now();
+      this.resetItemState();
+      this.phase.set('active');
+    }
+    // Otherwise the idle screen already shows the right thing on its own --
+    // the error state, or the empty state if nothing turned out to be due.
+  }
+
+  /** The one place that calls `GET /api/reviews`. Leaves `phase` alone --
+   * every caller (the constructor, `retryLoad()`, `restart()`,
+   * `continueRound()`) decides what to do with the result itself. */
+  private async fetchQueue(): Promise<boolean> {
     this.loading.set(true);
+    this.loadFailed.set(false);
     this.error.set(null);
     try {
       const queue = await this.api.reviewQueue(100);
-      // The backend always hands back `['meaning', 'reading']` — shuffle each
-      // item's own half-order here, or the first sighting of every item is
-      // always its meaning. A no-op for an item already mid-review (it
-      // arrives with only its outstanding half left).
+      // The backend always hands back `['meaning', 'reading']` -- shuffle
+      // each item's own half-order here, or the first sighting of every item
+      // is always its meaning.
       this.queue.set(queue.items.map(shuffleQuestions));
       this.counters.setDue(queue.total_due);
-      this.confirmKnown.set(false);
+      return true;
     } catch (err) {
+      this.loadFailed.set(true);
       this.error.set((err as Error).message);
+      return false;
     } finally {
       this.loading.set(false);
-      this.focus();
     }
   }
 
-  onInput(event: Event): void {
-    const input = event.target as HTMLInputElement;
-    // The answer is frozen while its feedback is up, and frozen here rather
-    // than with `readonly`: a read-only field is one the on-screen keyboard
-    // retracts from, which is exactly the blur this screen is built to avoid.
-    // The keystroke is dropped and the box put back the way it was — the
-    // binding cannot do it, since the value it holds has not changed.
-    if (this.feedback()) {
-      input.value = this.display();
-      return;
-    }
+  protected end(): void {
+    this.finishSession();
+  }
 
-    this.raw.set(absorbInput(input.value, this.display(), this.raw()));
-    // Editing withdraws the answer that was warned about; the next Enter is
-    // checked afresh rather than submitting the old text.
-    if (this.held()) {
-      this.held.set(false);
-    }
-    // Same reasoning as `held`: typing again means the learner changed their
-    // mind, and a pending "mark the whole item known?" must not survive that
-    // — or they would be stuck re-reading a panel for an answer they are now
-    // busy typing.
-    if (this.confirmKnown()) {
-      this.confirmKnown.set(false);
+  private finishSession(): void {
+    this.resetItemState();
+    if (this.answered() > 0) {
+      this.sessionDurationMs.set(Date.now() - this.sessionStartedAt);
+      // Picks up a level reached during the session, for `levelUp` -- the
+      // same number the header badge shows.
+      void this.counters.refresh();
+      this.phase.set('ended');
+    } else {
+      // Nothing answered -- e.g. `end()` right after `start()` -- so
+      // whatever is left in `queue()` is still exactly what the gate
+      // advertised and "Start reviews" can reuse it without a re-fetch.
+      this.phase.set('idle');
     }
   }
 
-  /** Enter submits, and once there is feedback on screen, Enter moves on. */
-  onKeydown(event: KeyboardEvent): void {
-    // The confirmation panel is the most recently raised prompt on screen, so
-    // Escape clears it before anything else gets a turn — including a held
-    // answer, which can be showing at the same time (nothing about pressing
-    // Alt+K requires the previous answer to not be held).
-    if (event.key === 'Escape' && this.confirmKnown()) {
-      event.preventDefault();
-      this.confirmKnown.set(false);
+  /** Hand the caret back, or fetch the next page of a long backlog. A round
+   * is one page of the queue, and running one out used to end the session
+   * while the badge went on counting the rest. */
+  private continueRound(): void {
+    if (this.queue().length > 0) {
       return;
     }
+    if (this.totalDue() > 0) {
+      void this.continueFetching();
+      return;
+    }
+    this.finishSession();
+  }
 
-    if (event.key === 'Escape' && this.held()) {
-      // Hand the input back with the text selected, so correcting a slip is
-      // one keystroke rather than a clear-and-retype.
-      event.preventDefault();
-      this.held.set(false);
-      const input = this.field()?.nativeElement;
-      input?.focus();
-      input?.select();
+  /** `continueRound()`'s fetch -- stays in `active` throughout (the session
+   * is already running), and only `finishSession()`s if the backlog turned
+   * out to be spent after all. A failure drops back to `idle`, whose error
+   * state offers "Try again" -- the round is empty at this point, so the
+   * active screen would have nothing to show the error next to. */
+  private async continueFetching(): Promise<void> {
+    const ok = await this.fetchQueue();
+    if (!ok) {
+      this.phase.set('idle');
       return;
     }
-
-    // A held answer takes priority over the flyout: correcting a slip is the
-    // more urgent thing Escape can do, so the flyout only closes on its own
-    // once nothing is held.
-    if (event.key === 'Escape' && this.hotkeysOpen()) {
-      event.preventDefault();
-      this.hotkeysOpen.set(false);
-      return;
-    }
-
-    if (event.key === 'Enter') {
-      event.preventDefault();
-      // Confirming takes priority over both of Enter's usual jobs — it must
-      // not submit the answer underneath the panel, and the panel can be up
-      // with no feedback showing at all.
-      if (this.confirmKnown()) {
-        void this.markKnown();
-      } else if (this.feedback()) {
-        this.next();
-      } else {
-        void this.submit();
-      }
-      return;
-    }
-    // Alt rather than a bare key: the field has focus the whole time, so any
-    // unmodified shortcut would be swallowed by the answer.
-    if (event.altKey && event.key.toLowerCase() === 'k') {
-      event.preventDefault();
-      this.requestKnown();
-      return;
-    }
-
-    // Bare-key shortcuts below fire only once feedback is on screen. Before
-    // that the field has focus and every keystroke is part of the answer —
-    // `onInput` only starts discarding keystrokes once feedback is set, so a
-    // bare key here would otherwise land in the answer, not trigger anything.
-    const result = this.feedback();
-    if (!result || event.ctrlKey || event.altKey || event.metaKey || event.isComposing) {
-      return;
-    }
-
-    if (event.key.toLowerCase() === 'f' && result.subject) {
-      event.preventDefault();
-      this.showItem.update((open) => !open);
-      return;
-    }
-
-    if (event.key === '?') {
-      event.preventDefault();
-      this.hotkeysOpen.update((open) => !open);
+    if (this.queue().length === 0) {
+      this.finishSession();
     }
   }
 
-  /** Keeps `showItem` in sync when the `<summary>` is clicked directly. */
-  protected onShowItemToggle(event: Event): void {
-    this.showItem.set((event.target as HTMLDetailsElement).open);
+  // --- answering -------------------------------------------------------
+
+  protected onSubmitted(answer: string): void {
+    void this.submitAnswer(answer, false, false);
   }
 
-  async submit(): Promise<void> {
+  /** The second Enter after a "that looks wrong" warning. */
+  protected onConfirmed(): void {
+    void this.submitAnswer(this.value(), true, false);
+  }
+
+  /** Alt+H: reveal the answer, scored as a plain miss. */
+  protected onGaveUp(): void {
+    void this.submitAnswer('', true, true);
+  }
+
+  /** Any edit while held/retry is up -- the verdict is withdrawn, the typed
+   * text stays (the field manages that part itself). */
+  protected onEdited(): void {
+    this.held.set(false);
+    this.feedback.update((result) => (result?.retry ? null : result));
+  }
+
+  private async submitAnswer(answer: string, confirm: boolean, gaveUp: boolean): Promise<void> {
     const card = this.current();
     const question = this.question();
     if (!card || !question || this.submitting()) {
       return;
     }
 
-    const answer = question === 'reading' ? finaliseKana(this.display()) : this.raw().trim();
-    if (!answer) {
-      return;
-    }
-
     this.submitting.set(true);
     try {
-      // The second Enter after a warning is what confirms it.
-      const result = await this.api.answer(card.subject.id, question, answer, this.held());
+      const result = await this.api.answer(card.subject.id, question, answer, confirm, gaveUp);
 
       if (result.held) {
         this.held.set(true);
-        this.nudge();
         return;
       }
       this.held.set(false);
-
+      this.gaveUp.set(gaveUp);
       this.feedback.set(result);
 
       // Completed means the item has moved and its next review is hours
       // away: it has left the due set, and the badge should say so now
-      // rather than at the next poll. A half-answered item has not moved.
+      // rather than at the next poll.
       if (result.completed) {
         this.counters.spendDue();
       }
 
-      // A retry is not an answer: the learner produced a real reading of the
-      // character, just not the one asked for. It counts for nothing in
+      // A retry is not an answer: the learner produced a real reading of
+      // the character, just not the one asked for. It counts for nothing in
       // either direction, so it stays out of the session tally too.
       if (!result.retry) {
         this.answered.update((n) => n + 1);
@@ -349,15 +460,8 @@ export class Review {
     }
   }
 
-  /** Briefly shake the field, so a held answer is felt as well as read. */
-  private nudge(): void {
-    this.shake.set(true);
-    setTimeout(() => this.shake.set(false), 400);
-    queueMicrotask(() => this.field()?.nativeElement.focus());
-  }
-
-  /** Advance past the feedback, re-queueing the item if it still owes a half. */
-  next(): void {
+  /** `Enter` on a settled verdict, or on an open retry. */
+  protected next(): void {
     const result = this.feedback();
     const card = this.current();
     if (!result || !card) {
@@ -365,57 +469,36 @@ export class Review {
     }
 
     if (result.retry) {
-      // Same question, same item, nothing consumed — just ask again.
+      // Same question, same item, nothing consumed -- just ask again.
       this.feedback.set(null);
-      this.showItem.set(false);
-      this.raw.set('');
-      this.focus();
+      this.gaveUp.set(false);
+      this.detailsOpen.set(false);
+      this.value.set('');
       return;
     }
 
     let rest = this.queue().slice(1);
     if (result.remaining.length > 0) {
       // Somewhere later in the round, not straight back round again and not
-      // at the very back either: a straight re-insert tests nothing (the
-      // meaning just answered is still on screen), and a straight push to
-      // the back regroups every reading into one block at the end of the
-      // round once enough items have gone through this once (issue #27).
+      // at the very back either (issue #27) -- see `reinsert`.
       rest = reinsert(rest, { ...card, questions: result.remaining });
     }
 
     this.queue.set(rest);
-    this.feedback.set(null);
-    this.showItem.set(false);
-    this.raw.set('');
-    this.held.set(false);
-    this.confirmKnown.set(false);
+    this.resetItemState();
     this.continueRound();
   }
 
-  /**
-   * Hand the caret back, or fetch the next round.
-   *
-   * A round is one page of the queue, and a long backlog has several. Running
-   * a page out used to end the session on "No reviews due" while the badge
-   * went on counting the rest, and the reload it wanted was a button the
-   * learner had to notice and press.
-   */
-  private continueRound(): void {
-    if (this.queue().length === 0 && this.totalDue() > 0) {
-      void this.load();
-      return;
-    }
-    this.focus();
-  }
+  // --- "I know this" ---------------------------------------------------
 
   /**
-   * Entry point for the "I know this" button and `Alt+K`.
+   * Entry point for the "I know this" button and `Alt+K` (the field's own
+   * hotkey, routed here via `(knew)`).
    *
    * Goes straight to `markKnown()` when there is nothing left to clarify (a
    * radical, or the other half already answered); otherwise the first press
-   * only raises the confirmation panel, and a second press — same button,
-   * same shortcut, or `Enter` — is what actually calls `markKnown()`. That
-   * keeps the common case (nothing outstanding) exactly as fast as before.
+   * only raises the confirmation panel, and a second press -- same button,
+   * same shortcut, or `Enter` -- is what actually calls `markKnown()`.
    */
   protected requestKnown(): void {
     if (this.confirmKnown()) {
@@ -424,22 +507,59 @@ export class Review {
     }
     if (this.otherHalfOpen()) {
       this.confirmKnown.set(true);
+      this.registerConfirmKnownHotkeys();
       return;
     }
     void this.markKnown();
   }
 
-  /** Cancel button for the confirmation panel — keeps focus and typed text. */
   protected cancelKnown(): void {
     this.confirmKnown.set(false);
+    this.unregisterConfirmKnownHotkeys();
+  }
+
+  /**
+   * `sumi-answer-field` registers its own `Enter`/`Escape` at construction
+   * time, so this panel -- raised later, while the field is still mounted --
+   * registers its own copies dynamically and wins under `SumiHotkeys`' stack
+   * semantics (most recently registered wins) for as long as it is open.
+   * That reproduces "the panel is the most recently raised prompt, so it
+   * gets Enter/Escape first", including over a held answer shown at the
+   * same time.
+   */
+  private registerConfirmKnownHotkeys(): void {
+    this.unregisterConfirmKnownHotkeys();
+    this.confirmKnownUnregisters = [
+      this.hotkeys.register({
+        keys: SUMI_KEYS.submit,
+        label: 'Mark whole item known',
+        scope: 'page',
+        allowInEditable: true,
+        handler: () => void this.markKnown(),
+      }),
+      this.hotkeys.register({
+        keys: SUMI_KEYS.escape,
+        label: 'Cancel',
+        scope: 'page',
+        allowInEditable: true,
+        handler: () => this.cancelKnown(),
+      }),
+    ];
+  }
+
+  private unregisterConfirmKnownHotkeys(): void {
+    for (const unregister of this.confirmKnownUnregisters) {
+      unregister();
+    }
+    this.confirmKnownUnregisters = [];
   }
 
   /**
    * "I know this", mid-session.
    *
    * Takes the item out of the queue entirely rather than marking the current
-   * question right: the point is that the whole item is known, and asking for
-   * its other half would be the exact friction this button removes.
+   * question right: the point is that the whole item is known, and asking
+   * for its other half would be the exact friction this button removes.
    */
   async markKnown(): Promise<void> {
     const card = this.current();
@@ -449,11 +569,7 @@ export class Review {
     try {
       await this.api.markKnown([card.subject.id]);
       this.queue.set(this.queue().slice(1));
-      this.feedback.set(null);
-      this.showItem.set(false);
-      this.raw.set('');
-      this.held.set(false);
-      this.confirmKnown.set(false);
+      this.resetItemState();
       this.counters.spendDue();
       this.continueRound();
     } catch (err) {
@@ -470,13 +586,9 @@ export class Review {
     try {
       await this.api.resetItems([card.subject.id]);
       this.queue.set(this.queue().slice(1));
-      this.feedback.set(null);
-      this.showItem.set(false);
-      this.raw.set('');
-      this.held.set(false);
-      this.confirmKnown.set(false);
-      // Back to Apprentice I is four hours out, so this one has left the due
-      // set as surely as an answered item has.
+      this.resetItemState();
+      // Back to Apprentice I is four hours out, so this one has left the
+      // due set as surely as an answered item has.
       this.counters.spendDue();
       this.continueRound();
     } catch (err) {
@@ -484,9 +596,17 @@ export class Review {
     }
   }
 
-  protected accuracy(): number | null {
-    return this.answered() === 0 ? null : Math.round((this.correct() / this.answered()) * 100);
+  private resetItemState(): void {
+    this.feedback.set(null);
+    this.held.set(false);
+    this.gaveUp.set(false);
+    this.value.set('');
+    this.confirmKnown.set(false);
+    this.detailsOpen.set(false);
+    this.unregisterConfirmKnownHotkeys();
   }
+
+  // --- presentation -----------------------------------------------------
 
   protected typeLabel(type: ObjectType): string {
     return {
@@ -497,9 +617,21 @@ export class Review {
     }[type];
   }
 
-  /** Bound to `.characters` as `--glyphs`, so its font shrinks to fit the card. */
-  protected glyphCount(text: string): number {
-    return glyphCount(text);
+  /** `characters`, falling back to the slug -- unless there is an image to
+   * show instead, in which case the prompt card gets no text at all and the
+   * template projects the image into `[sumiPromptVisual]`. */
+  protected promptText(subject: SubjectSummary): string | undefined {
+    if (subject.characters) {
+      return subject.characters;
+    }
+    return subject.character_image_url ? undefined : subject.slug;
+  }
+
+  protected toneFor(type: ObjectType): string {
+    if (type === 'radical') {
+      return 'var(--radical)';
+    }
+    return type === 'kanji' ? 'var(--kanji)' : 'var(--vocabulary)';
   }
 
   protected primaryMeanings(result: AnswerResult): string {
@@ -510,9 +642,9 @@ export class Review {
   }
 
   /**
-   * Keep `feedback().subject.synonyms` current after a save in the "Show
-   * item" panel -- same reasoning as the browse list item and the lessons
-   * item: reopening the panel (or answering the item's other half) must show
+   * Keep `feedback().subject.synonyms` current after a save in the details
+   * slot -- same reasoning as the browse list item and the lessons item:
+   * reopening the details (or answering the item's other half) must show
    * the new list without a refetch.
    */
   protected onSynonymsChange(subjectId: number, synonyms: string[]): void {
@@ -522,17 +654,5 @@ export class Review {
       }
       return { ...result, subject: { ...result.subject, synonyms } };
     });
-  }
-
-  /**
-   * Focus now, for the cases the effect cannot see.
-   *
-   * The effect covers every change of question. This covers the rest: the
-   * field is already rendered and already the right one, it just lost the
-   * caret to a button click -- or, after `app-synonyms` is done with it, to
-   * its own draft field.
-   */
-  protected focus(): void {
-    this.field()?.nativeElement.focus();
   }
 }

@@ -38,18 +38,25 @@ export class Api {
     return this.get('/api/reviews', new HttpParams().set('limit', limit));
   }
 
-  /** `confirm` is the second Enter after a "that looks wrong" warning. */
+  /**
+   * `confirm` is the second Enter after a "that looks wrong" warning.
+   * `gaveUp` is Alt+H -- counts as wrong and reveals the answer on purpose,
+   * whatever `answer` holds (the caller sends `''`, but the backend does not
+   * trust that either).
+   */
   answer(
     subjectId: number,
     question: QuestionType,
     answer: string,
     confirm = false,
+    gaveUp = false,
   ): Promise<AnswerResult> {
     return this.post('/api/reviews/answer', {
       subject_id: subjectId,
       question,
       answer,
       confirm,
+      gave_up: gaveUp,
     });
   }
 
@@ -71,12 +78,19 @@ export class Api {
     return this.get('/api/lessons/items', params);
   }
 
-  /** Check a lesson-quiz answer. Moves nothing — see the backend endpoint. */
-  quiz(subjectId: number, question: QuestionType, answer: string): Promise<QuizResult> {
+  /** Check a lesson-quiz answer. Moves nothing — see the backend endpoint.
+   * `gaveUp` is Alt+H, same meaning as in `answer()`. */
+  quiz(
+    subjectId: number,
+    question: QuestionType,
+    answer: string,
+    gaveUp = false,
+  ): Promise<QuizResult> {
     return this.post('/api/lessons/quiz', {
       subject_id: subjectId,
       question,
       answer,
+      gave_up: gaveUp,
     });
   }
 

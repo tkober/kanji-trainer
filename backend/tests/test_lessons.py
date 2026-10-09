@@ -351,6 +351,32 @@ async def test_the_quiz_refuses_items_already_in_the_rotation(client, session):
     assert response.status_code == 409
 
 
+async def test_a_given_up_quiz_answer_is_wrong_and_reveals_the_answer(client, session):
+    """Alt+H in the quiz: counts as wrong and names the expected answer, same
+    as any other wrong quiz answer -- the quiz already moves nothing."""
+    subject_id = await seed(session, level=1, slug="上", wanikani_id=1)
+
+    body = (
+        await client.post(
+            "/api/lessons/quiz",
+            json={
+                "subject_id": subject_id,
+                "question": "meaning",
+                "answer": "above",
+                "gave_up": True,
+            },
+        )
+    ).json()
+
+    assert body["correct"] is False
+    assert body["retry"] is False
+    assert body["expected"] == "Above"
+
+    item = (await client.get(f"/api/items/{subject_id}")).json()
+    assert item["progress"]["state"] == "new"
+    assert item["progress"]["incorrect_count"] == 0
+
+
 async def test_starting_a_batch_reports_the_count_and_schedules_it(client, session):
     first = await seed(session, level=1, slug="上", wanikani_id=1)
     second = await seed(session, level=1, slug="下", wanikani_id=2)

@@ -33,50 +33,9 @@ section + section {
   margin-top: 1rem;
 }
 
-.prompt {
-  border-radius: var(--sumi-radius);
-  padding: 2rem 1rem 1rem;
-  text-align: center;
-  color: #fff;
-  box-shadow: var(--sumi-shadow);
-  /* Lets `.characters` size itself off this card's own width (`cqi`) below,
-     rather than the viewport — a block-level card, so containment here does
-     not affect anything outside it. */
-  container-type: inline-size;
-
-  &[data-type='radical'] {
-    background: var(--radical);
-  }
-
-  &[data-type='kanji'] {
-    background: var(--kanji);
-  }
-
-  &[data-type='vocabulary'],
-  &[data-type='kana_vocabulary'] {
-    background: var(--vocabulary);
-  }
-}
-
-.characters {
-  /* Shrinks a long item to fit before it wraps — see review.scss. */
-  font-size: max(2rem, min(clamp(3rem, 15vw, 5rem), calc(100cqi / var(--glyphs, 1) * 0.95)));
-  line-height: 1.1;
-  overflow-wrap: anywhere;
-}
-
-img.characters {
-  height: clamp(3rem, 15vw, 5rem);
-  filter: brightness(0) invert(1);
-}
-
-.meta {
-  display: flex;
-  justify-content: center;
-  gap: 1rem;
-  font-size: 0.85rem;
-  opacity: 0.85;
-  margin-top: 1rem;
+sumi-prompt-card {
+  display: block;
+  margin-bottom: 1rem;
 }
 
 .detail {
@@ -349,83 +308,19 @@ button.tile {
 
 /* --- quiz phase --------------------------------------------------------- */
 
-.progress {
-  display: flex;
-  gap: 0.5rem;
-  font-size: 0.9rem;
-  margin-bottom: 0.75rem;
-}
-
-.question {
-  margin-top: 1rem;
-
-  label {
-    display: block;
-    text-align: center;
-    font-size: 0.85rem;
-    text-transform: uppercase;
-    letter-spacing: 0.08em;
-    color: var(--sumi-muted);
-    margin-bottom: 0.4rem;
-  }
-
-  input {
-    width: 100%;
-    font-size: 1.5rem;
-    text-align: center;
-    padding: 0.7rem;
-  }
-
-  /* Readings get the dark field, so the two question types are
-     distinguishable before the label is read. */
-  &.reading input {
-    background: #2b2f38;
-    color: #fff;
-    border-color: #2b2f38;
-  }
-
-  /* The tint has to come back to `--sumi-text`: a reading field is white on
-     dark until a verdict lands. */
-  input.correct {
-    border-color: var(--sumi-correct);
-    background: var(--sumi-correct-soft);
-    color: var(--sumi-text);
-  }
-
-  input.wrong {
-    border-color: var(--sumi-wrong);
-    background: var(--sumi-wrong-soft);
-    color: var(--sumi-text);
-  }
+sumi-answer-field {
+  display: block;
 }
 
 .actions {
   margin-top: 1rem;
-  justify-content: center;
 }
 
-.feedback {
+.verdict {
+  display: block;
   margin-top: 1rem;
-  border-radius: var(--sumi-radius);
-  border: 1px solid var(--sumi-line);
-  background: var(--sumi-surface);
-  padding: var(--sumi-space-4);
+}
 
-  &.correct {
-    border-color: color-mix(in srgb, var(--sumi-correct) 45%, var(--sumi-line));
-  }
-
-  &.wrong {
-    border-color: color-mix(in srgb, var(--sumi-wrong) 45%, var(--sumi-line));
-  }
-
-  .hint {
-    color: var(--sumi-retry);
-    margin: 0.5rem 0 0;
-  }
-
-  .no-cost {
-    font-size: 0.85rem;
-    margin: 0.5rem 0 0.75rem;
-  }
+.gate-actions {
+  justify-content: center;
 }

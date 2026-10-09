@@ -1,11 +1,12 @@
 import { Component, computed, inject } from '@angular/core';
 import { RouterLink, RouterOutlet } from '@angular/router';
+import { SumiHotkeyHelp } from 'sumi-ui/core';
 import { SUMI_LAYOUT, type SumiAppShellBrand, type SumiNavItem } from 'sumi-ui/layout';
 
 import { Counters } from './core/counters';
 
 @Component({
-  imports: [...SUMI_LAYOUT, RouterLink, RouterOutlet],
+  imports: [...SUMI_LAYOUT, RouterLink, RouterOutlet, SumiHotkeyHelp],
   selector: 'app-root',
   templateUrl: './app.html',
 })

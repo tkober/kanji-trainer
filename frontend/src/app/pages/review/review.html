@@ -1,214 +1,195 @@
 <sumi-page width="narrow" [inkEnd]="false">
-  @if (error(); as message) {
-    <p class="error">{{ message }}</p>
-  }
-
-  @if (loading()) {
-    <p class="muted">Loading reviews …</p>
-  } @else if (done()) {
-    <section class="card finished">
-      <h1>No reviews due</h1>
-      @if (answered() > 0) {
-        <p class="muted">{{ answered() }} answers this session, {{ accuracy() }} % correct.</p>
-      } @else {
-        <p class="muted">The next item comes up as soon as an interval elapses.</p>
-      }
-      <div class="row">
-        <button class="primary" (click)="load()">Reload</button>
-        <a routerLink="/lessons"><button>Go to lessons</button></a>
-      </div>
-    </section>
-  } @else if (current(); as card) {
-    <div class="progress">
-      <span>{{ queue().length }} in this round</span>
-      <span class="muted">·</span>
-      <span class="muted">{{ totalDue() }} due in total</span>
-      @if (accuracy() !== null) {
-        <span class="muted">·</span>
-        <span class="muted">{{ accuracy() }} % correct</span>
-      }
-    </div>
-
-    <section class="prompt" [attr.data-type]="card.subject.object_type">
-      @if (card.subject.characters) {
-        <div class="characters jp" [style.--glyphs]="glyphCount(card.subject.characters)">
-          {{ card.subject.characters }}
-        </div>
-      } @else if (card.subject.character_image_url) {
-        <img class="characters" [src]="card.subject.character_image_url" [alt]="card.subject.slug" />
-      } @else {
-        <div class="characters jp" [style.--glyphs]="glyphCount(card.subject.slug)">
-          {{ card.subject.slug }}
-        </div>
-      }
-      <div class="meta">
-        <span>{{ typeLabel(card.subject.object_type) }}</span>
-        <span>Level {{ card.subject.level }}</span>
-        <span>{{ card.stage_name }}</span>
-      </div>
-    </section>
-
-    <section class="question" [class.reading]="question() === 'reading'">
-      <label for="answer">{{ question() === 'reading' ? 'Reading' : 'Meaning' }}</label>
-
-      <input
-        #answerField
-        id="answer"
-        type="text"
-        class="jp"
-        autocomplete="off"
-        autocorrect="off"
-        autocapitalize="off"
-        spellcheck="false"
-        [attr.enterkeyhint]="feedback() ? 'next' : 'go'"
-        [value]="display()"
-        [class.correct]="feedback()?.correct === true"
-        [class.wrong]="feedback()?.correct === false && feedback()?.retry !== true"
-        [class.held]="held()"
-        [class.shake]="shake()"
-        (input)="onInput($event)"
-        (keydown)="onKeydown($event)"
-      />
-    </section>
-
-    @if (feedback(); as result) {
-      <section
-        class="feedback"
-        [class.correct]="result.correct"
-        [class.wrong]="!result.correct && !result.retry"
-        [class.retry]="result.retry"
-      >
-        @if (result.retry) {
-          <strong>Doesn't count.</strong>
-          <!-- On vocabulary the retry is the kanji's reading (issue #41), which is
-               not a reading of this item; the hint below says so on its own. -->
-          @if (card.subject.object_type !== 'vocabulary') {
-            <span> That is a real reading of this character — just not the one asked for.</span>
-          }
-        } @else if (result.correct) {
-          <strong>Correct.</strong>
-          @if (result.typo) {
-            <span> It is spelled <em>{{ result.expected }}</em>.</span>
-          } @else if (result.secondary) {
-            <span> The primary answer is <em class="jp">{{ result.expected }}</em>.</span>
-          }
-        } @else {
-          <strong>Wrong.</strong>
-          <span> Expected: <em class="jp">{{ result.expected }}</em></span>
-        }
-
-        @if (result.hint) {
-          <p class="hint">{{ result.hint }}</p>
-        }
-
-        @if (result.completed && !result.retry) {
-          <p class="stage">
-            {{ result.srs_stage_before }} → {{ result.srs_stage_after }} ·
-            {{ result.stage_name_after }}
-            @if (result.next_review_at) {
-              · due again {{ result.next_review_at | date: 'dd MMM, HH:mm' }}
-            }
-          </p>
-        }
-
-        @if (result.subject; as subject) {
-          <details [open]="showItem()" (toggle)="onShowItemToggle($event)">
-            <summary appHoldFocus>Show item <kbd>F</kbd></summary>
-            <dl>
-              <dt>Meanings</dt>
-              <dd>{{ primaryMeanings(result) }}</dd>
-            </dl>
-
-            <app-synonyms
-              [subjectId]="subject.id"
-              [synonyms]="subject.synonyms"
-              (synonymsChange)="onSynonymsChange(subject.id, $event)"
-              (done)="focus()"
-            />
-
-            <app-readings [readings]="subject.readings" [objectType]="subject.object_type" />
-
-            <dl>
-              @if (subject.parts_of_speech.length > 0) {
-                <dt>Part of speech</dt>
-                <dd>{{ subject.parts_of_speech.join(', ') }}</dd>
-              }
-              @if (subject.meaning_mnemonic) {
-                <dt>Meaning mnemonic</dt>
-                <dd [innerHTML]="subject.meaning_mnemonic | mnemonic"></dd>
-              }
-              @if (subject.reading_mnemonic) {
-                <dt>Reading mnemonic</dt>
-                <dd [innerHTML]="subject.reading_mnemonic | mnemonic"></dd>
-              }
-            </dl>
-
-            <app-context-sentences
-              [sentences]="subject.context_sentences"
-              [characters]="subject.characters"
-            />
-
-            <app-radical-illustration
-              [subjectId]="subject.id"
-              [objectType]="subject.object_type"
-            />
-
-            <dl>
-              @if (subject.wanikani_url; as url) {
-                <dt>Source</dt>
-                <dd>
-                  <a [href]="url" target="_blank" rel="noopener">Open the original on WaniKani ↗</a>
-                </dd>
-              }
-            </dl>
-          </details>
-        }
-
-        <div class="row">
-          <button class="primary" appHoldFocus (click)="next()">
-            {{ result.retry ? 'Try again (Enter)' : 'Next (Enter)' }}
+  @switch (phase()) {
+    @case ('idle') {
+      @if (loading()) {
+        <p class="muted">Loading reviews …</p>
+      } @else if (loadFailed()) {
+        <sumi-error-state title="Can't reach the server" companion="tsuru">
+          Your progress is safe. Check the connection and try again.
+          <button sumiErrorAction type="button" sumiButton variant="secondary" (click)="retryLoad()">
+            Try again
           </button>
-          @if (!result.correct && !result.retry) {
-            <button appHoldFocus (click)="resetCurrent()">Relearn from scratch</button>
+        </sumi-error-state>
+      } @else if (totalDue() > 0) {
+        <sumi-session-gate
+          title="Ready to review?"
+          [text]="gateText()"
+          actionLabel="Start reviews"
+          companion="tsuru"
+          (start)="start()"
+        />
+      } @else {
+        <sumi-empty-state title="No reviews due" companion="tsuru">
+          The next item comes up as soon as an interval elapses.
+          @if (counters.lessons() > 0) {
+            <a sumiEmptyAction routerLink="/lessons" sumiButton variant="primary">Go to lessons</a>
           }
-        </div>
-      </section>
-    } @else {
-      @if (held()) {
-        <p class="warning">
-          That looks wrong. <kbd>Enter</kbd> to submit anyway, <kbd>Esc</kbd> to edit.
-        </p>
+        </sumi-empty-state>
       }
     }
 
-    @if (confirmKnown()) {
-      <p class="warning">
-        This marks <strong class="jp">{{ card.subject.characters || card.subject.slug }}</strong> as
-        known — meaning <strong>and</strong> reading. Both leave the reviews.
-      </p>
-      <div class="row actions">
-        <button class="known" appHoldFocus (click)="requestKnown()">
-          Mark whole item known (Alt+K / Enter)
-        </button>
-        <button appHoldFocus (click)="cancelKnown()">Cancel (Esc)</button>
-      </div>
-    } @else if (!feedback()) {
-      <div class="row actions">
-        <button class="known" appHoldFocus (click)="requestKnown()" title="Alt+K">
-          I know this
-        </button>
-        <button class="primary" appHoldFocus [disabled]="submitting()" (click)="submit()">
-          {{ held() ? 'Submit anyway (Enter)' : 'Answer (Enter)' }}
-        </button>
-      </div>
-      <p class="muted hint-line">
-        “I know this” retires the whole item immediately — meaning and reading together, no waiting
-        on intervals.
-      </p>
+    @case ('ended') {
+      <!-- No title: sumi-session-summary supplies its own heading. -->
+      <sumi-session-gate [showAction]="false" companion="tsuru" (start)="restart()">
+        <sumi-session-summary
+          [answered]="answered()"
+          [correct]="correct()"
+          [durationMs]="sessionDurationMs()"
+          [levelUp]="levelUp()"
+          (restart)="restart()"
+        >
+          <sumi-hanko sumiSummaryArt [characters]="hankoCharacters()" [label]="hankoLabel()" />
+        </sumi-session-summary>
+      </sumi-session-gate>
+    }
+
+    @default {
+      @if (current(); as card) {
+        <!-- Lives in the shell's focus-mode header, not here -- see
+             *sumiShellFocusActions's doc comment. -->
+        <sumi-session-bar *sumiShellFocusActions [answered]="answered()" [correct]="correct()" (end)="end()" />
+
+        <div sumiFocusMode>
+          @if (error(); as message) {
+            <p class="error">{{ message }}</p>
+          }
+
+          <p class="muted progress">{{ queue().length }} in this round · {{ totalDue() }} due in total</p>
+
+          <sumi-prompt-card
+            [text]="promptText(card.subject)"
+            [kind]="question() === 'reading' ? 'Reading' : 'Meaning'"
+            [meta]="[typeLabel(card.subject.object_type), 'Level ' + card.subject.level, card.stage_name]"
+            [tone]="toneFor(card.subject.object_type)"
+          >
+            @if (!card.subject.characters && card.subject.character_image_url) {
+              <img sumiPromptVisual="ink" [src]="card.subject.character_image_url" [alt]="card.subject.slug" />
+            }
+          </sumi-prompt-card>
+
+          <sumi-answer-field
+            #field
+            [mode]="question() === 'reading' ? 'kana' : 'latin'"
+            [label]="question() === 'reading' ? 'Reading' : 'Meaning'"
+            [iKnow]="true"
+            [iDontKnow]="true"
+            [(value)]="value"
+            [verdict]="fieldVerdict()"
+            (submitted)="onSubmitted($event)"
+            (confirmed)="onConfirmed()"
+            (edited)="onEdited()"
+            (next)="next()"
+            (knew)="requestKnown()"
+            (gaveUp)="onGaveUp()"
+          />
+
+          @if (!confirmKnown()) {
+            <div class="row actions">
+              <button
+                type="button"
+                sumiButton
+                variant="primary"
+                sumiHoldFocus
+                [disabled]="submitting()"
+                (click)="field.submit()"
+              >
+                {{ checkButtonLabel() }}
+              </button>
+              @if (settledKind() === null) {
+                <button type="button" sumiButton sumiHoldFocus title="Alt+K" (click)="requestKnown()">
+                  I know this
+                </button>
+              }
+              @if (settledKind() === 'wrong') {
+                <button type="button" sumiButton variant="danger" sumiHoldFocus (click)="resetCurrent()">
+                  Relearn from scratch
+                </button>
+              }
+            </div>
+            @if (settledKind() === null) {
+              <p class="muted hint-line">
+                “I know this” retires the whole item immediately — meaning and reading together, no
+                waiting on intervals.
+              </p>
+            }
+          }
+
+          @if (settledKind(); as kind) {
+            <sumi-verdict
+              class="verdict"
+              [kind]="kind"
+              [expected]="kind === 'wrong' ? feedback()?.expected : undefined"
+              [message]="verdictMessage()"
+              [(detailsOpen)]="detailsOpen"
+            >
+              @if (feedback()?.subject; as subject) {
+                <div sumiVerdictDetails>
+                  @if (gaveUp()) {
+                    <p class="gave-up">Gave up — the answer was revealed.</p>
+                  }
+                  <dl>
+                    <dt>Meanings</dt>
+                    <dd>{{ primaryMeanings(feedback()!) }}</dd>
+                  </dl>
+
+                  <app-synonyms
+                    [subjectId]="subject.id"
+                    [synonyms]="subject.synonyms"
+                    (synonymsChange)="onSynonymsChange(subject.id, $event)"
+                    (done)="field.focus()"
+                  />
+
+                  <app-readings [readings]="subject.readings" [objectType]="subject.object_type" />
+
+                  <dl>
+                    @if (subject.parts_of_speech.length > 0) {
+                      <dt>Part of speech</dt>
+                      <dd>{{ subject.parts_of_speech.join(', ') }}</dd>
+                    }
+                    @if (subject.meaning_mnemonic) {
+                      <dt>Meaning mnemonic</dt>
+                      <dd [innerHTML]="subject.meaning_mnemonic | mnemonic"></dd>
+                    }
+                    @if (subject.reading_mnemonic) {
+                      <dt>Reading mnemonic</dt>
+                      <dd [innerHTML]="subject.reading_mnemonic | mnemonic"></dd>
+                    }
+                  </dl>
+
+                  <app-context-sentences
+                    [sentences]="subject.context_sentences"
+                    [characters]="subject.characters"
+                  />
+
+                  <app-radical-illustration [subjectId]="subject.id" [objectType]="subject.object_type" />
+
+                  <dl>
+                    @if (subject.wanikani_url; as url) {
+                      <dt>Source</dt>
+                      <dd>
+                        <a [href]="url" target="_blank" rel="noopener">Open the original on WaniKani ↗</a>
+                      </dd>
+                    }
+                  </dl>
+                </div>
+              }
+            </sumi-verdict>
+          }
+
+          @if (confirmKnown()) {
+            <p class="warning">
+              This marks <strong class="jp">{{ card.subject.characters || card.subject.slug }}</strong> as
+              known — meaning <strong>and</strong> reading. Both leave the reviews.
+            </p>
+            <div class="row actions">
+              <button type="button" sumiButton variant="primary" sumiHoldFocus (click)="requestKnown()">
+                Mark whole item known (Alt+K / Enter)
+              </button>
+              <button type="button" sumiButton sumiHoldFocus (click)="cancelKnown()">Cancel (Esc)</button>
+            </div>
+          }
+        </div>
+      }
     }
   }
-
-  <!-- Always present on this screen, not gated on a card being on screen: the
-       shortcuts it documents (Enter, Alt+K) work before an item even loads. -->
-  <app-hotkeys [hotkeys]="hotkeys" [(open)]="hotkeysOpen" />
 </sumi-page>
