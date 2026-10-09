@@ -381,12 +381,16 @@ export class Review {
 
   /** `continueRound()`'s fetch -- stays in `active` throughout (the session
    * is already running), and only `finishSession()`s if the backlog turned
-   * out to be spent after all. A failure surfaces via the existing inline
-   * `error()` banner and simply leaves the round empty; the learner can end
-   * the session from there like any other stall. */
+   * out to be spent after all. A failure drops back to `idle`, whose error
+   * state offers "Try again" -- the round is empty at this point, so the
+   * active screen would have nothing to show the error next to. */
   private async continueFetching(): Promise<void> {
     const ok = await this.fetchQueue();
-    if (ok && this.queue().length === 0) {
+    if (!ok) {
+      this.phase.set('idle');
+      return;
+    }
+    if (this.queue().length === 0) {
       this.finishSession();
     }
   }
