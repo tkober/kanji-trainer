@@ -243,6 +243,24 @@ export class LessonsPage {
   protected readonly question = computed<QuestionType | null>(
     () => this.card()?.questions[0] ?? null,
   );
+
+  /**
+   * Open questions still in the current batch's `queue()` -- what
+   * `sumi-session-bar`'s `[remaining]` wants. `[total]="items().length"`
+   * used to count items while `batchAnswered` counts questions, so a batch
+   * with any kanji or vocabulary (two questions each) showed e.g. "12 / 5".
+   * Summing `questions.length` here keeps `batchAnswered` and this one in
+   * the same unit, so "answered ≤ total" always holds.
+   *
+   * A correct answer only leaves `queue()` in `advance()`, after
+   * `batchAnswered` has already counted it; subtracting it while its
+   * verdict is up keeps the total steady instead of briefly one higher.
+   */
+  protected readonly batchRemaining = computed(() => {
+    const open = this.queue().reduce((sum, card) => sum + card.questions.length, 0);
+    const result = this.feedback();
+    return result && result.correct && !result.retry ? open - 1 : open;
+  });
   protected readonly onLastItem = computed(() => this.index() >= this.items().length - 1);
 
   /** A settled (non-retry) quiz verdict is on screen. */
