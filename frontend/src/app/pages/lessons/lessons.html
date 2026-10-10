@@ -309,7 +309,7 @@
         *sumiShellFocusActions
         [answered]="batchAnswered()"
         [correct]="batchCorrect()"
-        [total]="items().length"
+        [remaining]="batchRemaining()"
         (end)="backToSelection()"
       />
 
@@ -319,9 +319,10 @@
         }
 
         <sumi-prompt-card
+          appearance="tinted"
           [text]="card.subject.characters ?? undefined"
-          [kind]="question() === 'reading' ? 'Reading' : 'Meaning'"
-          [meta]="[typeLabel(card.subject.object_type), 'Level ' + card.subject.level]"
+          [kind]="typeLabel(card.subject.object_type)"
+          [meta]="['Level ' + card.subject.level]"
           [tone]="toneFor(card.subject.object_type)"
         >
           @if (!card.subject.characters && card.subject.character_image_url) {
@@ -333,6 +334,8 @@
           #field
           [mode]="question() === 'reading' ? 'kana' : 'latin'"
           [label]="question() === 'reading' ? 'Reading' : 'Meaning'"
+          [modeCue]="true"
+          [placeholder]="question() === 'reading' ? 'Reading' : 'Meaning'"
           [iDontKnow]="true"
           [(value)]="value"
           [verdict]="fieldVerdict()"

@@ -127,6 +127,29 @@ export class Review {
   );
 
   /**
+   * Open questions still in `queue()` -- `sumi-session-bar`'s `[remaining]`
+   * wants the number of outstanding halves, not the number of items, so this
+   * sums every card's own `questions.length` rather than `queue().length`.
+   * Wrong answers are reinserted (see `next()`), so the total
+   * (`answered() + remaining()`) can grow over the course of a round --
+   * intended, not a bug.
+   *
+   * While a settled verdict is up, `answered()` already counts the answer
+   * but the card only leaves `queue()` in `next()`; counting it as what
+   * `next()` will leave behind (`result.remaining`) keeps the total from
+   * jumping up by one and back down on every answer.
+   */
+  protected readonly remaining = computed(() => {
+    const open = this.queue().reduce((sum, card) => sum + card.questions.length, 0);
+    const result = this.feedback();
+    const card = this.current();
+    if (!result || result.retry || !card) {
+      return open;
+    }
+    return open - card.questions.length + result.remaining.length;
+  });
+
+  /**
    * Whether the item's *other* question is still outstanding.
    *
    * `card.questions` is the order fixed when the item was served and goes

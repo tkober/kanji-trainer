@@ -47,7 +47,13 @@
       @if (current(); as card) {
         <!-- Lives in the shell's focus-mode header, not here -- see
              *sumiShellFocusActions's doc comment. -->
-        <sumi-session-bar *sumiShellFocusActions [answered]="answered()" [correct]="correct()" (end)="end()" />
+        <sumi-session-bar
+          *sumiShellFocusActions
+          [answered]="answered()"
+          [correct]="correct()"
+          [remaining]="remaining()"
+          (end)="end()"
+        />
 
         <div sumiFocusMode>
           @if (error(); as message) {
@@ -57,9 +63,10 @@
           <p class="muted progress">{{ queue().length }} in this round · {{ totalDue() }} due in total</p>
 
           <sumi-prompt-card
+            appearance="tinted"
             [text]="promptText(card.subject)"
-            [kind]="question() === 'reading' ? 'Reading' : 'Meaning'"
-            [meta]="[typeLabel(card.subject.object_type), 'Level ' + card.subject.level, card.stage_name]"
+            [kind]="typeLabel(card.subject.object_type)"
+            [meta]="['Level ' + card.subject.level, card.stage_name]"
             [tone]="toneFor(card.subject.object_type)"
           >
             @if (!card.subject.characters && card.subject.character_image_url) {
@@ -71,6 +78,8 @@
             #field
             [mode]="question() === 'reading' ? 'kana' : 'latin'"
             [label]="question() === 'reading' ? 'Reading' : 'Meaning'"
+            [modeCue]="true"
+            [placeholder]="question() === 'reading' ? 'Reading' : 'Meaning'"
             [iKnow]="true"
             [iDontKnow]="true"
             [(value)]="value"
