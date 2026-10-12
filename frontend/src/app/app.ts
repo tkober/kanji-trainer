@@ -24,8 +24,15 @@ export class App {
   protected readonly nav = computed<SumiNavItem[]>(() => [
     { label: 'Dashboard', link: '', icon: 'home', exact: true },
     { label: 'Reviews', link: 'review', icon: 'review', badge: this.due(), badgeTone: 'accent' },
-    { label: 'Lessons', link: 'lessons', icon: 'lessons', badge: this.lessons(), badgeTone: 'neutral' },
+    {
+      label: 'Lessons',
+      link: 'lessons',
+      icon: 'lessons',
+      badge: this.lessons(),
+      badgeTone: 'neutral',
+    },
     { label: 'Forecast', link: 'forecast', icon: 'forecast' },
+    { label: 'Stats', link: 'stats', icon: 'stats' },
     { label: 'Items', link: 'browse', icon: 'list' },
     { label: 'Settings', link: 'settings', icon: 'settings' },
   ]);

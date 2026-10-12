@@ -1,6 +1,7 @@
 import { DatePipe } from '@angular/common';
-import { Component, computed, inject, signal } from '@angular/core';
+import { Component, computed, effect, inject, signal } from '@angular/core';
 import { FormsModule } from '@angular/forms';
+import { ActivatedRoute, Router } from '@angular/router';
 import {
   SumiBanner,
   SumiCard,
@@ -79,6 +80,8 @@ interface BrowseRow extends SumiTableRow {
 })
 export class Browse {
   private readonly api = inject(Api);
+  private readonly route = inject(ActivatedRoute);
+  private readonly router = inject(Router);
 
   protected state = '';
   protected objectType = '';
@@ -112,6 +115,10 @@ export class Browse {
       already carries the full subject. */
   protected readonly detail = signal<Item | null>(null);
   protected readonly detailOpen = signal(false);
+  /** Set once the dialog has actually been open, so the `effect()` in the
+   *  constructor can tell "never opened yet" (do nothing) apart from "was
+   *  open, just closed" (drop `/browse?item=`'s query param again). */
+  private readonly dialogWasOpen = signal(false);
   protected readonly total = signal(0);
   protected readonly offset = signal(0);
   /** The table's own selection model -- see sumi-data-table's `[(selection)]`. */
@@ -131,6 +138,57 @@ export class Browse {
   constructor() {
     void this.load();
     void this.loadLevels();
+
+    // `/browse?item=<id>` (the statistics page's trouble-items table links
+    // here) opens that item's detail dialog on init without waiting for or
+    // depending on the filtered list above -- `api.item()` fetches it
+    // directly by id. Closing the dialog afterwards drops the param again,
+    // via the `effect()` below, so navigating away and back does not
+    // silently reopen it.
+    this.route.queryParamMap.subscribe((params) => {
+      const raw = params.get('item');
+      const id = raw ? Number(raw) : NaN;
+      if (Number.isFinite(id)) {
+        void this.openDetailById(id);
+      }
+    });
+
+    // Edge-triggered on purpose: `detailOpen()` is already `false` on this
+    // first run too (the fetch above is still in flight), and a plain
+    // "whenever it's false" check would strip `?item=` before the dialog
+    // ever had the chance to open from it. Only a true→false transition --
+    // an actual close -- clears the param; opening it sets `dialogWasOpen`
+    // so that transition can be detected later.
+    effect(() => {
+      if (this.detailOpen()) {
+        this.dialogWasOpen.set(true);
+        return;
+      }
+      if (this.dialogWasOpen() && this.route.snapshot.queryParamMap.has('item')) {
+        this.dialogWasOpen.set(false);
+        void this.router.navigate([], {
+          queryParams: { item: null },
+          queryParamsHandling: 'merge',
+          replaceUrl: true,
+        });
+      }
+    });
+  }
+
+  private async openDetailById(id: number): Promise<void> {
+    try {
+      this.openDetail(await this.api.item(id));
+    } catch {
+      // The id is stale or invalid (e.g. a bookmarked link to a deleted
+      // item) -- the dialog simply does not open, so there is nothing for
+      // the effect above to close, but the bad param should not linger in
+      // the address bar either.
+      void this.router.navigate([], {
+        queryParams: { item: null },
+        queryParamsHandling: 'merge',
+        replaceUrl: true,
+      });
+    }
   }
 
   async load(): Promise<void> {
@@ -248,16 +306,18 @@ export class Browse {
   }
 
   protected typeLabel(type: ObjectType): string {
-    return { radical: 'Radical', kanji: 'Kanji', vocabulary: 'Vocabulary', kana_vocabulary: 'Kana' }[
-      type
-    ];
+    return {
+      radical: 'Radical',
+      kanji: 'Kanji',
+      vocabulary: 'Vocabulary',
+      kana_vocabulary: 'Kana',
+    }[type];
   }
 
   protected stateLabel(state: string): string {
     return (
-      { new: 'new', learning: 'in review cycle', known: 'known', suspended: 'hidden' }[
-        state
-      ] ?? state
+      { new: 'new', learning: 'in review cycle', known: 'known', suspended: 'hidden' }[state] ??
+      state
     );
   }
 
