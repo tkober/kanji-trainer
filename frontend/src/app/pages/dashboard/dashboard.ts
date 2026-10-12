@@ -17,22 +17,20 @@ import type {
   Forecast,
   LessonTile,
   LevelStats,
-  LevelTypeCounts,
   StageCounts,
   Stats,
 } from '../../core/api.types';
 import { Counters } from '../../core/counters';
+import {
+  apprenticeCount,
+  combinedCounts,
+  frameTotal,
+  guruPlusEarned,
+  settledCount,
+  typeRows,
+  type TypeRow,
+} from '../../core/level-progress';
 import { ItemTile } from '../../shared/item-tile/item-tile';
-
-/** One (combined) type's stage counts for a scope -- the current level
- *  (the level card) or levels 1..current (the progress card). Vocabulary and
- *  kana_vocabulary are combined, same convention `pages/lessons`' own
- *  `groups()` and the backend's `LevelSummary.open_vocabulary` both use. */
-interface TypeRow {
-  key: 'radical' | 'kanji' | 'vocabulary';
-  label: string;
-  counts: StageCounts;
-}
 
 /** A row of the list below "Upcoming": either an hour with reviews, or the
  *  "Tomorrow" divider inserted before the first one on the next local day. */
@@ -42,91 +40,6 @@ interface UpcomingRow {
   time?: string;
   count?: number;
   total?: number;
-}
-
-function emptyStageCounts(): StageCounts {
-  return {
-    new: 0,
-    apprentice_1: 0,
-    apprentice_2: 0,
-    apprentice_3: 0,
-    apprentice_4: 0,
-    guru_1: 0,
-    guru_2: 0,
-    master: 0,
-    enlightened: 0,
-    burned: 0,
-    known: 0,
-    suspended: 0,
-  };
-}
-
-function addStageCounts(a: StageCounts, b: StageCounts): StageCounts {
-  return {
-    new: a.new + b.new,
-    apprentice_1: a.apprentice_1 + b.apprentice_1,
-    apprentice_2: a.apprentice_2 + b.apprentice_2,
-    apprentice_3: a.apprentice_3 + b.apprentice_3,
-    apprentice_4: a.apprentice_4 + b.apprentice_4,
-    guru_1: a.guru_1 + b.guru_1,
-    guru_2: a.guru_2 + b.guru_2,
-    master: a.master + b.master,
-    enlightened: a.enlightened + b.enlightened,
-    burned: a.burned + b.burned,
-    known: a.known + b.known,
-    suspended: a.suspended + b.suspended,
-  };
-}
-
-/** Earned by review, Guru or past it -- "Marked as known" is its own count,
- *  kept apart (see CLAUDE.md, the `state`/`srs_stage` invariant: stage 9 is
- *  reachable two ways, and folding them back together here would undo the
- *  whole point of keeping them separate). */
-function guruPlusEarned(c: StageCounts): number {
-  return c.guru_1 + c.guru_2 + c.master + c.enlightened + c.burned;
-}
-
-function apprenticeCount(c: StageCounts): number {
-  return c.apprentice_1 + c.apprentice_2 + c.apprentice_3 + c.apprentice_4;
-}
-
-/** Guru+ earned or marked as known -- out of the rotation for good. */
-function settledCount(c: StageCounts): number {
-  return guruPlusEarned(c) + c.known;
-}
-
-/** The reference frame this dashboard counts against: everything started or
- *  open, Guru+ earned, known, in apprentice, or still a lesson. Suspended
- *  (hidden) items are deliberately left out -- they were set aside on
- *  purpose and neither a level's nor the overall progress should count them
- *  one way or the other. */
-function frameTotal(c: StageCounts): number {
-  return guruPlusEarned(c) + c.known + apprenticeCount(c) + c.new;
-}
-
-function typeRows(entries: readonly LevelTypeCounts[]): TypeRow[] {
-  let radical = emptyStageCounts();
-  let kanji = emptyStageCounts();
-  let vocabulary = emptyStageCounts();
-  for (const entry of entries) {
-    if (entry.object_type === 'radical') {
-      radical = addStageCounts(radical, entry.counts);
-    } else if (entry.object_type === 'kanji') {
-      kanji = addStageCounts(kanji, entry.counts);
-    } else {
-      // vocabulary + kana_vocabulary combined.
-      vocabulary = addStageCounts(vocabulary, entry.counts);
-    }
-  }
-  return [
-    { key: 'radical', label: 'Radicals', counts: radical },
-    { key: 'kanji', label: 'Kanji', counts: kanji },
-    { key: 'vocabulary', label: 'Vocabulary', counts: vocabulary },
-  ];
-}
-
-function combinedCounts(rows: readonly TypeRow[]): StageCounts {
-  return rows.reduce((acc, row) => addStageCounts(acc, row.counts), emptyStageCounts());
 }
 
 /** `'2 h'`, `'35 min'`, `'3 d'` -- one unit, for a tile's own hint line
