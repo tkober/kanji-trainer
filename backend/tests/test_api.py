@@ -44,6 +44,68 @@ async def seed_kanji(session, *, stage: int = 2, due_minutes: int = -5) -> int:
     return subject.id
 
 
+async def seed_radical(session, *, due_minutes: int = -5) -> int:
+    """A radical due five minutes ago -- one question, not two."""
+    subject = Subject(
+        wanikani_id=1,
+        object_type="radical",
+        level=1,
+        slug="ground",
+        characters="一",
+        meanings=[{"meaning": "Ground", "primary": True, "accepted_answer": True}],
+        auxiliary_meanings=[],
+        readings=[],
+        component_subject_ids=[],
+        parts_of_speech=[],
+        meaning_mnemonic="A single stroke along the ground.",
+    )
+    session.add(subject)
+    await session.flush()
+
+    session.add(
+        Progress(
+            subject_id=subject.id,
+            state=ItemState.LEARNING.value,
+            srs_stage=1,
+            next_review_at=NOW + timedelta(minutes=due_minutes),
+        )
+    )
+    await session.commit()
+    return subject.id
+
+
+async def test_total_due_questions_sums_every_due_items_questions_not_just_the_page(
+    client, session
+):
+    """A kanji owes two questions, a radical one -- `total_due_questions` is
+    the sum over every due item, not the item count `total_due` already
+    gives, and not cut down by `limit` the way the returned page is."""
+    await seed_kanji(session, due_minutes=-5)
+    await seed_radical(session, due_minutes=-4)
+
+    queue = (await client.get("/api/reviews", params={"limit": 1})).json()
+    assert queue["total_due"] == 2
+    assert len(queue["items"]) == 1
+    assert queue["total_due_questions"] == 3
+
+
+async def test_total_due_questions_counts_a_half_answered_item_once(client, session):
+    """An item with a review already in flight (one half answered before the
+    tab closed) owes only what `pending_*` still marks outstanding -- the
+    same rule `_questions()` uses to build the item's own `questions` list,
+    not the full two questions its type would otherwise ask."""
+    subject_id = await seed_kanji(session, due_minutes=-5)
+    progress = await session.get(Progress, subject_id)
+    progress.pending_meaning = False
+    progress.pending_reading = True
+    await session.commit()
+
+    queue = (await client.get("/api/reviews")).json()
+    assert queue["total_due"] == 1
+    assert queue["total_due_questions"] == 1
+    assert queue["items"][0]["questions"] == ["reading"]
+
+
 async def test_health_reports_the_database(client):
     response = await client.get("/api/health")
     assert response.status_code == 200

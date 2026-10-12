@@ -79,6 +79,18 @@ def _questions(progress: Progress, subject: Subject) -> list[QuestionType]:
     return list(srs.required_questions(subject.object_type))
 
 
+def _question_count(pending_meaning: bool | None, pending_reading: bool | None, object_type: str) -> int:
+    """Same rule as ``_questions`` above, expressed over raw columns rather
+    than loaded ``Progress``/``Subject`` rows, so ``total_due_questions``
+    (issue #54) can be summed over every due item with one narrow query
+    instead of hydrating full ORM objects for a backlog that can run into
+    the thousands.
+    """
+    if pending_meaning is not None or pending_reading is not None:
+        return int(bool(pending_meaning)) + int(bool(pending_reading))
+    return len(srs.required_questions(object_type))
+
+
 # --- reviews ---------------------------------------------------------------
 
 
@@ -159,6 +171,22 @@ async def review_queue(
         .limit(limit)
     )
 
+    # One narrow query over every due item (not just this page) -- loading
+    # the due rows plus their subjects once is cheap enough for a backlog of
+    # a few thousand, and gives the exact session total (issue #54) from the
+    # very first fetch, long before a multi-round backlog has been paged
+    # through.
+    due_question_rows = await session.execute(
+        select(Progress.pending_meaning, Progress.pending_reading, Subject.object_type)
+        .select_from(Progress)
+        .join(Subject, Subject.id == Progress.subject_id)
+        .where(*due)
+    )
+    total_due_questions = sum(
+        _question_count(pending_meaning, pending_reading, object_type)
+        for pending_meaning, pending_reading, object_type in due_question_rows
+    )
+
     return Queue(
         items=[
             QueueItem(
@@ -170,6 +198,7 @@ async def review_queue(
             for progress, subject in rows
         ],
         total_due=total,
+        total_due_questions=total_due_questions,
     )
 
 
