@@ -1,0 +1,129 @@
+/* `display: contents` so the component itself never becomes a grid/flex
+   item -- the `.tile` (button or span) below is, exactly as it was before
+   extraction, promoted straight into the parent's `.tile-grid`. The
+   `--band-*`/`-ink` custom properties this reads are deliberately not
+   declared here: they inherit from the consuming page's own host (see
+   lessons.scss and dashboard.scss), same convention `forecast.scss` already
+   uses for its own `--band-*` names with different values -- one tile look,
+   coloured per page. */
+:host {
+  display: contents;
+}
+
+.tile {
+  position: relative;
+  aspect-ratio: 1;
+  min-width: 44px;
+  min-height: 44px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: var(--sumi-radius);
+  border: 1px solid var(--sumi-line);
+  background: var(--sumi-surface);
+  color: var(--sumi-text);
+  font-family: inherit;
+  padding: 0;
+  cursor: pointer;
+
+  img {
+    width: 60%;
+    height: 60%;
+    object-fit: contain;
+  }
+
+  &[data-band='apprentice'] {
+    background: var(--band-apprentice);
+    color: var(--band-apprentice-ink);
+    border-color: transparent;
+  }
+
+  &[data-band='guru'] {
+    background: var(--band-guru);
+    color: var(--band-guru-ink);
+    border-color: transparent;
+  }
+
+  &[data-band='master'] {
+    background: var(--band-master);
+    color: var(--band-master-ink);
+    border-color: transparent;
+  }
+
+  &[data-band='enlightened'] {
+    background: var(--band-enlightened);
+    color: var(--band-enlightened-ink);
+    border-color: transparent;
+  }
+
+  &[data-band='burned'] {
+    background: var(--band-burned);
+    color: var(--band-burned-ink);
+    border-color: transparent;
+  }
+
+  /* The lessons picker wraps vocabulary tiles in `.tile-grid.flow` (sized to
+     the word, not a uniform square) -- the container class lives on the
+     page, this just keeps the tile itself able to follow it. */
+  .flow & {
+    aspect-ratio: auto;
+    width: max-content;
+    max-width: 100%;
+    min-width: 52px;
+    min-height: 52px;
+    padding: 0 0.6rem;
+  }
+
+  &.static {
+    cursor: default;
+  }
+
+  /* An open lesson shown read-only (the dashboard's level card, issue #59):
+     a hollow, dashed box rather than a filled one -- nothing has been
+     earned yet, so it reads as a slot waiting to be picked rather than as a
+     stage colour. The picker never renders this combination (there, a
+     `new` tile is always its own selectable button, never static), so this
+     is additive and leaves the picker's own tiles untouched. */
+  &.static[data-band='lesson'] {
+    border-style: dashed;
+    background: transparent;
+  }
+
+  &.suspended {
+    opacity: 0.45;
+  }
+
+  &:disabled {
+    cursor: not-allowed;
+    opacity: 0.5;
+  }
+}
+
+button.tile {
+  /* Selection never rests on colour alone: a thick outline plus the badge
+     below both carry it, so the state reads the same in greyscale. */
+  &.selected {
+    outline: 3px solid var(--sumi-accent);
+    outline-offset: -3px;
+  }
+
+  &:focus-visible {
+    outline: 3px solid var(--sumi-accent);
+    outline-offset: 1px;
+  }
+}
+
+.badge {
+  position: absolute;
+  bottom: -4px;
+  right: -4px;
+  width: 18px;
+  height: 18px;
+  border-radius: 50%;
+  background: var(--sumi-correct);
+  color: #fff;
+  font-size: 0.7rem;
+  line-height: 18px;
+  text-align: center;
+  border: 2px solid var(--sumi-surface);
+}

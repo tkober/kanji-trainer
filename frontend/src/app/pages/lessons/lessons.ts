@@ -31,6 +31,7 @@ import { Mnemonic } from '../../core/mnemonic';
 import { reinsert, shuffleQuestions } from '../../core/review-queue';
 import { LevelPicker } from '../../shared/level-picker/level-picker';
 import { ContextSentences } from '../../shared/context-sentences/context-sentences';
+import { ItemTile } from '../../shared/item-tile/item-tile';
 import { RadicalIllustration } from '../../shared/radical-illustration/radical-illustration';
 import { Readings } from '../../shared/readings/readings';
 import { Synonyms } from '../../shared/synonyms/synonyms';
@@ -64,38 +65,6 @@ const LEGEND_ITEMS: readonly SumiLegendItem[] = [
   { label: 'Enlightened (8)', color: 'var(--band-enlightened)' },
   { label: 'Burned (9)', color: 'var(--band-burned)' },
 ];
-
-/** WaniKani's stage names, with stage 0 relabelled: on a tile it names a
- * lesson waiting to be picked, never "Unlearned" -- there is nothing to have
- * unlearned yet. See `srs.STAGE_NAMES` in the backend for the reviewed item's
- * own wording, which this deliberately does not reuse. */
-const STAGE_LABELS = [
-  'Lesson',
-  'Apprentice I',
-  'Apprentice II',
-  'Apprentice III',
-  'Apprentice IV',
-  'Guru I',
-  'Guru II',
-  'Master',
-  'Enlightened',
-  'Burned',
-];
-
-function stageName(stage: number): string {
-  return STAGE_LABELS[Math.max(0, Math.min(9, stage))];
-}
-
-type Band = 'lesson' | 'apprentice' | 'guru' | 'master' | 'enlightened' | 'burned';
-
-function stageBand(stage: number): Band {
-  if (stage <= 0) return 'lesson';
-  if (stage <= 4) return 'apprentice';
-  if (stage <= 6) return 'guru';
-  if (stage === 7) return 'master';
-  if (stage === 8) return 'enlightened';
-  return 'burned';
-}
 
 function readBatchingPreference(): boolean {
   try {
@@ -151,6 +120,7 @@ function questionsCount(items: readonly { subject: { object_type: ObjectType } }
   selector: 'app-lessons',
   imports: [
     ContextSentences,
+    ItemTile,
     LevelPicker,
     Mnemonic,
     RadicalIllustration,
@@ -828,20 +798,6 @@ export class LessonsPage {
       .join(', ');
   }
 
-  protected band(stage: number): Band {
-    return stageBand(stage);
-  }
-
-  protected tileLabel(tile: LessonTile): string {
-    const glyph = tile.subject.characters ?? tile.subject.slug;
-    let label = `${glyph} — ${stageName(tile.srs_stage)}`;
-    if (tile.state === 'known') {
-      label += ' (marked known)';
-    } else if (tile.state === 'suspended') {
-      label += ' (suspended)';
-    }
-    return label;
-  }
 }
 
 /**
