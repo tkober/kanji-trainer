@@ -5,7 +5,9 @@
         Import your WaniKani progress to pick up where you actually are — everything at or
         above the chosen SRS stage comes in as “known” and never enters the review queue
         again.
-        <a sumiEmptyAction routerLink="/settings" sumiButton variant="primary">Go to import</a>
+        <a sumiEmptyAction routerLink="/settings" fragment="import" sumiButton variant="primary">
+          Go to import
+        </a>
       </sumi-empty-state>
     } @else {
       <sumi-stat-grid>
@@ -87,27 +89,5 @@
     </sumi-error-state>
   } @else {
     <p class="muted">Loading …</p>
-  }
-
-  @if (lastImport(); as run) {
-    <sumi-card>
-      <div sumiCardHeader>
-        <h2>Last import</h2>
-      </div>
-      <p class="muted">
-        {{ run.status === 'succeeded' ? 'Succeeded' : run.status === 'failed' ? 'Failed' : 'Running' }}
-        · threshold SRS stage {{ run.known_srs_stage }}
-      </p>
-      @if (run.status === 'succeeded') {
-        <p>
-          {{ run.subjects_imported }} items fetched,
-          <strong>{{ run.marked_known }}</strong> taken over as known,
-          {{ run.marked_learning }} in the review cycle, {{ run.marked_new }} new.
-        </p>
-      }
-      @if (run.message) {
-        <sumi-banner tone="notice">{{ run.message }}</sumi-banner>
-      }
-    </sumi-card>
   }
 </sumi-page>
