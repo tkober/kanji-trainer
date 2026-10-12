@@ -1,4 +1,4 @@
-import { Component, DestroyRef, computed, inject, signal } from '@angular/core';
+import { Component, DestroyRef, computed, effect, inject, signal } from '@angular/core';
 import { Router, RouterLink } from '@angular/router';
 import { SumiCard, SumiEmptyState, SumiErrorState, SumiPage } from 'sumi-ui/layout';
 import {
@@ -6,14 +6,19 @@ import {
   SumiCalendarHeatmap,
   SumiDataTable,
   SumiLegend,
+  SumiLineChart,
   SumiProgressRow,
   SumiSparkline,
   SumiStatGrid,
   SumiStatTile,
   SumiSunburst,
   SumiTableCellTemplate,
+  type SumiBarSelectEvent,
   type SumiBarSeries,
+  type SumiChartEvent,
   type SumiLegendItem,
+  type SumiLinePoint,
+  type SumiLineSeries,
   type SumiSegment,
   type SumiStackedRow,
   type SumiSunburstNode,
@@ -31,6 +36,7 @@ import { Api } from '../../core/api';
 import type {
   Activity,
   ActivityDay,
+  Growth,
   Item,
   LevelStats,
   LevelTypeCounts,
@@ -60,6 +66,16 @@ type Frame = 'mine' | 'ten' | 'all';
  *  card -- unlike the frame/toggle above, it never leaves object_type out of
  *  a stack entirely, it just narrows which rows feed it). */
 type LevelTypeFilter = 'all' | 'radical' | 'kanji' | 'vocabulary';
+
+/** The Growth card's own range control -- purely client-side, slicing the
+ *  one fetched history rather than refetching. */
+type GrowthRange = '30d' | '90d' | '1y' | 'all';
+
+const GROWTH_RANGE_DAYS: Record<Exclude<GrowthRange, 'all'>, number> = {
+  '30d': 30,
+  '90d': 90,
+  '1y': 365,
+};
 
 interface TroubleRow extends SumiTableRow {
   id: number;
@@ -98,6 +114,7 @@ const NARROW_BREAKPOINT = 480;
     SumiSunburst,
     SumiProgressRow,
     SumiBarChart,
+    SumiLineChart,
     SumiCalendarHeatmap,
     SumiSparkline,
     SumiDataTable,
@@ -126,6 +143,16 @@ export class StatsPage {
   protected readonly countKnown = signal(true);
   protected readonly levelTypeFilter = signal<LevelTypeFilter>('all');
 
+  // --- G: growth -------------------------------------------------------------
+  protected readonly growth = signal<Growth | null>(null);
+  protected readonly growthLoading = signal(false);
+  protected readonly growthError = signal<string | null>(null);
+  protected readonly growthRange = signal<GrowthRange>('90d');
+  /** One fetch per frame upper level, kept so switching the frame back to
+   *  one already seen never re-fetches -- the range control above is purely
+   *  client-side and never touches this cache at all. */
+  private readonly growthCache = new Map<number, Growth>();
+
   private readonly narrowQuery =
     typeof matchMedia === 'function' ? matchMedia(`(max-width: ${NARROW_BREAKPOINT}px)`) : null;
   protected readonly narrow = signal(this.narrowQuery?.matches ?? false);
@@ -138,6 +165,19 @@ export class StatsPage {
       this.narrowQuery.addEventListener('change', onChange);
       this.destroyRef.onDestroy(() => this.narrowQuery?.removeEventListener('change', onChange));
     }
+
+    // The Growth card's own frame-scoped history: `frameUpper()` is only
+    // read once `ready()` is true, so the effect's first run picks up the
+    // real frame rather than whatever `frameUpper()` defaults to before
+    // `stats()`/`levelStats()` have loaded. From there it refires whenever
+    // the frame changes -- the one card on this page where that causes a
+    // request at all (see `loadGrowth`).
+    effect(() => {
+      if (!this.ready()) {
+        return;
+      }
+      void this.loadGrowth(this.frameUpper());
+    });
   }
 
   async load(): Promise<void> {
@@ -163,6 +203,32 @@ export class StatsPage {
       this.error.set((err as Error).message);
     } finally {
       this.loading.set(false);
+    }
+  }
+
+  /** Fetches (or reuses) the Growth card's history for one frame's upper
+   *  level -- the one request on this page a frame switch can cause (see the
+   *  constructor's `effect`). The range control and the known toggle never
+   *  reach here: both are client-side slices/series choices over whatever
+   *  this already fetched. */
+  private async loadGrowth(maxLevel: number): Promise<void> {
+    const cached = this.growthCache.get(maxLevel);
+    if (cached) {
+      this.growth.set(cached);
+      this.growthError.set(null);
+      return;
+    }
+    this.growthLoading.set(true);
+    try {
+      const tz = Intl.DateTimeFormat().resolvedOptions().timeZone;
+      const result = await this.api.growth({ tz, maxLevel });
+      this.growthCache.set(maxLevel, result);
+      this.growth.set(result);
+      this.growthError.set(null);
+    } catch (err) {
+      this.growthError.set((err as Error).message);
+    } finally {
+      this.growthLoading.set(false);
     }
   }
 
@@ -394,12 +460,89 @@ export class StatsPage {
     () => `Every level from 1 to ${this.frameUpper()}, by stage`,
   );
 
+  /** A column's `label` is the level number itself (`levelRows()` above).
+   *  `type` is only added when the card's own type filter narrows past
+   *  "all" -- `'vocabulary'` is the one value this card's "Vocab" filter
+   *  cannot carry over exactly, since it folds `vocabulary` and
+   *  `kana_vocabulary` together (`core/level-progress.ts`'s `typeRows`) and
+   *  Browse filters them apart; `'vocabulary'` alone was picked as the
+   *  closer single match rather than leaving the type out of the link
+   *  entirely. */
+  protected openLevel(event: SumiBarSelectEvent): void {
+    const level = Number(event.label);
+    const filter = this.levelTypeFilter();
+    void this.router.navigate(['/browse'], {
+      queryParams: filter === 'all' ? { level } : { level, type: filter },
+    });
+  }
+
   // --- F: activity -------------------------------------------------------------
 
   protected readonly heatmapDays = computed(() =>
     (this.activity()?.days ?? []).map((day) => ({ date: day.date, value: day.answers })),
   );
   protected readonly streak = computed(() => this.activity()?.streak ?? 0);
+
+  // --- G: growth ---------------------------------------------------------------
+
+  protected readonly growthRangeOptions: SumiSegmentedOption<GrowthRange>[] = [
+    { value: '30d', label: '30 d' },
+    { value: '90d', label: '90 d' },
+    { value: '1y', label: '1 y' },
+    { value: 'all', label: 'All' },
+  ];
+
+  /** The fetched history sliced to the chosen range -- purely client-side,
+   *  see `loadGrowth`. */
+  protected readonly growthVisibleDays = computed(() => {
+    const data = this.growth();
+    if (!data) {
+      return [];
+    }
+    const range = this.growthRange();
+    return range === 'all' ? data.days : data.days.slice(-GROWTH_RANGE_DAYS[range]);
+  });
+
+  protected readonly growthHasData = computed(() =>
+    this.growthVisibleDays().some((day) => day.earned > 0 || day.known > 0),
+  );
+
+  /** The known toggle applies here too: off drops the `known` series
+   *  entirely (not just its value), which also turns the stack into a plain
+   *  area of `earned` alone. */
+  protected readonly growthPoints = computed<SumiLinePoint[]>(() =>
+    this.growthVisibleDays().map((day) => {
+      const values: Record<string, number> = { earned: day.earned };
+      if (this.countKnown()) {
+        values['known'] = day.known;
+      }
+      return { date: day.date, values };
+    }),
+  );
+
+  protected readonly growthSeries = computed<SumiLineSeries[]>(() => {
+    const series: SumiLineSeries[] = [{ key: 'earned', label: 'Earned', color: 'var(--sumi-seq-5)' }];
+    if (this.countKnown()) {
+      series.push({ key: 'known', label: 'Marked as known', color: 'var(--sumi-correct)' });
+    }
+    return series;
+  });
+
+  /** Only shown when the import date is actually inside the visible range --
+   *  switching to "30 d" on an account imported a year ago should not show a
+   *  marker with nothing before it. */
+  protected readonly growthEvents = computed<SumiChartEvent[]>(() => {
+    const data = this.growth();
+    if (!data || !data.imported_on) {
+      return [];
+    }
+    const importedOn = data.imported_on;
+    if (!this.growthVisibleDays().some((day) => day.date === importedOn)) {
+      return [];
+    }
+    const label = this.countKnown() ? `import · ${data.known_on_import} known` : 'import';
+    return [{ date: importedOn, label }];
+  });
 
   /** Days without an answer are skipped (not carried forward, not shown as
    *  0 %) -- a day nothing was answered on has no accuracy to plot, and

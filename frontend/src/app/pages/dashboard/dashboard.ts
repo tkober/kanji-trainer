@@ -13,8 +13,8 @@ import { SumiButtonDirective } from 'sumi-ui/forms';
 
 import { Api } from '../../core/api';
 import type {
-  Activity,
   Forecast,
+  Growth,
   LessonTile,
   LevelStats,
   StageCounts,
@@ -103,7 +103,7 @@ export class Dashboard {
   protected readonly stats = signal<Stats | null>(null);
   protected readonly forecast = signal<Forecast | null>(null);
   protected readonly levelStats = signal<LevelStats | null>(null);
-  protected readonly activity = signal<Activity | null>(null);
+  protected readonly growth = signal<Growth | null>(null);
   protected readonly levelTiles = signal<LessonTile[]>([]);
   protected readonly error = signal<string | null>(null);
   protected readonly loading = signal(true);
@@ -120,11 +120,10 @@ export class Dashboard {
       // and `stats()`/`levelStats()` all resolve "current level" the same
       // way on the backend (`lowest_open_level()`), so there is nothing to
       // wait on here.
-      const [stats, forecast, levelStats, activity, lessons] = await Promise.all([
+      const [stats, forecast, levelStats, lessons] = await Promise.all([
         this.api.stats(tz),
         this.api.forecast(24),
         this.api.levelStats(),
-        this.api.activity(30, tz),
         this.api.lessons(),
       ]);
       this.stats.set(stats);
@@ -135,9 +134,16 @@ export class Dashboard {
       this.counters.setLevel(stats.current_level);
       this.forecast.set(forecast);
       this.levelStats.set(levelStats);
-      this.activity.set(activity);
       this.levelTiles.set(lessons.tiles);
       this.error.set(null);
+
+      // Scoped to `current_level`, which `stats` just resolved -- this one
+      // has to wait for it rather than join the `Promise.all` above. Only
+      // fetched when there is a level to scope it to (an empty collection
+      // has none).
+      if (stats.current_level !== null) {
+        this.growth.set(await this.api.growth({ days: 30, tz, maxLevel: stats.current_level }));
+      }
     } catch (err) {
       this.error.set((err as Error).message);
     } finally {
@@ -310,16 +316,39 @@ export class Dashboard {
     ];
   });
 
-  /** Cumulative `reached_guru` over the window -- the sparkline's own point
-   *  series, oldest day first (`Api.activity`'s own order). */
-  protected readonly guruSparklinePoints = computed<number[]>(() => {
-    const days = this.activity()?.days ?? [];
-    let running = 0;
-    return days.map((day) => (running += day.reached_guru));
+  /** Earned + known per day, oldest first (`Api.growth`'s own order) -- the
+   *  sparkline's point series. The last point must equal this card's own
+   *  "{settled} of {total}" number above (`progressSettled()`), since both
+   *  ultimately count the same thing over the same frame (levels 1..current,
+   *  Guru+ earned or known) -- verified by hand against the seeded test DB,
+   *  see the issue #61 PR description. */
+  protected readonly settledSparkPoints = computed<number[]>(() =>
+    (this.growth()?.days ?? []).map((day) => day.earned + day.known),
+  );
+
+  protected readonly settledToday = computed(() => {
+    const points = this.settledSparkPoints();
+    return points.length > 0 ? points[points.length - 1] : 0;
   });
 
-  protected readonly guruSparklineTotal = computed(() => {
-    const points = this.guruSparklinePoints();
-    return points.length > 0 ? points[points.length - 1] : 0;
+  /** Today minus the window's first day -- null before the data has loaded,
+   *  never before a single point exists (one point alone reads as "+0", not
+   *  nothing). */
+  protected readonly settledDelta = computed<number | null>(() => {
+    const points = this.settledSparkPoints();
+    return points.length > 0 ? points[points.length - 1] - points[0] : null;
+  });
+
+  /** "+41 in 30 days" / "±0 in 30 days" / "-3 in 30 days" -- a negative
+   *  delta is shown as-is (its own minus sign), never hidden or floored at
+   *  zero, and zero gets an explicit "±" rather than reading like nothing
+   *  happened to report. */
+  protected readonly settledDeltaDisplay = computed(() => {
+    const delta = this.settledDelta();
+    if (delta === null) {
+      return '';
+    }
+    const sign = delta > 0 ? '+' : delta < 0 ? '' : '±';
+    return `${sign}${delta} in 30 days`;
   });
 }

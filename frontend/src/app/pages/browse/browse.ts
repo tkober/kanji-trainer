@@ -136,6 +136,25 @@ export class Browse {
   protected readonly selectedCount = computed(() => this.selectedIds().length);
 
   constructor() {
+    // `/browse?level=N&type=<object_type>` (the statistics page's Levels
+    // chart links here, `barSelect` -> `openLevel()`) seeds the existing
+    // filters on init -- read once from the snapshot rather than a
+    // subscription, since this link only ever arrives as a fresh navigation
+    // into this page from elsewhere (there is nowhere on Browse itself that
+    // could fire it again while already here). The filters show these
+    // values like any other, and changing them afterwards works exactly as
+    // before -- this never writes a query param back.
+    const initialParams = this.route.snapshot.queryParamMap;
+    const initialLevel = initialParams.get('level');
+    const parsedLevel = initialLevel !== null ? Number(initialLevel) : NaN;
+    if (Number.isFinite(parsedLevel)) {
+      this.level = parsedLevel;
+    }
+    const initialType = initialParams.get('type');
+    if (initialType) {
+      this.objectType = initialType;
+    }
+
     void this.load();
     void this.loadLevels();
 
