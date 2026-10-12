@@ -262,4 +262,64 @@ export interface Stats {
   due_today: number;
   reviews_today: number;
   accuracy_today: number | null;
+  /** Earliest `next_review_at` among scheduled items not due yet; null when
+   *  nothing is scheduled. An item inside the grace window is due, not next. */
+  next_review_at: string | null;
+  /** How many scheduled items share `next_review_at`'s UTC hour -- "next 3
+   *  at 14:00". 0 when `next_review_at` is null. */
+  next_review_count: number;
+  /** Distinct subjects with a review_log row crossing into Guru in the
+   *  last/previous 7 rolling days -- each subject counts once. */
+  guru_last_7_days: number;
+  guru_previous_7_days: number;
+}
+
+/** One (level, object_type) bucket, by what the item is doing right now.
+ *  `burned` counts only items earned by review -- a declared-known item at
+ *  the same stage is `known` instead, same split `Stats.burned_count` uses. */
+export interface StageCounts {
+  new: number;
+  apprentice_1: number;
+  apprentice_2: number;
+  apprentice_3: number;
+  apprentice_4: number;
+  guru_1: number;
+  guru_2: number;
+  master: number;
+  enlightened: number;
+  burned: number;
+  known: number;
+  suspended: number;
+}
+
+export interface LevelTypeCounts {
+  level: number;
+  object_type: ObjectType;
+  counts: StageCounts;
+}
+
+export interface LevelStats {
+  /** Same `lowest_open_level()` definition `Stats.current_level` uses. */
+  current_level: number | null;
+  /** Every level that has any subject, sorted by level then object_type. */
+  levels: LevelTypeCounts[];
+}
+
+export interface ActivityDay {
+  /** ISO date (`YYYY-MM-DD`), the local calendar day this entry covers. */
+  date: string;
+  answers: number;
+  correct: number;
+  lessons_started: number;
+  /** Distinct subjects with a Guru crossing this local day. */
+  reached_guru: number;
+}
+
+export interface Activity {
+  /** One entry per local calendar day in the requested window, oldest
+   *  first, zero-filled. */
+  days: ActivityDay[];
+  /** Consecutive local days with at least one answer, ending today or
+   *  (if today has none yet) yesterday. */
+  streak: number;
 }

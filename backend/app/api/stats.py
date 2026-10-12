@@ -1,4 +1,4 @@
-"""The dashboard numbers.
+"""The dashboard numbers, the level breakdown and the activity calendar.
 
 Declared-known items are counted separately from earned ones throughout. That
 distinction is the whole reason ``state`` and ``srs_stage`` are both stored,
@@ -8,14 +8,15 @@ useful.
 
 from __future__ import annotations
 
-from datetime import datetime, timedelta, timezone
+from datetime import date, datetime, timedelta, timezone, tzinfo
+from zoneinfo import ZoneInfo, ZoneInfoNotFoundError
 
-from fastapi import APIRouter, Depends
+from fastapi import APIRouter, Depends, HTTPException, Query
 from sqlalchemy import func, select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from ..db import Progress, ReviewLog, Subject, get_session
-from ..models import Stats
+from ..models import Activity, ActivityDay, LevelStats, LevelTypeCounts, StageCounts, Stats
 from ..runtime_config import load_runtime_config
 from ..srs import (
     STAGE_APPRENTICE_1,
@@ -30,12 +31,88 @@ from .study import lowest_open_level
 
 router = APIRouter()
 
+#: The importer's own type order (`wanikani._TYPE_ORDER`), reused so the level
+#: breakdown lists types the same way the rest of the app does. Anything not
+#: in it (there shouldn't be anything) sorts after, alphabetically.
+_OBJECT_TYPE_ORDER: tuple[str, ...] = ("radical", "kanji", "vocabulary", "kana_vocabulary")
+
+#: Which `StageCounts` field a `state == "learning"` item's `srs_stage` maps
+#: to. Stage 0 is deliberately absent -- see `_bucket_field`.
+_LEARNING_STAGE_FIELDS: dict[int, str] = {
+    1: "apprentice_1",
+    2: "apprentice_2",
+    3: "apprentice_3",
+    4: "apprentice_4",
+    STAGE_GURU_1: "guru_1",
+    6: "guru_2",
+    STAGE_MASTER: "master",
+    STAGE_ENLIGHTENED: "enlightened",
+    STAGE_BURNED: "burned",
+}
+
+
+def _resolve_tz(tz: str | None) -> tzinfo:
+    """An IANA zone, or UTC when none is given.
+
+    UTC is returned as a real zone rather than handled as a separate branch
+    everywhere else: local midnight in UTC *is* UTC midnight, so every caller
+    below can use the same helper either way.
+    """
+    if tz is None:
+        return timezone.utc
+    try:
+        return ZoneInfo(tz)
+    except ZoneInfoNotFoundError as exc:
+        raise HTTPException(status_code=422, detail=f"Unknown time zone: {tz!r}.") from exc
+
+
+def _local_midnight(day: date, tz: tzinfo) -> datetime:
+    """The UTC instant local midnight at the start of ``day`` falls on.
+
+    Shared between ``/stats``' "today" window and ``/stats/activity``'s
+    per-day bucketing, so both agree on where a calendar day begins.
+    """
+    return datetime(day.year, day.month, day.day, tzinfo=tz).astimezone(timezone.utc)
+
+
+def _object_type_sort_key(object_type: str) -> tuple[int, str]:
+    try:
+        return (_OBJECT_TYPE_ORDER.index(object_type), object_type)
+    except ValueError:
+        return (len(_OBJECT_TYPE_ORDER), object_type)
+
+
+def _bucket_field(state: str, stage: int) -> str:
+    """Which :class:`StageCounts` field one ``(state, srs_stage)`` pair feeds.
+
+    ``known`` and ``suspended`` ignore the stage entirely: a declared-known or
+    hidden item is not "earned" at whatever stage it happens to sit at, same
+    reasoning as ``burned_count`` on ``/stats`` only counting ``state ==
+    learning``. A learning item at stage 0 should not occur -- the importer
+    and ``srs.py`` only ever settle a learning item at stage >= 1 -- but if it
+    ever does, it folds into ``new`` rather than raising or being dropped.
+    """
+    if state == ItemState.NEW.value:
+        return "new"
+    if state == ItemState.KNOWN.value:
+        return "known"
+    if state == ItemState.SUSPENDED.value:
+        return "suspended"
+    return _LEARNING_STAGE_FIELDS.get(stage, "new")
+
 
 @router.get("", response_model=Stats)
-async def read_stats(session: AsyncSession = Depends(get_session)) -> Stats:
+async def read_stats(
+    tz: str | None = Query(default=None),
+    session: AsyncSession = Depends(get_session),
+) -> Stats:
+    """IANA ``tz`` moves "today" (``reviews_today``/``accuracy_today``) to
+    local midnight; without it "today" stays UTC midnight, as before."""
+    zone = _resolve_tz(tz)
     config = await load_runtime_config(session)
     now = datetime.now(timezone.utc)
     cutoff = due_cutoff(now, config.review_grace_minutes)
+    today_start = _local_midnight(now.astimezone(zone).date(), zone)
 
     async def count(*filters: object) -> int:
         return await session.scalar(
@@ -49,7 +126,7 @@ async def read_stats(session: AsyncSession = Depends(get_session)) -> Stats:
         await session.scalar(
             select(func.count())
             .select_from(ReviewLog)
-            .where(ReviewLog.answered_at >= now.replace(hour=0, minute=0, second=0, microsecond=0))
+            .where(ReviewLog.answered_at >= today_start)
         )
         or 0
     )
@@ -58,8 +135,7 @@ async def read_stats(session: AsyncSession = Depends(get_session)) -> Stats:
             select(func.count())
             .select_from(ReviewLog)
             .where(
-                ReviewLog.answered_at
-                >= now.replace(hour=0, minute=0, second=0, microsecond=0),
+                ReviewLog.answered_at >= today_start,
                 ReviewLog.correct.is_(True),
             )
         )
@@ -81,6 +157,48 @@ async def read_stats(session: AsyncSession = Depends(get_session)) -> Stats:
             )
             or 0
         )
+
+    # The earliest item not due yet -- "next 3 at 14:00" on the dashboard.
+    # Strictly after `cutoff`: an item inside the grace window is due *now*,
+    # not "next", same boundary `due_now` below uses.
+    next_review_at = await session.scalar(
+        select(Progress.next_review_at)
+        .where(*scheduled, Progress.next_review_at > cutoff)
+        .order_by(Progress.next_review_at)
+        .limit(1)
+    )
+    next_review_count = 0
+    if next_review_at is not None:
+        hour_start = next_review_at.replace(minute=0, second=0, microsecond=0)
+        hour_end = hour_start + timedelta(hours=1)
+        next_review_count = await count(
+            *scheduled,
+            Progress.next_review_at > cutoff,
+            Progress.next_review_at >= hour_start,
+            Progress.next_review_at < hour_end,
+        )
+
+    async def guru_crossings(start: datetime, end: datetime) -> int:
+        """Distinct subjects with a Guru crossing in ``[start, end)``.
+
+        Rolling windows measured from ``now``, deliberately independent of
+        `tz` -- "the last 7 days" needs no calendar, and a crossing counts
+        once per subject even if it fell out and passed again in the window.
+        """
+        return (
+            await session.scalar(
+                select(func.count(func.distinct(ReviewLog.subject_id))).where(
+                    ReviewLog.srs_stage_before < STAGE_GURU_1,
+                    ReviewLog.srs_stage_after >= STAGE_GURU_1,
+                    ReviewLog.answered_at >= start,
+                    ReviewLog.answered_at < end,
+                )
+            )
+            or 0
+        )
+
+    guru_last_7_days = await guru_crossings(now - timedelta(days=7), now)
+    guru_previous_7_days = await guru_crossings(now - timedelta(days=14), now - timedelta(days=7))
 
     return Stats(
         total_subjects=await count(),
@@ -108,4 +226,126 @@ async def read_stats(session: AsyncSession = Depends(get_session)) -> Stats:
         due_today=await count(*scheduled, Progress.next_review_at <= now + timedelta(days=1)),
         reviews_today=reviews_today,
         accuracy_today=(correct_today / reviews_today) if reviews_today else None,
+        next_review_at=next_review_at,
+        next_review_count=next_review_count,
+        guru_last_7_days=guru_last_7_days,
+        guru_previous_7_days=guru_previous_7_days,
     )
+
+
+@router.get("/levels", response_model=LevelStats)
+async def read_level_stats(session: AsyncSession = Depends(get_session)) -> LevelStats:
+    """Per level x object type, how many items sit in each SRS bucket.
+
+    One ``GROUP BY level, object_type, state, srs_stage``, folded in Python --
+    the frontend builds its own reference frame (a level range, a type
+    filter, the known toggle) on top of this rather than the backend baking
+    one in.
+    """
+    rows = await session.execute(
+        select(Subject.level, Subject.object_type, Progress.state, Progress.srs_stage, func.count())
+        .select_from(Progress)
+        .join(Subject, Subject.id == Progress.subject_id)
+        .group_by(Subject.level, Subject.object_type, Progress.state, Progress.srs_stage)
+    )
+
+    buckets: dict[tuple[int, str], StageCounts] = {}
+    for level, object_type, state, stage, n in rows:
+        counts = buckets.setdefault((level, object_type), StageCounts())
+        field = _bucket_field(state, stage)
+        setattr(counts, field, getattr(counts, field) + n)
+
+    levels = [
+        LevelTypeCounts(level=level, object_type=object_type, counts=counts)
+        for (level, object_type), counts in buckets.items()
+    ]
+    levels.sort(key=lambda item: (item.level, _object_type_sort_key(item.object_type)))
+
+    return LevelStats(current_level=await lowest_open_level(session), levels=levels)
+
+
+@router.get("/activity", response_model=Activity)
+async def read_activity(
+    days: int = Query(default=182, ge=1, le=730),
+    tz: str | None = Query(default=None),
+    session: AsyncSession = Depends(get_session),
+) -> Activity:
+    """One entry per local calendar day over the last ``days`` days, zero-filled.
+
+    Bucketed in Python rather than in SQL: Postgres wants ``date_trunc`` and
+    SQLite wants ``strftime``, and splitting that for a few thousand
+    timestamps is not worth a second code path (see ``forecast.py``, which
+    made the same call for hourly buckets).
+    """
+    zone = _resolve_tz(tz)
+    now = datetime.now(timezone.utc)
+    today = now.astimezone(zone).date()
+    start_day = today - timedelta(days=days - 1)
+    window_start = _local_midnight(start_day, zone)
+    window_end = _local_midnight(today + timedelta(days=1), zone)
+
+    buckets: dict[date, dict[str, int]] = {
+        start_day + timedelta(days=offset): {"answers": 0, "correct": 0, "lessons_started": 0}
+        for offset in range(days)
+    }
+
+    answer_rows = await session.execute(
+        select(ReviewLog.answered_at, ReviewLog.correct).where(
+            ReviewLog.answered_at >= window_start, ReviewLog.answered_at < window_end
+        )
+    )
+    for answered_at, correct in answer_rows:
+        bucket = buckets.get(answered_at.astimezone(zone).date())
+        if bucket is None:
+            continue
+        bucket["answers"] += 1
+        if correct:
+            bucket["correct"] += 1
+
+    lesson_rows = await session.scalars(
+        select(Progress.started_at).where(
+            Progress.started_at.is_not(None),
+            Progress.started_at >= window_start,
+            Progress.started_at < window_end,
+        )
+    )
+    for started_at in lesson_rows:
+        bucket = buckets.get(started_at.astimezone(zone).date())
+        if bucket is not None:
+            bucket["lessons_started"] += 1
+
+    guru_rows = await session.execute(
+        select(ReviewLog.answered_at, ReviewLog.subject_id).where(
+            ReviewLog.srs_stage_before < STAGE_GURU_1,
+            ReviewLog.srs_stage_after >= STAGE_GURU_1,
+            ReviewLog.answered_at >= window_start,
+            ReviewLog.answered_at < window_end,
+        )
+    )
+    guru_by_day: dict[date, set[int]] = {}
+    for answered_at, subject_id in guru_rows:
+        day = answered_at.astimezone(zone).date()
+        if day in buckets:
+            guru_by_day.setdefault(day, set()).add(subject_id)
+
+    activity_days = [
+        ActivityDay(
+            date=day,
+            answers=buckets[day]["answers"],
+            correct=buckets[day]["correct"],
+            lessons_started=buckets[day]["lessons_started"],
+            reached_guru=len(guru_by_day.get(day, ())),
+        )
+        for day in sorted(buckets)
+    ]
+
+    # Consecutive days with at least one answer, ending today -- or ending
+    # yesterday if today has not had one yet, so the streak does not reset
+    # the moment the clock passes local midnight with no review done yet.
+    streak = 0
+    cursor = today if buckets[today]["answers"] > 0 else today - timedelta(days=1)
+    while cursor >= start_day and buckets.get(cursor, {}).get("answers", 0) > 0:
+        streak += 1
+        cursor -= timedelta(days=1)
+
+    return Activity(days=activity_days, streak=streak)

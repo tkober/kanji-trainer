@@ -9,7 +9,7 @@ not an SRS.
 
 from __future__ import annotations
 
-from datetime import datetime
+from datetime import date, datetime
 from typing import Literal
 
 from pydantic import BaseModel, ConfigDict, Field
@@ -434,3 +434,75 @@ class Stats(BaseModel):
     due_today: int
     reviews_today: int
     accuracy_today: float | None = None
+    #: Earliest `next_review_at` among scheduled items not due yet; None when
+    #: nothing is scheduled. "Not due yet" uses the same grace cutoff as
+    #: `due_now`, so an item inside the grace window is due, not next.
+    next_review_at: datetime | None = None
+    #: How many scheduled items share `next_review_at`'s UTC hour -- "next 3
+    #: at 14:00". 0 when `next_review_at` is None.
+    next_review_count: int = 0
+    #: Distinct subjects with a review_log row crossing into Guru
+    #: (`srs_stage_before < 5 <= srs_stage_after`) in the last/previous 7
+    #: rolling days. Counted once per subject even with several crossings.
+    guru_last_7_days: int = 0
+    guru_previous_7_days: int = 0
+
+
+# --- level breakdown ---------------------------------------------------------
+
+
+class StageCounts(BaseModel):
+    """One (level, object_type) bucket, by what the item is doing right now.
+
+    Mirrors the dashboard's own split: `burned` counts only items earned by
+    review, never a declared-known one sitting at the same stage -- that one
+    is `known` instead, regardless of its `srs_stage`.
+    """
+
+    new: int = 0
+    apprentice_1: int = 0
+    apprentice_2: int = 0
+    apprentice_3: int = 0
+    apprentice_4: int = 0
+    guru_1: int = 0
+    guru_2: int = 0
+    master: int = 0
+    enlightened: int = 0
+    burned: int = 0
+    known: int = 0
+    suspended: int = 0
+
+
+class LevelTypeCounts(BaseModel):
+    level: int
+    object_type: str
+    counts: StageCounts
+
+
+class LevelStats(BaseModel):
+    #: `lowest_open_level()` -- same definition `/stats` and the lesson
+    #: picker use.
+    current_level: int | None = None
+    #: Every level that has any subject, sorted by level then object_type.
+    levels: list[LevelTypeCounts] = Field(default_factory=list)
+
+
+# --- activity calendar -------------------------------------------------------
+
+
+class ActivityDay(BaseModel):
+    date: date
+    answers: int
+    correct: int
+    lessons_started: int
+    #: Distinct subjects with a Guru crossing this local day.
+    reached_guru: int
+
+
+class Activity(BaseModel):
+    #: One entry per local calendar day in the requested window, oldest
+    #: first, zero-filled.
+    days: list[ActivityDay] = Field(default_factory=list)
+    #: Consecutive local days with at least one answer, ending today or
+    #: (if today has none yet) yesterday.
+    streak: int
