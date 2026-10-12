@@ -1,9 +1,26 @@
 :host {
   display: block;
+
+  /* Same tile-colour tokens as `pages/lessons` (`lessons.scss`), so a stage
+     reads the same colour everywhere a tile is shown -- `app-item-tile`
+     only *consumes* `var(--band-*)`, it does not declare it itself (see its
+     own scss comment), so each page that uses it supplies its own copy,
+     same convention `forecast.scss` already uses for its differently-valued
+     `--band-*` names. */
+  --band-apprentice: light-dark(#86b6ef, #1c5cab);
+  --band-guru: light-dark(#5598e7, #2a78d6);
+  --band-master: light-dark(#2a78d6, #5598e7);
+  --band-enlightened: light-dark(#1c5cab, #86b6ef);
+  --band-burned: light-dark(#104281, #b7d3f6);
+  --band-apprentice-ink: light-dark(#1c2026, #fff);
+  --band-guru-ink: light-dark(#1c2026, #fff);
+  --band-master-ink: light-dark(#fff, #fff);
+  --band-enlightened-ink: light-dark(#fff, #1c2026);
+  --band-burned-ink: light-dark(#fff, #1c2026);
 }
 
 h2 {
-  margin: 0 0 0.5rem;
+  margin: 0 0 0.25rem;
   font-size: 1.15rem;
   line-height: 1.25;
 }
@@ -12,45 +29,236 @@ h2 {
   color: var(--sumi-muted);
 }
 
-.summary {
-  margin-top: 0;
-}
+.head {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 1rem;
+  flex-wrap: wrap;
+  margin-bottom: 0.75rem;
 
-.footnote {
-  font-size: 0.85rem;
-  margin-bottom: 0;
-}
-
-.coming-up {
-  .head {
-    display: flex;
-    align-items: baseline;
-    justify-content: space-between;
-    gap: 1rem;
-    flex-wrap: wrap;
-  }
-
-  .head p {
-    margin: 0 0 0.5rem;
+  p {
+    margin: 0;
     font-size: 0.88rem;
   }
-
-  .more {
-    font-size: 0.88rem;
-    text-decoration: none;
-    white-space: nowrap;
-
-    &:hover {
-      text-decoration: underline;
-    }
-  }
-
-  .quiet {
-    margin: 0.5rem 0 0;
-  }
 }
 
-.readout {
-  margin: 0.5rem 0 0;
+.more {
   font-size: 0.88rem;
+  text-decoration: none;
+  white-space: nowrap;
+
+  &:hover {
+    text-decoration: underline;
+  }
+}
+
+/* --- level card + upcoming, side by side on a wide screen ----------------- */
+
+.main-grid {
+  display: grid;
+  grid-template-columns: 1.7fr 1fr;
+  gap: var(--sumi-space-4);
+  align-items: start;
+}
+
+@media (max-width: 720px) {
+  .main-grid {
+    grid-template-columns: 1fr;
+  }
+}
+
+/* --- a type row: label, bar, count -- level card and progress card both --- */
+
+.type-row {
+  display: flex;
+  align-items: center;
+  gap: 0.6rem;
+
+  & + & {
+    margin-top: 0.4rem;
+  }
+}
+
+.type-label {
+  flex: 0 0 5.5rem;
+  font-size: 0.88rem;
+}
+
+.type-bar {
+  flex: 1;
+  min-width: 0;
+}
+
+.type-count {
+  flex: 0 0 auto;
+  font-variant-numeric: tabular-nums;
+  font-size: 0.85rem;
+  white-space: nowrap;
+}
+
+/* --- the level card's kanji tiles + their legend --------------------------- */
+
+.tile-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(44px, 1fr));
+  gap: 0.4rem;
+  margin-top: 0.9rem;
+}
+
+.tile-legend {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.25rem 0.9rem;
+  margin: 0.75rem 0 0;
+  padding: 0;
+  list-style: none;
+  font-size: 0.8rem;
+
+  li {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.35rem;
+  }
+}
+
+.swatch {
+  width: 0.7rem;
+  height: 0.7rem;
+  border-radius: 3px;
+  flex-shrink: 0;
+}
+
+.swatch-apprentice {
+  background: var(--sumi-seq-2);
+}
+
+.swatch-guru {
+  background: var(--sumi-seq-5);
+}
+
+.swatch-known {
+  background: var(--sumi-correct);
+}
+
+/* Matches the open-lesson tile itself (`shared/item-tile`): a hollow,
+   dashed box rather than a filled one. */
+.swatch-open {
+  background: transparent;
+  border: 1px dashed var(--sumi-line);
+}
+
+/* --- upcoming ---------------------------------------------------------------- */
+
+.next-line {
+  margin: 0 0 0.75rem;
+  padding: 0.5rem 0.75rem;
+  border-radius: var(--sumi-radius);
+  background: var(--sumi-sunken);
+  font-size: 0.9rem;
+}
+
+.quiet {
+  margin: 0;
+}
+
+.upcoming-list {
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.hour-row {
+  display: grid;
+  grid-template-columns: auto 1fr auto;
+  gap: 0.75rem;
+  align-items: baseline;
+  padding: 0.4rem 0;
+  border-bottom: 1px solid var(--sumi-line);
+  font-size: 0.92rem;
+
+  &:last-child {
+    border-bottom: none;
+  }
+}
+
+.hour-row .count {
+  font-weight: 600;
+  text-align: right;
+}
+
+.hour-row .total {
+  text-align: right;
+  font-variant-numeric: tabular-nums;
+}
+
+.divider {
+  margin-top: 0.5rem;
+  padding: 0.3rem 0;
+  font-size: 0.72rem;
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+  color: var(--sumi-muted);
+}
+
+/* --- your progress ------------------------------------------------------------ */
+
+.progress-body {
+  display: grid;
+  grid-template-columns: 1fr minmax(200px, 280px);
+  gap: var(--sumi-space-5);
+  align-items: center;
+}
+
+.progress-headline {
+  grid-column: 1;
+  grid-row: 1;
+}
+
+.progress-bar {
+  grid-column: 1;
+  grid-row: 2;
+}
+
+.progress-spark {
+  grid-column: 2;
+  grid-row: 1 / span 2;
+  align-self: center;
+}
+
+.big {
+  margin: 0 0 0.25rem;
+
+  .pct {
+    font-size: 2.1rem;
+    font-weight: 700;
+  }
+}
+
+.spark-label {
+  margin: 0 0 0.25rem;
+  font-size: 0.85rem;
+}
+
+.progress-rows {
+  margin-top: 1.1rem;
+}
+
+@media (max-width: 720px) {
+  .progress-body {
+    grid-template-columns: 1fr;
+  }
+
+  .progress-headline,
+  .progress-bar {
+    grid-column: 1;
+  }
+
+  /* Both hidden on a narrow screen, per the mockup -- the sparkline needs
+     width to read and the per-type rows are already summarised by the big
+     bar above them. */
+  .progress-spark,
+  .progress-rows {
+    display: none;
+  }
 }
