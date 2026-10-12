@@ -13,7 +13,7 @@ import {
 } from 'sumi-ui/layout';
 import { SumiButtonDirective, SumiCheckboxDirective } from 'sumi-ui/forms';
 import { SumiLegend, type SumiLegendItem } from 'sumi-ui/charts';
-import { SUMI_PRACTICE, type SumiVerdict } from 'sumi-ui/practice';
+import { SUMI_PRACTICE, type SumiSessionProgressSegment, type SumiVerdict } from 'sumi-ui/practice';
 
 import { Api } from '../../core/api';
 import type {
@@ -112,6 +112,21 @@ function chunk<T>(items: T[], size: number): T[][] {
     chunks.push(items.slice(i, i + size));
   }
   return chunks;
+}
+
+/** One batch's exact question size, and the correct answers given while it
+ * was the active batch -- see `questionsFor`/`questionsCount` below for the
+ * unit, same reasoning as `RoundProgress` in the review page. */
+interface BatchProgress {
+  size: number;
+  done: number;
+}
+
+/** Sum of every item's own question count (`questionsFor`, the same mapping
+ * `startQuiz()` builds its queue from) over a batch -- the unit `done`/
+ * `runRemaining` and the progress segments all count in. */
+function questionsCount(items: readonly { subject: { object_type: ObjectType } }[]): number {
+  return items.reduce((sum, item) => sum + questionsFor(item.subject.object_type).length, 0);
 }
 
 /**
@@ -213,13 +228,24 @@ export class LessonsPage {
   protected readonly value = signal('');
   protected readonly feedback = signal<QuizResult | null>(null);
 
-  /** This batch's own answered/correct, for the quiz's `sumi-session-bar`. */
-  protected readonly batchAnswered = signal(0);
-  protected readonly batchCorrect = signal(0);
-  /** The whole run's answered/correct, across every batch, for the summary. */
+  /** The whole run's answered/correct, across every batch -- what the quiz's
+   * `sumi-session-bar` now shows for accuracy too (issue #54), and what the
+   * summary has always used. */
   protected readonly runAnswered = signal(0);
   protected readonly runCorrect = signal(0);
   protected readonly runDurationMs = signal(0);
+  /**
+   * One entry per batch of the current run, in order -- `size` is each
+   * batch's exact question count (`questionsFor`, the same mapping
+   * `startQuiz()` builds its queue from), known up front since every
+   * batch's items were already fetched in full by `startSelected()`, unlike
+   * reviews' unloaded rounds. Set for every batch as soon as a selection is
+   * chunked; `startQuiz()` then overwrites the current batch's `size` with
+   * the post-"I know this" count, since an item marked known during reading
+   * never reaches the quiz. `done` is the correct non-retry answers given
+   * while that batch was being quizzed.
+   */
+  protected readonly batches = signal<BatchProgress[]>([]);
   /** `0` means "the run has not reached a quiz yet" -- set once, by the
    * first `startQuiz()` of the run, so the summary's duration is measured
    * from the first quiz rather than from picking items or reading them. */
@@ -244,23 +270,29 @@ export class LessonsPage {
     () => this.card()?.questions[0] ?? null,
   );
 
-  /**
-   * Open questions still in the current batch's `queue()` -- what
-   * `sumi-session-bar`'s `[remaining]` wants. `[total]="items().length"`
-   * used to count items while `batchAnswered` counts questions, so a batch
-   * with any kanji or vocabulary (two questions each) showed e.g. "12 / 5".
-   * Summing `questions.length` here keeps `batchAnswered` and this one in
-   * the same unit, so "answered ≤ total" always holds.
-   *
-   * A correct answer only leaves `queue()` in `advance()`, after
-   * `batchAnswered` has already counted it; subtracting it while its
-   * verdict is up keeps the total steady instead of briefly one higher.
-   */
-  protected readonly batchRemaining = computed(() => {
-    const open = this.queue().reduce((sum, card) => sum + card.questions.length, 0);
-    const result = this.feedback();
-    return result && result.correct && !result.retry ? open - 1 : open;
+  /** Open questions still due across the *whole run* -- what
+   * `sumi-session-bar`'s `[remaining]` now wants (issue #54), not just the
+   * current batch. `runCorrect` already advances in the same tick a correct
+   * answer lands (`submitQuizAnswer`), so this needs no extra "verdict is
+   * up" adjustment to keep `runCorrect() + runRemaining()` steady. */
+  protected readonly runRemaining = computed(() => {
+    const total = this.batches().reduce((sum, batch) => sum + batch.size, 0);
+    return Math.max(0, total - this.runCorrect());
   });
+
+  /** `sumi-session-progress`'s segments: one per batch at its exact question
+   * size, labelled "Batch N" once batching produced more than one chunk --
+   * a single chunk renders as one continuous, unlabelled bar instead, same
+   * convention the review page uses for a single round. */
+  protected readonly segments = computed<SumiSessionProgressSegment[]>(() => {
+    const batches = this.batches();
+    if (this.totalChunks() <= 1) {
+      const batch = batches[0] ?? { size: 0, done: 0 };
+      return [{ size: batch.size, done: batch.done }];
+    }
+    return batches.map((batch, i) => ({ size: batch.size, done: batch.done, label: `Batch ${i + 1}` }));
+  });
+
   protected readonly onLastItem = computed(() => this.index() >= this.items().length - 1);
 
   /** A settled (non-retry) quiz verdict is on screen. */
@@ -474,6 +506,9 @@ export class LessonsPage {
       const size = this.batching() ? Math.max(1, this.batchSize()) : detailed.length;
       this.chunks.set(chunk(detailed, size));
       this.chunkIndex.set(0);
+      // Every batch's exact size, known up front -- `startQuiz()` corrects
+      // the current one for any "I know this" that happened during reading.
+      this.batches.set(this.chunks().map((items) => ({ size: questionsCount(items), done: 0 })));
       this.runAnswered.set(0);
       this.runCorrect.set(0);
       this.runStartedAt = 0;
@@ -513,8 +548,6 @@ export class LessonsPage {
     this.queue.set([]);
     this.feedback.set(null);
     this.value.set('');
-    this.batchAnswered.set(0);
-    this.batchCorrect.set(0);
   }
 
   /** Commit the current chunk, or wrap up the whole run if it was the last one. */
@@ -594,16 +627,20 @@ export class LessonsPage {
     if (this.runStartedAt === 0) {
       this.runStartedAt = Date.now();
     }
-    this.queue.set(
-      this.items().map((item) =>
-        shuffleQuestions({
-          subject: item.subject,
-          questions: questionsFor(item.subject.object_type),
-        }),
-      ),
+    const cards = this.items().map((item) =>
+      shuffleQuestions({
+        subject: item.subject,
+        questions: questionsFor(item.subject.object_type),
+      }),
     );
-    this.batchAnswered.set(0);
-    this.batchCorrect.set(0);
+    this.queue.set(cards);
+    // Corrects this batch's size for any "I know this" during reading --
+    // an item declared known there never reaches `cards` above.
+    const exactSize = cards.reduce((sum, c) => sum + c.questions.length, 0);
+    const i = this.chunkIndex();
+    this.batches.update((batches) =>
+      batches.map((batch, j) => (j === i ? { size: exactSize, done: 0 } : batch)),
+    );
     this.value.set('');
     this.feedback.set(null);
     this.phase.set('quiz');
@@ -638,11 +675,13 @@ export class LessonsPage {
       const result = await this.api.quiz(card.subject.id, question, answer, gaveUp);
       this.feedback.set(result);
       if (!result.retry) {
-        this.batchAnswered.update((n) => n + 1);
         this.runAnswered.update((n) => n + 1);
         if (result.correct) {
-          this.batchCorrect.update((n) => n + 1);
           this.runCorrect.update((n) => n + 1);
+          const i = this.chunkIndex();
+          this.batches.update((batches) =>
+            batches.map((batch, j) => (j === i ? { ...batch, done: batch.done + 1 } : batch)),
+          );
         }
       }
     } catch (err) {
