@@ -36,6 +36,8 @@ export function stageName(stage: number): string {
   return STAGE_LABELS[Math.max(0, Math.min(9, stage))];
 }
 
+export type ItemTileSize = 'md' | 'sm';
+
 /**
  * One radical/kanji/vocabulary tile, coloured by SRS-stage band (issue #59 --
  * extracted from `pages/lessons`, the one place a tile used to be drawn, so
@@ -50,6 +52,12 @@ export function stageName(stage: number): string {
  * picker itself never produces (there, a `new` tile is always its own
  * selectable button) -- shown as a hollow, dashed box rather than a filled
  * one, since nothing has been earned there yet.
+ *
+ * `size` (issue #59): `'md'`, the default, is the picker's own
+ * tile unchanged. `'sm'` is a whole level's worth of kanji shown at once on
+ * the dashboard -- a much smaller box, a glyph sized to still read at that
+ * box (not just scaled down with it), and no checkmark badge, which at that size
+ * would cover more of the glyph than it annotates.
  */
 @Component({
   selector: 'app-item-tile',
@@ -62,6 +70,7 @@ export class ItemTile {
   readonly selectable = input(false);
   readonly selected = input(false);
   readonly disabled = input(false);
+  readonly size = input<ItemTileSize>('md');
   readonly toggle = output<void>();
 
   protected readonly band = computed(() => stageBand(this.tile().srs_stage));

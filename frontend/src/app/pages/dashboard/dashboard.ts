@@ -2,6 +2,7 @@ import { Component, computed, inject, signal } from '@angular/core';
 import { RouterLink } from '@angular/router';
 import { SumiCard, SumiEmptyState, SumiErrorState, SumiPage } from 'sumi-ui/layout';
 import {
+  SumiProgressRow,
   SumiSegmentedBar,
   SumiSparkline,
   SumiStatGrid,
@@ -175,6 +176,7 @@ function clockTime(iso: string): string {
     SumiStatTile,
     SumiSegmentedBar,
     SumiSparkline,
+    SumiProgressRow,
     SumiButtonDirective,
     ItemTile,
   ],
@@ -253,11 +255,6 @@ export class Dashboard {
     }
     const ms = new Date(stats.next_review_at).getTime() - Date.now();
     return `next ${stats.next_review_count} at ${clockTime(stats.next_review_at)} · in ${relativeShort(ms)}`;
-  });
-
-  protected readonly guruDelta = computed(() => {
-    const stats = this.stats();
-    return stats ? stats.guru_last_7_days - stats.guru_previous_7_days : 0;
   });
 
   // --- the current level ---------------------------------------------------

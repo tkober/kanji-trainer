@@ -97,6 +97,23 @@
     cursor: not-allowed;
     opacity: 0.5;
   }
+
+  /* The compact size (issue #59): a whole level's worth of kanji shown at
+     once on the dashboard rather than lessons to pick from. The glyph gets
+     an explicit size instead of shrinking with the box, so it stays
+     legible; the checkmark badge is dropped in the template, since at this
+     size it would cover the glyph. Box and glyph come from custom
+     properties, so the consuming page can size them per breakpoint (see
+     dashboard.scss). */
+  &.sm {
+    min-width: var(--item-tile-sm-size, 22px);
+    min-height: var(--item-tile-sm-size, 22px);
+    border-radius: 5px;
+
+    > span[lang='ja'] {
+      font-size: var(--item-tile-sm-glyph, 13px);
+    }
+  }
 }
 
 button.tile {

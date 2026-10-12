@@ -17,6 +17,11 @@
   --band-master-ink: light-dark(#fff, #fff);
   --band-enlightened-ink: light-dark(#fff, #1c2026);
   --band-burned-ink: light-dark(#fff, #1c2026);
+
+  /* One label width for every `sumi-progress-row` on the page -- the level
+     card's and the progress card's rows then keep their bars aligned with
+     each other too, not just within their own card. */
+  --sumi-progress-row-label-width: 5.5rem;
 }
 
 h2 {
@@ -68,42 +73,34 @@ h2 {
   }
 }
 
-/* --- a type row: label, bar, count -- level card and progress card both --- */
+/* --- per-type rows: `sumi-progress-row`, level card and progress card both */
 
-.type-row {
-  display: flex;
-  align-items: center;
-  gap: 0.6rem;
-
-  & + & {
-    margin-top: 0.4rem;
-  }
-}
-
-.type-label {
-  flex: 0 0 5.5rem;
-  font-size: 0.88rem;
-}
-
-.type-bar {
-  flex: 1;
-  min-width: 0;
-}
-
-.type-count {
-  flex: 0 0 auto;
-  font-variant-numeric: tabular-nums;
-  font-size: 0.85rem;
-  white-space: nowrap;
+.level-rows sumi-progress-row + sumi-progress-row,
+.progress-rows sumi-progress-row + sumi-progress-row {
+  margin-top: 0.4rem;
 }
 
 /* --- the level card's kanji tiles + their legend --------------------------- */
 
 .tile-grid {
+  --item-tile-sm-size: 30px;
+  --item-tile-sm-glyph: 17px;
+
   display: grid;
-  grid-template-columns: repeat(auto-fill, minmax(44px, 1fr));
-  gap: 0.4rem;
+  grid-template-columns: repeat(auto-fill, minmax(var(--item-tile-sm-size), 1fr));
+  gap: 0.25rem;
   margin-top: 0.9rem;
+}
+
+/* On a phone a level's 33 kanji should fill about three rows, like the
+   mobile mockup. */
+@media (max-width: 720px) {
+  .tile-grid {
+    --item-tile-sm-size: 22px;
+    --item-tile-sm-glyph: 13px;
+
+    gap: 0.2rem;
+  }
 }
 
 .tile-legend {
@@ -206,13 +203,21 @@ h2 {
 .progress-body {
   display: grid;
   grid-template-columns: 1fr minmax(200px, 280px);
-  gap: var(--sumi-space-5);
+  column-gap: var(--sumi-space-5);
+  row-gap: var(--sumi-space-2);
   align-items: center;
 }
 
 .progress-headline {
   grid-column: 1;
   grid-row: 1;
+
+  /* Browser default `p` margins are the big gap this card used to have
+     between its header, its number and the bar below -- `.head p` already
+     resets this for the card's own header, this does the same here. */
+  .sub {
+    margin: 0;
+  }
 }
 
 .progress-bar {
@@ -227,10 +232,14 @@ h2 {
 }
 
 .big {
-  margin: 0 0 0.25rem;
+  display: flex;
+  align-items: baseline;
+  gap: 0.4rem;
+  margin: 0 0 0.2rem;
 
   .pct {
     font-size: 2.1rem;
+    line-height: 1;
     font-weight: 700;
   }
 }

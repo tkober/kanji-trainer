@@ -28,7 +28,6 @@
         <sumi-stat-tile
           [value]="'+' + stats.guru_last_7_days"
           label="reached Guru this week"
-          [delta]="guruDelta()"
           [hint]="stats.guru_previous_7_days + ' the week before'"
         />
       </sumi-stat-grid>
@@ -45,23 +44,22 @@
             <a routerLink="/lessons" class="more">Lessons →</a>
           </div>
 
-          @for (row of levelTypeRows(); track row.key) {
-            <div class="type-row">
-              <span class="type-label">{{ row.label }}</span>
-              <sumi-segmented-bar
-                class="type-bar"
+          <div class="level-rows">
+            @for (row of levelTypeRows(); track row.key) {
+              <sumi-progress-row
+                [label]="row.label"
                 [ariaLabel]="row.label + ' progress in level ' + stats.current_level"
-                height="sm"
                 [segments]="rowSegments(row.counts)"
+                [value]="rowSettled(row.counts)"
+                [total]="rowTotal(row.counts)"
               />
-              <span class="type-count muted">{{ rowSettled(row.counts) }} / {{ rowTotal(row.counts) }}</span>
-            </div>
-          }
+            }
+          </div>
 
           @if (levelKanjiTiles().length > 0) {
             <div class="tile-grid">
               @for (tile of levelKanjiTiles(); track tile.subject.id) {
-                <app-item-tile [tile]="tile" />
+                <app-item-tile [tile]="tile" size="sm" />
               }
             </div>
           }
@@ -112,8 +110,8 @@
 
         <div class="progress-body">
           <div class="progress-headline">
-            <p class="big"><span class="pct">{{ progressPercent() }} %</span> <span class="muted">settled</span></p>
-            <p class="muted">
+            <p class="big"><span class="pct">{{ progressPercent() }} %</span><span class="unit muted">settled</span></p>
+            <p class="muted sub">
               {{ progressSettled() }} of {{ progressTotal() }} items at Guru or marked as known
             </p>
           </div>
@@ -138,16 +136,13 @@
 
         <div class="progress-rows">
           @for (row of frameTypeRows(); track row.key) {
-            <div class="type-row">
-              <span class="type-label">{{ row.label }}</span>
-              <sumi-segmented-bar
-                class="type-bar"
-                [ariaLabel]="row.label + ' progress across every unlocked level'"
-                height="sm"
-                [segments]="rowSegments(row.counts)"
-              />
-              <span class="type-count muted">{{ rowSettled(row.counts) }} / {{ rowTotal(row.counts) }}</span>
-            </div>
+            <sumi-progress-row
+              [label]="row.label"
+              [ariaLabel]="row.label + ' progress across every unlocked level'"
+              [segments]="rowSegments(row.counts)"
+              [value]="rowSettled(row.counts)"
+              [total]="rowTotal(row.counts)"
+            />
           }
         </div>
       </sumi-card>
