@@ -90,7 +90,7 @@
       }
     </sumi-card>
 
-    <sumi-card>
+    <sumi-card id="import">
       <div sumiCardHeader><h2>Import</h2></div>
       <p class="hint">
         The import reads your WaniKani progress and takes it over. Everything at or above the
@@ -157,6 +157,10 @@
               <strong>{{ run.marked_known }}</strong> taken over as known,
               {{ run.marked_learning }} in the review cycle, {{ run.marked_new }} waiting as
               lessons.
+            </p>
+            <p class="hint">
+              Last import: {{ (run.finished_at ?? run.started_at) | date: 'd MMM y' }} · threshold
+              {{ thresholdName(run.known_srs_stage) }}
             </p>
           } @else {
             <sumi-banner tone="error">{{ run.message || 'The import failed.' }}</sumi-banner>

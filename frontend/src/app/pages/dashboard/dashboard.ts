@@ -1,12 +1,6 @@
 import { Component, computed, inject, signal } from '@angular/core';
 import { RouterLink } from '@angular/router';
-import {
-  SumiBanner,
-  SumiCard,
-  SumiEmptyState,
-  SumiErrorState,
-  SumiPage,
-} from 'sumi-ui/layout';
+import { SumiCard, SumiEmptyState, SumiErrorState, SumiPage } from 'sumi-ui/layout';
 import {
   SumiBarChart,
   SumiSegmentedBar,
@@ -18,7 +12,7 @@ import {
 import { SumiButtonDirective } from 'sumi-ui/forms';
 
 import { Api } from '../../core/api';
-import type { Forecast, ImportRun, Stats } from '../../core/api.types';
+import type { Forecast, Stats } from '../../core/api.types';
 import { Counters } from '../../core/counters';
 
 @Component({
@@ -27,7 +21,6 @@ import { Counters } from '../../core/counters';
     RouterLink,
     SumiPage,
     SumiCard,
-    SumiBanner,
     SumiEmptyState,
     SumiErrorState,
     SumiStatGrid,
@@ -45,7 +38,6 @@ export class Dashboard {
 
   protected readonly stats = signal<Stats | null>(null);
   protected readonly forecast = signal<Forecast | null>(null);
-  protected readonly lastImport = signal<ImportRun | null>(null);
   protected readonly error = signal<string | null>(null);
   protected readonly loading = signal(true);
 
@@ -56,18 +48,13 @@ export class Dashboard {
   async load(): Promise<void> {
     this.loading.set(true);
     try {
-      const [stats, lastImport, forecast] = await Promise.all([
-        this.api.stats(),
-        this.api.latestImport(),
-        this.api.forecast(24),
-      ]);
+      const [stats, forecast] = await Promise.all([this.api.stats(), this.api.forecast(24)]);
       this.stats.set(stats);
       // This screen fetches the badge's numbers anyway; handing them over
       // costs nothing and spares the badge a poll's worth of staleness.
       this.counters.setDue(stats.due_now);
       this.counters.setLessons(stats.lessons_available);
       this.counters.setLevel(stats.current_level);
-      this.lastImport.set(lastImport);
       this.forecast.set(forecast);
       this.error.set(null);
     } catch (err) {

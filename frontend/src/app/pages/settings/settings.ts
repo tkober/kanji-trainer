@@ -1,5 +1,7 @@
-import { Component, OnDestroy, inject, signal } from '@angular/core';
+import { DatePipe } from '@angular/common';
+import { Component, Injector, OnDestroy, afterNextRender, inject, signal } from '@angular/core';
 import { FormsModule } from '@angular/forms';
+import { ActivatedRoute } from '@angular/router';
 import { SumiBanner, SumiCard, SumiErrorState, SumiPage, SumiProgress } from 'sumi-ui/layout';
 import {
   SumiButtonDirective,
@@ -19,9 +21,24 @@ import type {
   WaniKaniAccount,
 } from '../../core/api.types';
 
+/** The import threshold's stage names, index 0 = stage 1 (Apprentice I),
+ * same wording as the `<select>` in settings.html. */
+const THRESHOLD_STAGE_NAMES = [
+  'Apprentice I',
+  'Apprentice II',
+  'Apprentice III',
+  'Apprentice IV',
+  'Guru I',
+  'Guru II',
+  'Master',
+  'Enlightened',
+  'Burned',
+];
+
 @Component({
   selector: 'app-settings',
   imports: [
+    DatePipe,
     FormsModule,
     SumiBanner,
     SumiButtonDirective,
@@ -40,6 +57,8 @@ import type {
 })
 export class SettingsPage implements OnDestroy {
   private readonly api = inject(Api);
+  private readonly route = inject(ActivatedRoute);
+  private readonly injector = inject(Injector);
 
   protected readonly settings = signal<Settings | null>(null);
   protected readonly account = signal<WaniKaniAccount | null>(null);
@@ -89,6 +108,7 @@ export class SettingsPage implements OnDestroy {
       this.error.set(null);
       this.loaded.set(true);
       this.loadFailed.set(false);
+      this.scrollToFragment();
     } catch (err) {
       if (this.loaded()) {
         this.error.set((err as Error).message);
@@ -96,6 +116,35 @@ export class SettingsPage implements OnDestroy {
         this.loadFailed.set(true);
       }
     }
+  }
+
+  /**
+   * The router's own anchor scrolling (`withInMemoryScrolling` in
+   * app.config.ts) runs right after navigation, which can land before this
+   * lazy-loaded page has actually rendered -- the dashboard's empty-state
+   * button (`fragment="import"`) was landing at the top of the page instead
+   * of on the import card. Re-running the scroll after the render that
+   * follows `load()` is a no-op when the router already got there first,
+   * and reliable when it did not. It has to wait for that render: right
+   * after the signals are set, the card is not in the DOM yet.
+   */
+  private scrollToFragment(): void {
+    const fragment = this.route.snapshot.fragment;
+    if (fragment) {
+      afterNextRender(() => document.getElementById(fragment)?.scrollIntoView(), {
+        injector: this.injector,
+      });
+    }
+  }
+
+  /**
+   * The import threshold's stage name, matching the `<select>` above
+   * (stages 1-9 only -- there is no "Lesson" option here, unlike the
+   * tile labelling in `lessons.ts`, which keeps its own separate copy for
+   * stage 0).
+   */
+  protected thresholdName(stage: number): string {
+    return THRESHOLD_STAGE_NAMES[Math.max(1, Math.min(9, stage)) - 1];
   }
 
   async saveToken(): Promise<void> {
