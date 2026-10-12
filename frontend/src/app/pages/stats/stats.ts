@@ -76,13 +76,14 @@ function sumDays(days: readonly ActivityDay[], key: keyof ActivityDay): number {
 }
 
 /** Same breakpoint Sumi UI's own `sumi-session-progress` uses for its narrow
- *  layout switch (`SUMI_SESSION_NARROW_BREAKPOINT`). Below it, the trouble
- *  items table drops its Type and Accuracy columns (see the class doc on
+ *  layout switch (`SUMI_SESSION_NARROW_BREAKPOINT`). Below it, both segmented
+ *  controls get shorter labels and the trouble items table drops its Type
+ *  and Accuracy columns (see the class doc on
  *  `troubleColumns`) -- done by handing `sumi-data-table` a narrower
  *  `columns` array rather than hiding cells with CSS, since the table's own
  *  markup lives behind that component's view encapsulation and a page
  *  stylesheet cannot reach into it without `::ng-deep`. */
-const TROUBLE_TABLE_NARROW_BREAKPOINT = 480;
+const NARROW_BREAKPOINT = 480;
 
 @Component({
   selector: 'app-stats',
@@ -126,16 +127,14 @@ export class StatsPage {
   protected readonly levelTypeFilter = signal<LevelTypeFilter>('all');
 
   private readonly narrowQuery =
-    typeof matchMedia === 'function'
-      ? matchMedia(`(max-width: ${TROUBLE_TABLE_NARROW_BREAKPOINT}px)`)
-      : null;
-  protected readonly narrowTroubleTable = signal(this.narrowQuery?.matches ?? false);
+    typeof matchMedia === 'function' ? matchMedia(`(max-width: ${NARROW_BREAKPOINT}px)`) : null;
+  protected readonly narrow = signal(this.narrowQuery?.matches ?? false);
 
   constructor() {
     void this.load();
 
     if (this.narrowQuery) {
-      const onChange = (event: MediaQueryListEvent) => this.narrowTroubleTable.set(event.matches);
+      const onChange = (event: MediaQueryListEvent) => this.narrow.set(event.matches);
       this.narrowQuery.addEventListener('change', onChange);
       this.destroyRef.onDestroy(() => this.narrowQuery?.removeEventListener('change', onChange));
     }
@@ -183,9 +182,15 @@ export class StatsPage {
   protected readonly mineUpper = computed(() => this.stats()?.current_level ?? this.highestLevel());
 
   protected readonly frameOptions = computed<SumiSegmentedOption<Frame>[]>(() => [
-    { value: 'mine', label: `My levels (1–${this.mineUpper()})` },
-    { value: 'ten', label: 'Levels 1–10' },
-    { value: 'all', label: `All ${this.highestLevel()} levels` },
+    // Shorter labels on a phone: the long ones need ~330px, more than the
+    // row has, and the control would otherwise scroll with its last label
+    // cut off at the edge.
+    { value: 'mine', label: this.narrow() ? 'My levels' : `My levels (1–${this.mineUpper()})` },
+    { value: 'ten', label: this.narrow() ? '1–10' : 'Levels 1–10' },
+    {
+      value: 'all',
+      label: this.narrow() ? `All ${this.highestLevel()}` : `All ${this.highestLevel()} levels`,
+    },
   ]);
 
   protected readonly frameUpper = computed(() => {
@@ -263,7 +268,7 @@ export class StatsPage {
   });
 
   protected readonly accuracyDisplay = computed(() =>
-    this.accuracyPercent() === null ? '–' : `${this.accuracyPercent()} %`,
+    this.accuracyPercent() === null ? '–' : `${this.accuracyPercent()}\u202f%`,
   );
 
   protected readonly answers30 = computed(() => sumDays(this.last30Days(), 'answers'));
@@ -284,7 +289,7 @@ export class StatsPage {
       children: [
         {
           label: 'Apprentice',
-          color: 'var(--band-apprentice)',
+          color: 'var(--sumi-seq-2)',
           children: [
             { label: 'Apprentice I', value: c.apprentice_1 },
             { label: 'Apprentice II', value: c.apprentice_2 },
@@ -294,15 +299,15 @@ export class StatsPage {
         },
         {
           label: 'Guru',
-          color: 'var(--band-guru)',
+          color: 'var(--sumi-seq-5)',
           children: [
             { label: 'Guru I', value: c.guru_1 },
             { label: 'Guru II', value: c.guru_2 },
           ],
         },
-        { label: 'Master', value: c.master, color: 'var(--band-master)' },
-        { label: 'Enlightened', value: c.enlightened, color: 'var(--band-enlightened)' },
-        { label: 'Burned', value: c.burned, color: 'var(--band-burned)' },
+        { label: 'Master', value: c.master, color: 'var(--stage-master)' },
+        { label: 'Enlightened', value: c.enlightened, color: 'var(--stage-enlightened)' },
+        { label: 'Burned', value: c.burned, color: 'var(--stage-burned)' },
         { label: 'Marked as known', value: c.known, color: 'var(--sumi-correct)' },
         { label: 'Lessons open', value: c.new, color: 'var(--sumi-line)' },
       ],
@@ -337,12 +342,12 @@ export class StatsPage {
 
   // --- D: levels (stacked bar chart) -------------------------------------------
 
-  protected readonly levelTypeOptions: SumiSegmentedOption<LevelTypeFilter>[] = [
-    { value: 'all', label: 'All types' },
+  protected readonly levelTypeOptions = computed<SumiSegmentedOption<LevelTypeFilter>[]>(() => [
+    { value: 'all', label: this.narrow() ? 'All' : 'All types' },
     { value: 'radical', label: 'Radicals' },
     { value: 'kanji', label: 'Kanji' },
     { value: 'vocabulary', label: 'Vocab' },
-  ];
+  ]);
 
   protected readonly levelSeries: readonly SumiBarSeries[] = [
     { key: 'guru', label: 'Guru+', color: 'var(--sumi-seq-5)' },
@@ -425,7 +430,7 @@ export class StatsPage {
 
   // --- H: trouble items ----------------------------------------------------
 
-  /** Type and Accuracy drop out below `TROUBLE_TABLE_NARROW_BREAKPOINT` --
+  /** Type and Accuracy drop out below `NARROW_BREAKPOINT` --
    *  Item, Stage and Lapses already say which item is in trouble and how
    *  often, and this is what keeps the table from overflowing sideways on a
    *  phone instead of just hiding cells underneath it (see that constant's
@@ -438,7 +443,7 @@ export class StatsPage {
       { key: 'lapses', label: 'Lapses', align: 'end' },
       { key: 'accuracy', label: 'Accuracy', align: 'end' },
     ];
-    return this.narrowTroubleTable()
+    return this.narrow()
       ? columns.filter((c) => c.key !== 'type' && c.key !== 'accuracy')
       : columns;
   });

@@ -120,7 +120,7 @@
             <p class="muted">Every level by stage</p>
           </div>
           <sumi-segmented-control
-            [options]="levelTypeOptions"
+            [options]="levelTypeOptions()"
             [value]="levelTypeFilter()"
             (valueChange)="levelTypeFilter.set($event)"
           />

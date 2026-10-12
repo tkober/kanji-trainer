@@ -1,18 +1,12 @@
 :host {
   display: block;
 
-  /* Same stage colours as the dashboard (`pages/dashboard/dashboard.scss`) --
-     each page keeps its own copy (see that file's own comment), so a stage
-     reads the same colour on both pages without the one depending on the
-     other's stylesheet loading. Only used for the Stages sunburst's
-     Apprentice/Guru/Master/Enlightened/Burned wedges here; the ink variants
-     are unused (the sunburst paints its own wedge-fill text colour) but kept
-     alongside for the same reason the dashboard keeps its own full set. */
-  --band-apprentice: light-dark(#86b6ef, #1c5cab);
-  --band-guru: light-dark(#5598e7, #2a78d6);
-  --band-master: light-dark(#2a78d6, #5598e7);
-  --band-enlightened: light-dark(#1c5cab, #86b6ef);
-  --band-burned: light-dark(#104281, #b7d3f6);
+  /* Stage colours for the Stages sunburst, on the same scale as this page's
+     bars and legends: Apprentice and Guru use the bars' Apprentice and
+     Guru+ colours, the later stages go darker from there. */
+  --stage-master: color-mix(in oklab, var(--sumi-accent) 75%, var(--sumi-text));
+  --stage-enlightened: color-mix(in oklab, var(--sumi-accent) 55%, var(--sumi-text));
+  --stage-burned: color-mix(in oklab, var(--sumi-accent) 35%, var(--sumi-text));
 
   /* One label width for every `sumi-progress-row` on the page, same
      reasoning as the dashboard's own copy of this token. */
@@ -104,8 +98,15 @@ h2 {
 .stage-body {
   display: flex;
   flex-wrap: wrap;
-  align-items: flex-start;
+  align-items: center;
   gap: var(--sumi-space-4);
+
+  /* Capped so the text list fits beside it in a half-width card, as in the
+     mockup; on a phone the list wraps below. */
+  sumi-sunburst {
+    flex: 0 1 260px;
+    min-width: 0;
+  }
 }
 
 .stage-text {
