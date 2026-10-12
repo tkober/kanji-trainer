@@ -1,4 +1,4 @@
-<sumi-page title="Dashboard" [inkEnd]="!!stats() || !error()">
+<sumi-page title="Dashboard" width="wide" [inkEnd]="!!stats() || !error()">
   @if (stats(); as stats) {
     @if (stats.total_subjects === 0) {
       <sumi-empty-state title="No items yet" companion="tsuru">
@@ -14,68 +14,137 @@
         <sumi-stat-tile
           [value]="stats.due_now"
           label="reviews due"
+          [hint]="dueHint()"
           link="/review"
           [emphasis]="true"
         />
         <sumi-stat-tile
           [value]="stats.lessons_available"
           [label]="stats.current_level !== null ? 'lessons in level ' + stats.current_level : 'lessons available'"
+          [hint]="lessonsHint()"
           link="/lessons"
         />
-        <sumi-stat-tile [value]="stats.reviews_today" label="answered today" />
-        <sumi-stat-tile [value]="accuracy(stats)" label="accuracy today" />
+        <sumi-stat-tile [value]="stats.reviews_today" label="answered today" [hint]="accuracyHint()" />
+        <sumi-stat-tile
+          [value]="'+' + stats.guru_last_7_days"
+          label="reached Guru this week"
+          [hint]="stats.guru_previous_7_days + ' the week before'"
+        />
       </sumi-stat-grid>
 
-      <sumi-card class="coming-up">
-        <div sumiCardHeader class="head">
-          <div>
-            <h2>Coming up</h2>
-            <p class="muted">
-              The next 24 hours, all stages together.
-              @if (stats.due_now > 0) {
-                {{ stats.due_now }} already waiting.
+      <div class="main-grid">
+        <sumi-card class="level-card">
+          <div sumiCardHeader class="head">
+            <div>
+              <h2>Level {{ stats.current_level }}</h2>
+              <p class="muted">
+                {{ levelStarted() }} of {{ levelTotal() }} items started · {{ levelSettled() }} settled
+              </p>
+            </div>
+            <a routerLink="/lessons" class="more">Lessons →</a>
+          </div>
+
+          <div class="level-rows">
+            @for (row of levelTypeRows(); track row.key) {
+              <sumi-progress-row
+                [label]="row.label"
+                [ariaLabel]="row.label + ' progress in level ' + stats.current_level"
+                [segments]="rowSegments(row.counts)"
+                [value]="rowSettled(row.counts)"
+                [total]="rowTotal(row.counts)"
+              />
+            }
+          </div>
+
+          @if (levelKanjiTiles().length > 0) {
+            <div class="tile-grid">
+              @for (tile of levelKanjiTiles(); track tile.subject.id) {
+                <app-item-tile [tile]="tile" size="sm" />
               }
+            </div>
+          }
+
+          <ul class="tile-legend muted">
+            <li><span class="swatch swatch-apprentice" aria-hidden="true"></span>Apprentice</li>
+            <li><span class="swatch swatch-guru" aria-hidden="true"></span>Guru+</li>
+            <li><span class="swatch swatch-known" aria-hidden="true"></span>Marked as known</li>
+            <li><span class="swatch swatch-open" aria-hidden="true"></span>Lesson open</li>
+          </ul>
+        </sumi-card>
+
+        <sumi-card class="upcoming-card">
+          <div sumiCardHeader class="head">
+            <h2>Upcoming</h2>
+            <a routerLink="/forecast" class="more">Forecast →</a>
+          </div>
+
+          @if (upcomingHeadline(); as headline) {
+            <p class="next-line">{{ headline }}</p>
+          }
+
+          @if (upcomingRows().length === 0) {
+            <p class="muted quiet">Nothing scheduled in the next 24 hours.</p>
+          } @else {
+            <ul class="upcoming-list">
+              @for (row of upcomingRows(); track $index) {
+                @if (row.kind === 'divider') {
+                  <li class="divider">{{ row.label }}</li>
+                } @else {
+                  <li class="hour-row">
+                    <span class="time">{{ row.time }}</span>
+                    <span class="count">+{{ row.count }}</span>
+                    <span class="total muted">{{ row.total }}</span>
+                  </li>
+                }
+              }
+            </ul>
+          }
+        </sumi-card>
+      </div>
+
+      <sumi-card class="progress-card">
+        <div sumiCardHeader class="head">
+          <h2>Your progress</h2>
+          <p class="muted">Levels 1–{{ stats.current_level }}, everything you have unlocked</p>
+        </div>
+
+        <div class="progress-body">
+          <div class="progress-headline">
+            <p class="big"><span class="pct">{{ progressPercent() }} %</span><span class="unit muted">settled</span></p>
+            <p class="muted sub">
+              {{ progressSettled() }} of {{ progressTotal() }} items at Guru or marked as known
             </p>
           </div>
-          <a routerLink="/forecast" class="more">Full forecast →</a>
-        </div>
 
-        @if (arriving() === 0) {
-          <p class="muted quiet">Nothing scheduled in the next 24 hours.</p>
-        } @else {
-          <sumi-bar-chart
-            ariaLabel="Reviews arriving per hour over the next 24 hours"
-            [bars]="comingUpBars()"
-            [labelEvery]="6"
-            [table]="true"
-            labelHeader="Hour"
-            valueHeader="Reviews"
+          <sumi-segmented-bar
+            class="progress-bar"
+            ariaLabel="Overall progress by SRS stage across every unlocked level"
+            height="md"
+            [legend]="true"
+            [segments]="progressSegments()"
           />
-          <p class="readout">
-            <strong>{{ arriving() }}</strong> arriving in the next 24 hours ·
-            <span class="muted">{{ waitingAfter() }} waiting by this time tomorrow</span>
-          </p>
-        }
-      </sumi-card>
 
-      <sumi-card>
-        <div sumiCardHeader>
-          <h2>Collection</h2>
-          <p class="muted summary">
-            {{ stats.total_subjects }} items, {{ settled(stats) }} % of them settled for good.
-            {{ stats.new_count }} still unlearned.
-          </p>
+          <div class="progress-spark">
+            <p class="muted spark-label">Reached Guru, last 30 days</p>
+            <sumi-sparkline
+              ariaLabel="Items that reached Guru, cumulative over the last 30 days"
+              [points]="guruSparklinePoints()"
+              [value]="guruSparklineTotal()"
+            />
+          </div>
         </div>
-        <sumi-segmented-bar
-          ariaLabel="Collection by SRS stage"
-          [segments]="collectionSegments()"
-          [legend]="true"
-          [table]="true"
-        />
-        <p class="muted footnote">
-          “Burned” counts only items you earned. What you marked as known yourself is listed
-          separately — otherwise the number would flatter you.
-        </p>
+
+        <div class="progress-rows">
+          @for (row of frameTypeRows(); track row.key) {
+            <sumi-progress-row
+              [label]="row.label"
+              [ariaLabel]="row.label + ' progress across every unlocked level'"
+              [segments]="rowSegments(row.counts)"
+              [value]="rowSettled(row.counts)"
+              [total]="rowTotal(row.counts)"
+            />
+          }
+        </div>
       </sumi-card>
     }
   } @else if (error(); as message) {

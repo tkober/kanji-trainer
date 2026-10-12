@@ -6,7 +6,16 @@
    text next to the swatch. `light-dark()`, not a media query on the OS
    setting, so these follow Sumi UI's theme toggle (which pins
    `color-scheme` via `<html data-theme>`) rather than only the OS
-   preference. */
+   preference.
+
+   The tile itself (`app-item-tile`, `shared/item-tile`) only *consumes*
+   these as `var(--band-*)` -- it does not declare them, so they still need
+   to live on an ancestor host. They stay here rather than moving into the
+   component because `sumi-legend` above (`LEGEND_ITEMS`) reads the same
+   custom properties and is the tile grid's sibling, not its descendant; the
+   dashboard declares its own copy for the same reason (see
+   `pages/dashboard/dashboard.scss`), same convention `forecast.scss`
+   already uses for its own, differently-valued `--band-*` names. */
 :host {
   display: block;
 
@@ -129,113 +138,9 @@ sumi-legend {
   }
 }
 
-.tile {
-  position: relative;
-  aspect-ratio: 1;
-  min-width: 44px;
-  min-height: 44px;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  border-radius: var(--sumi-radius);
-  border: 1px solid var(--sumi-line);
-  background: var(--sumi-surface);
-  color: var(--sumi-text);
-  font-family: inherit;
-  padding: 0;
-  cursor: pointer;
-
-  img {
-    width: 60%;
-    height: 60%;
-    object-fit: contain;
-  }
-
-  &[data-band='apprentice'] {
-    background: var(--band-apprentice);
-    color: var(--band-apprentice-ink);
-    border-color: transparent;
-  }
-
-  &[data-band='guru'] {
-    background: var(--band-guru);
-    color: var(--band-guru-ink);
-    border-color: transparent;
-  }
-
-  &[data-band='master'] {
-    background: var(--band-master);
-    color: var(--band-master-ink);
-    border-color: transparent;
-  }
-
-  &[data-band='enlightened'] {
-    background: var(--band-enlightened);
-    color: var(--band-enlightened-ink);
-    border-color: transparent;
-  }
-
-  &[data-band='burned'] {
-    background: var(--band-burned);
-    color: var(--band-burned-ink);
-    border-color: transparent;
-  }
-
-  /* `.tile-grid.flow` sizes the tile to its word: the square tiles' 52px as
-     the floor for both sides, width following the content. `max-content`
-     keeps a word on one line; only a word wider than the whole row (a phone
-     at 375px) is capped by `max-width` and wraps rather than overflowing. */
-  .flow & {
-    aspect-ratio: auto;
-    width: max-content;
-    max-width: 100%;
-    min-width: 52px;
-    min-height: 52px;
-    padding: 0 0.6rem;
-  }
-
-  &.static {
-    cursor: default;
-  }
-
-  &.suspended {
-    opacity: 0.45;
-  }
-
-  &:disabled {
-    cursor: not-allowed;
-    opacity: 0.5;
-  }
-}
-
-button.tile {
-  /* Selection never rests on colour alone: a thick outline plus the badge
-     below both carry it, so the state reads the same in greyscale. */
-  &.selected {
-    outline: 3px solid var(--sumi-accent);
-    outline-offset: -3px;
-  }
-
-  &:focus-visible {
-    outline: 3px solid var(--sumi-accent);
-    outline-offset: 1px;
-  }
-}
-
-.badge {
-  position: absolute;
-  bottom: -4px;
-  right: -4px;
-  width: 18px;
-  height: 18px;
-  border-radius: 50%;
-  background: var(--sumi-correct);
-  color: #fff;
-  font-size: 0.7rem;
-  line-height: 18px;
-  text-align: center;
-  border: 2px solid var(--sumi-surface);
-}
+/* The tile itself (`app-item-tile`, `shared/item-tile`, issue #59) carries
+   its own look now -- see the comment up top for why its colour tokens still
+   live here. */
 
 .action-bar {
   position: sticky;

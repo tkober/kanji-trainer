@@ -1,0 +1,42 @@
+@if (selectable()) {
+  <button
+    type="button"
+    class="tile"
+    [class.sm]="size() === 'sm'"
+    [attr.data-band]="band()"
+    [class.selected]="selected()"
+    [disabled]="disabled()"
+    [attr.aria-pressed]="selected()"
+    [title]="label()"
+    [attr.aria-label]="label()"
+    (click)="toggle.emit()"
+  >
+    @if (tile().subject.characters) {
+      <span lang="ja">{{ tile().subject.characters }}</span>
+    } @else if (tile().subject.character_image_url) {
+      <img [src]="tile().subject.character_image_url" [alt]="tile().subject.slug" />
+    }
+    @if (selected() && size() === 'md') {
+      <span class="badge" aria-hidden="true">✓</span>
+    }
+  </button>
+} @else {
+  <span
+    class="tile static"
+    [class.sm]="size() === 'sm'"
+    [attr.data-band]="band()"
+    [class.known]="tile().state === 'known'"
+    [class.suspended]="tile().state === 'suspended'"
+    [title]="label()"
+    [attr.aria-label]="label()"
+  >
+    @if (tile().subject.characters) {
+      <span lang="ja">{{ tile().subject.characters }}</span>
+    } @else if (tile().subject.character_image_url) {
+      <img [src]="tile().subject.character_image_url" [alt]="tile().subject.slug" />
+    }
+    @if (tile().state === 'known' && size() === 'md') {
+      <span class="badge" aria-hidden="true">✓</span>
+    }
+  </span>
+}

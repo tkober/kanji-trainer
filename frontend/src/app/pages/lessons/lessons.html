@@ -80,46 +80,13 @@
               </div>
               <div class="tile-grid" [class.flow]="group.key === 'vocabulary'">
                 @for (tile of group.tiles; track tile.subject.id) {
-                  @if (tile.state === 'new') {
-                    <button
-                      type="button"
-                      class="tile"
-                      [attr.data-band]="band(tile.srs_stage)"
-                      [class.selected]="isSelected(tile.subject.id)"
-                      [disabled]="!isSelected(tile.subject.id) && capReached()"
-                      [attr.aria-pressed]="isSelected(tile.subject.id)"
-                      [title]="tileLabel(tile)"
-                      [attr.aria-label]="tileLabel(tile)"
-                      (click)="toggleTile(tile)"
-                    >
-                      @if (tile.subject.characters) {
-                        <span lang="ja">{{ tile.subject.characters }}</span>
-                      } @else if (tile.subject.character_image_url) {
-                        <img [src]="tile.subject.character_image_url" [alt]="tile.subject.slug" />
-                      }
-                      @if (isSelected(tile.subject.id)) {
-                        <span class="badge" aria-hidden="true">✓</span>
-                      }
-                    </button>
-                  } @else {
-                    <span
-                      class="tile static"
-                      [attr.data-band]="band(tile.srs_stage)"
-                      [class.known]="tile.state === 'known'"
-                      [class.suspended]="tile.state === 'suspended'"
-                      [title]="tileLabel(tile)"
-                      [attr.aria-label]="tileLabel(tile)"
-                    >
-                      @if (tile.subject.characters) {
-                        <span lang="ja">{{ tile.subject.characters }}</span>
-                      } @else if (tile.subject.character_image_url) {
-                        <img [src]="tile.subject.character_image_url" [alt]="tile.subject.slug" />
-                      }
-                      @if (tile.state === 'known') {
-                        <span class="badge" aria-hidden="true">✓</span>
-                      }
-                    </span>
-                  }
+                  <app-item-tile
+                    [tile]="tile"
+                    [selectable]="tile.state === 'new'"
+                    [selected]="isSelected(tile.subject.id)"
+                    [disabled]="!isSelected(tile.subject.id) && capReached()"
+                    (toggle)="toggleTile(tile)"
+                  />
                 }
               </div>
             </section>
