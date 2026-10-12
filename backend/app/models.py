@@ -131,6 +131,10 @@ class Queue(BaseModel):
     items: list[QueueItem]
     #: Everything currently due, not just what this page returned.
     total_due: int
+    #: The sum of ``_questions()`` over every due item, not just this page --
+    #: the exact session total from the very first fetch, long before a
+    #: multi-round backlog has been paged through (issue #54).
+    total_due_questions: int
 
 
 class AnswerIn(BaseModel):

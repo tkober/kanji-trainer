@@ -307,16 +307,16 @@
       <!-- phase() === 'quiz' -->
       <sumi-session-bar
         *sumiShellFocusActions
-        [answered]="batchAnswered()"
-        [correct]="batchCorrect()"
-        [remaining]="batchRemaining()"
+        [answered]="runAnswered()"
+        [correct]="runCorrect()"
+        [done]="runCorrect()"
+        [remaining]="runRemaining()"
+        [showProgress]="false"
         (end)="backToSelection()"
       />
 
       <div sumiFocusMode>
-        @if (totalChunks() > 1) {
-          <p class="muted count">Batch {{ chunkIndex() + 1 }} of {{ totalChunks() }}</p>
-        }
+        <sumi-session-progress ariaLabel="Lesson quiz progress" [segments]="segments()" />
 
         <sumi-prompt-card
           appearance="tinted"

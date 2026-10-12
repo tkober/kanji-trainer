@@ -51,7 +51,9 @@
           *sumiShellFocusActions
           [answered]="answered()"
           [correct]="correct()"
+          [done]="done()"
           [remaining]="remaining()"
+          [showProgress]="false"
           (end)="end()"
         />
 
@@ -60,7 +62,7 @@
             <p class="error">{{ message }}</p>
           }
 
-          <p class="muted progress">{{ queue().length }} in this round · {{ totalDue() }} due in total</p>
+          <sumi-session-progress ariaLabel="Review progress" [segments]="segments()" />
 
           <sumi-prompt-card
             appearance="tinted"

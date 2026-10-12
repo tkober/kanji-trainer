@@ -98,6 +98,10 @@ export interface QueueItem {
 export interface Queue {
   items: QueueItem[];
   total_due: number;
+  /** The sum of open questions over every due item, not just this page --
+   *  the exact session total from the first fetch, before a multi-round
+   *  backlog has been paged through (issue #54). */
+  total_due_questions: number;
 }
 
 export interface AnswerResult {

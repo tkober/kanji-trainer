@@ -11,7 +11,12 @@ import {
   SumiShellFocusActionsDirective,
 } from 'sumi-ui/layout';
 import { SumiButtonDirective } from 'sumi-ui/forms';
-import { SUMI_PRACTICE, type SumiVerdict, type SumiVerdictKind } from 'sumi-ui/practice';
+import {
+  SUMI_PRACTICE,
+  type SumiSessionProgressSegment,
+  type SumiVerdict,
+  type SumiVerdictKind,
+} from 'sumi-ui/practice';
 
 import { Api } from '../../core/api';
 import type {
@@ -33,6 +38,21 @@ import { Synonyms } from '../../shared/synonyms/synonyms';
 type Card = QueueItem;
 
 type Phase = 'idle' | 'active' | 'ended';
+
+/** One review round's exact question size, and the correct answers given
+ * while it was the active round -- `rounds[i]` while `i` has been fetched,
+ * see `segments` below for the estimated rounds beyond that. */
+interface RoundProgress {
+  size: number;
+  done: number;
+}
+
+/** Sum of every card's own `questions.length` -- the unit `done`/`remaining`
+ * and the progress segments all count in, same reasoning as the old
+ * `remaining` computed this replaces (see its doc comment history). */
+function questionsCount(cards: readonly Card[]): number {
+  return cards.reduce((sum, card) => sum + card.questions.length, 0);
+}
 
 /**
  * Reviews: an SRS session, gated by a start screen and ended by a summary.
@@ -116,6 +136,39 @@ export class Review {
 
   protected readonly answered = signal(0);
   protected readonly correct = signal(0);
+  /** Correctly answered questions this session (issue #54) -- separate from
+   * `correct`/`answered`, which stay the accuracy's own numbers. A non-retry
+   * correct verdict counts one question; "I know this" counts every open
+   * question the declared item still owed. A retry and a wrong answer count
+   * for neither. Updated in the same place and at the same moment as
+   * `remaining` below, so `done + remaining` never visibly moves except for
+   * a reason the learner can see. */
+  protected readonly done = signal(0);
+  /**
+   * Open questions still due, across the whole account -- not just the
+   * loaded round(s). `sumi-session-bar`'s `[remaining]` reads this, and
+   * `total = done + remaining` is what the counter and the built-in bar used
+   * to show before `[showProgress]="false"` handed that bar to
+   * `sumi-session-progress` instead.
+   *
+   * Synced straight from `total_due_questions` on every fetch -- the
+   * backend's query already excludes whatever has been answered through by
+   * then, so a refetch can only ever replace this with a fresher truth, not
+   * double-count. Between fetches it moves by exactly as much as `done`
+   * does (a correct answer or "I know this" hands a question from here to
+   * `done`, so the total holds steady) or shrinks on its own when a reset
+   * item's questions leave the session without ever becoming `done`.
+   */
+  protected readonly remaining = signal(0);
+  /**
+   * One entry per *loaded* review round (a page `fetchQueue`/
+   * `continueRound` has actually fetched), in order. `segments` below adds
+   * estimated entries for whatever is due beyond that. `size` is fixed at
+   * fetch time (wrong answers loop a question back into the same round
+   * without growing it) except for a reset, which shrinks it -- the item's
+   * open questions leave the round, not just the session.
+   */
+  protected readonly rounds = signal<RoundProgress[]>([]);
   private sessionStartedAt = 0;
   protected readonly sessionDurationMs = signal(0);
   /** `counters.level()` at the moment the session started, for `levelUp`. */
@@ -127,26 +180,84 @@ export class Review {
   );
 
   /**
-   * Open questions still in `queue()` -- `sumi-session-bar`'s `[remaining]`
-   * wants the number of outstanding halves, not the number of items, so this
-   * sums every card's own `questions.length` rather than `queue().length`.
-   * Wrong answers are reinserted (see `next()`), so the total
-   * (`answered() + remaining()`) can grow over the course of a round --
-   * intended, not a bug.
+   * Open questions still in `queue()` -- the *current round's* own
+   * outstanding halves, not the session-wide `remaining` above. Used only to
+   * work out how much of the account-wide `remaining`/`totalDue` lies beyond
+   * the loaded round(s), for `segments`' estimated future rounds.
    *
-   * While a settled verdict is up, `answered()` already counts the answer
-   * but the card only leaves `queue()` in `next()`; counting it as what
-   * `next()` will leave behind (`result.remaining`) keeps the total from
-   * jumping up by one and back down on every answer.
+   * While a settled verdict is up, the card only leaves `queue()` in
+   * `next()`; counting it as what `next()` will leave behind
+   * (`result.remaining`) keeps this reading steady across that window
+   * instead of jumping up by one and back down, same reasoning as `done`/
+   * `remaining` above being updated at the verdict rather than at `next()`.
    */
-  protected readonly remaining = computed(() => {
-    const open = this.queue().reduce((sum, card) => sum + card.questions.length, 0);
+  protected readonly roundOpenQuestions = computed(() => {
+    const open = questionsCount(this.queue());
     const result = this.feedback();
     const card = this.current();
     if (!result || result.retry || !card) {
       return open;
     }
     return open - card.questions.length + result.remaining.length;
+  });
+
+  /** Same idea as `roundOpenQuestions`, but in items -- what `segments`
+   * needs to turn the account-wide `totalDue()` (items) into "items beyond
+   * the loaded round(s)" before splitting those into estimated rounds of up
+   * to 100 items each. An item only leaves `queue()` once every question it
+   * owes has been answered, so the verdict-up adjustment only applies once
+   * nothing remains outstanding for it. */
+  protected readonly roundOpenItems = computed(() => {
+    const open = this.queue().length;
+    const result = this.feedback();
+    const card = this.current();
+    if (!result || result.retry || !card) {
+      return open;
+    }
+    return result.remaining.length > 0 ? open : open - 1;
+  });
+
+  /**
+   * `sumi-session-progress`'s segments: one per loaded round, at its exact
+   * question size, plus one per *estimated* future round for whatever is
+   * due beyond the loaded round(s) -- split into rounds of up to 100 items
+   * each (matching `fetchQueue`/`continueRound`'s own page size), with the
+   * remaining due questions distributed across them proportionally to their
+   * item counts. A single segment overall gets no label (and no "Round 1"),
+   * per `sumi-session-progress`'s own convention for an unsegmented bar.
+   */
+  protected readonly segments = computed<SumiSessionProgressSegment[]>(() => {
+    const rounds = this.rounds();
+    const segments: SumiSessionProgressSegment[] = rounds.map((round, i) => ({
+      size: round.size,
+      done: round.done,
+      label: `Round ${i + 1}`,
+    }));
+
+    const futureItems = Math.max(0, this.totalDue() - this.roundOpenItems());
+    let futureQuestions = Math.max(0, this.remaining() - this.roundOpenQuestions());
+
+    if (futureItems > 0 && futureQuestions > 0) {
+      const roundCount = Math.ceil(futureItems / 100);
+      let itemsLeft = futureItems;
+      for (let i = 0; i < roundCount; i++) {
+        const isLast = i === roundCount - 1;
+        const itemsInRound = isLast ? itemsLeft : Math.min(100, itemsLeft);
+        // The last estimated round takes whatever is left over, so rounding
+        // every earlier one never drifts the total away from `remaining()`.
+        const size = isLast
+          ? futureQuestions
+          : Math.round((itemsInRound / futureItems) * futureQuestions);
+        segments.push({ size, done: 0, label: `Round ${rounds.length + i + 1}` });
+        itemsLeft -= itemsInRound;
+        futureQuestions -= size;
+      }
+    }
+
+    if (segments.length <= 1) {
+      return segments.map(({ size, done }) => ({ size, done }));
+    }
+    return segments;
   });
 
   /**
@@ -313,6 +424,8 @@ export class Review {
     }
     this.answered.set(0);
     this.correct.set(0);
+    this.done.set(0);
+    this.rounds.set([{ size: questionsCount(this.queue()), done: 0 }]);
     this.sessionStartedAt = Date.now();
     this.startLevel = this.counters.level();
     this.resetItemState();
@@ -332,10 +445,12 @@ export class Review {
   protected async restart(): Promise<void> {
     this.answered.set(0);
     this.correct.set(0);
+    this.done.set(0);
     this.startLevel = this.counters.level();
     this.phase.set('idle');
     const ok = await this.fetchQueue();
     if (ok && this.queue().length > 0) {
+      this.rounds.set([{ size: questionsCount(this.queue()), done: 0 }]);
       this.sessionStartedAt = Date.now();
       this.resetItemState();
       this.phase.set('active');
@@ -358,6 +473,11 @@ export class Review {
       // is always its meaning.
       this.queue.set(queue.items.map(shuffleQuestions));
       this.counters.setDue(queue.total_due);
+      // The backend's query already excludes whatever this session has
+      // answered through by now, so this can only replace `remaining` with a
+      // fresher truth -- never double-count. `start()`/`restart()`/
+      // `continueFetching()` are what turn this fetch into a new round.
+      this.remaining.set(queue.total_due_questions);
       return true;
     } catch (err) {
       this.loadFailed.set(true);
@@ -415,7 +535,53 @@ export class Review {
     }
     if (this.queue().length === 0) {
       this.finishSession();
+    } else {
+      // A new round -- its exact size, same as `start()`/`restart()` record
+      // for round 1. `segments` stops estimating this round the moment it
+      // appears here.
+      this.rounds.update((rounds) => [...rounds, { size: questionsCount(this.queue()), done: 0 }]);
     }
+  }
+
+  /**
+   * `n` questions just became done -- a correct non-retry answer (`n = 1`)
+   * or "I know this" (`n` = however many questions the declared item still
+   * owed). Moves `done` and `remaining` by the same amount in the same tick,
+   * so their sum (what the counter and `sumi-session-progress` show as the
+   * session total) never visibly jumps, and attributes it to whichever round
+   * is currently loaded -- the last entry in `rounds()` is always the active
+   * one, since `continueRound()` only starts fetching the next page once the
+   * current one's queue is empty.
+   */
+  private addDone(n: number): void {
+    this.done.update((d) => d + n);
+    this.remaining.update((r) => Math.max(0, r - n));
+    this.rounds.update((rounds) => {
+      const last = rounds.length - 1;
+      if (last < 0) {
+        return rounds;
+      }
+      return rounds.map((round, i) => (i === last ? { ...round, done: round.done + n } : round));
+    });
+  }
+
+  /**
+   * `n` questions left the session without becoming `done` -- a reset
+   * ("Relearn from scratch"). Shrinks `remaining` and the active round's own
+   * `size` by the same amount, since those questions are not coming back
+   * into this round either, unlike `addDone`, which never touches `size`.
+   */
+  private shrinkOpen(n: number): void {
+    this.remaining.update((r) => Math.max(0, r - n));
+    this.rounds.update((rounds) => {
+      const last = rounds.length - 1;
+      if (last < 0) {
+        return rounds;
+      }
+      return rounds.map((round, i) =>
+        i === last ? { ...round, size: Math.max(round.done, round.size - n) } : round,
+      );
+    });
   }
 
   // --- answering -------------------------------------------------------
@@ -474,6 +640,7 @@ export class Review {
         this.answered.update((n) => n + 1);
         if (result.correct) {
           this.correct.update((n) => n + 1);
+          this.addDone(1);
         }
       }
     } catch (err) {
@@ -591,6 +758,10 @@ export class Review {
     }
     try {
       await this.api.markKnown([card.subject.id]);
+      // The whole item is known, meaning and reading together -- every
+      // question it still owed counts as done right away, not just the half
+      // that happened to be on screen.
+      this.addDone(card.questions.length);
       this.queue.set(this.queue().slice(1));
       this.resetItemState();
       this.counters.spendDue();
@@ -608,6 +779,9 @@ export class Review {
     }
     try {
       await this.api.resetItems([card.subject.id]);
+      // Its open questions leave the session without ever becoming done --
+      // the session total shrinks rather than holding steady.
+      this.shrinkOpen(card.questions.length);
       this.queue.set(this.queue().slice(1));
       this.resetItemState();
       // Back to Apprentice I is four hours out, so this one has left the
