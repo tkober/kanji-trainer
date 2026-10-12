@@ -223,6 +223,11 @@ export class StatsPage {
       const tz = Intl.DateTimeFormat().resolvedOptions().timeZone;
       const result = await this.api.growth({ tz, maxLevel });
       this.growthCache.set(maxLevel, result);
+      // The frame may have changed while this was in flight; a late answer
+      // for the old frame must not replace the current one.
+      if (maxLevel !== this.frameUpper()) {
+        return;
+      }
       this.growth.set(result);
       this.growthError.set(null);
     } catch (err) {
@@ -521,7 +526,9 @@ export class StatsPage {
   );
 
   protected readonly growthSeries = computed<SumiLineSeries[]>(() => {
-    const series: SumiLineSeries[] = [{ key: 'earned', label: 'Earned', color: 'var(--sumi-seq-5)' }];
+    const series: SumiLineSeries[] = [
+      { key: 'earned', label: 'Earned', color: 'var(--sumi-seq-5)' },
+    ];
     if (this.countKnown()) {
       series.push({ key: 'known', label: 'Marked as known', color: 'var(--sumi-correct)' });
     }
