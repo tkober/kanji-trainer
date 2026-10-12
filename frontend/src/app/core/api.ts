@@ -128,6 +128,13 @@ export class Api {
     return this.get('/api/items/levels');
   }
 
+  /** One item's full detail by subject id -- used to open an item straight
+   *  from a link (the statistics page's trouble-items table, via
+   *  `/browse?item=<id>`) without first loading the whole browse list. */
+  item(subjectId: number): Promise<Item> {
+    return this.get(`/api/items/${subjectId}`);
+  }
+
   /** Triggers the lazy fetch on the backend if nothing fresh is cached yet.
    * Never fetches from wanikani.com itself -- see `app.illustrations`. */
   illustration(subjectId: number): Promise<Illustration> {

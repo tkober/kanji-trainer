@@ -1,0 +1,227 @@
+<sumi-page title="Statistics" width="wide" [inkEnd]="ready() || !error()">
+  @if (ready()) {
+    @if (stats()!.total_subjects === 0) {
+      <sumi-empty-state title="No items yet" companion="tsuru">
+        Import your WaniKani progress first — the statistics on this page are built from what that
+        import brings in.
+        <a sumiEmptyAction routerLink="/settings" fragment="import" sumiButton variant="primary">
+          Go to import
+        </a>
+      </sumi-empty-state>
+    } @else {
+      <div class="controls row">
+        <span class="field-label">Compare against</span>
+        <sumi-segmented-control
+          [options]="frameOptions()"
+          [value]="frame()"
+          (valueChange)="frame.set($event)"
+        />
+        <sumi-toggle [value]="countKnown()" (valueChange)="countKnown.set($event)">
+          Count marked-as-known as settled
+        </sumi-toggle>
+      </div>
+
+      <sumi-stat-grid>
+        <sumi-stat-tile
+          [value]="frameSettled()"
+          label="items settled"
+          [hint]="itemsSettledHint()"
+        />
+        <sumi-stat-tile [value]="kanjiSettled()" label="kanji you can read" [hint]="kanjiHint()" />
+        <sumi-stat-tile
+          [value]="levelsCompleteCount()"
+          label="levels complete"
+          hint="every item started"
+        />
+        <sumi-stat-tile
+          [value]="accuracyDisplay()"
+          label="accuracy, 30 days"
+          [hint]="answersHint()"
+        />
+      </sumi-stat-grid>
+
+      <div class="main-grid">
+        <sumi-card class="stages-card">
+          <div sumiCardHeader>
+            <h2>Stages</h2>
+            <p class="muted">Inner ring: stage · outer ring: sub-stage</p>
+          </div>
+
+          @if (frameCombined(); as c) {
+            <div class="stage-body">
+              <sumi-sunburst
+                [ariaLabel]="stagesAriaLabel()"
+                [root]="stageRoot()"
+                unit="items"
+                [table]="true"
+              />
+
+              <div class="stage-text">
+                <p class="settled-pct">
+                  <span class="pct">{{ frameSettledPercent() }} %</span>
+                  <span class="muted">settled</span>
+                </p>
+
+                <div class="stage-line">
+                  <p class="stage-label">Apprentice {{ apprenticeCountOf(c) }}</p>
+                  <p class="muted stage-sub">
+                    I {{ c.apprentice_1 }} · II {{ c.apprentice_2 }} · III {{ c.apprentice_3 }} · IV
+                    {{ c.apprentice_4 }}
+                  </p>
+                </div>
+
+                <div class="stage-line">
+                  <p class="stage-label">Guru {{ c.guru_1 + c.guru_2 }}</p>
+                  <p class="muted stage-sub">I {{ c.guru_1 }} · II {{ c.guru_2 }}</p>
+                </div>
+
+                <p class="muted stage-sub">
+                  Master {{ c.master }} · Enlightened {{ c.enlightened }} · Burned {{ c.burned }}
+                </p>
+
+                <p class="stage-label known">Marked as known {{ c.known }}</p>
+                <p class="muted stage-sub">Lessons open {{ c.new }}</p>
+              </div>
+            </div>
+          }
+        </sumi-card>
+
+        <sumi-card class="type-card">
+          <div sumiCardHeader>
+            <h2>By type</h2>
+            <p class="muted">Settled · learning · open</p>
+          </div>
+
+          <div class="type-rows">
+            @for (row of frameRows(); track row.key) {
+              <sumi-progress-row
+                [label]="row.label"
+                [ariaLabel]="row.label + ' progress across levels 1–' + frameUpper()"
+                [segments]="rowSegments(row.counts)"
+                [value]="rowSettled(row.counts)"
+                [total]="rowTotal(row.counts)"
+              />
+            }
+          </div>
+
+          <ul class="tile-legend muted">
+            <li><span class="swatch swatch-guru" aria-hidden="true"></span>Guru+ earned</li>
+            <li><span class="swatch swatch-known" aria-hidden="true"></span>Marked as known</li>
+            <li><span class="swatch swatch-apprentice" aria-hidden="true"></span>Apprentice</li>
+            <li><span class="swatch swatch-open" aria-hidden="true"></span>Lesson open</li>
+          </ul>
+        </sumi-card>
+      </div>
+
+      <sumi-card class="levels-card full">
+        <div sumiCardHeader class="head">
+          <div>
+            <h2>Levels</h2>
+            <p class="muted">Every level by stage</p>
+          </div>
+          <sumi-segmented-control
+            [options]="levelTypeOptions()"
+            [value]="levelTypeFilter()"
+            (valueChange)="levelTypeFilter.set($event)"
+          />
+        </div>
+
+        <sumi-bar-chart
+          [ariaLabel]="levelsAriaLabel()"
+          [rows]="levelRows()"
+          [series]="levelSeries"
+          [height]="240"
+          [table]="true"
+        />
+
+        <sumi-legend [items]="levelLegendItems" />
+      </sumi-card>
+
+      <sumi-card class="activity-card full">
+        <div sumiCardHeader class="head">
+          <div>
+            <h2>Activity</h2>
+            <p class="muted">Answers per day, last 26 weeks</p>
+          </div>
+          @if (streak() > 0) {
+            <span class="streak muted">{{ streak() }} days in a row</span>
+          }
+        </div>
+
+        <sumi-calendar-heatmap
+          ariaLabel="Answers per day, over the last 26 weeks"
+          [days]="heatmapDays()"
+          [weeks]="26"
+          unit="answers"
+          [table]="true"
+        />
+
+        <div class="spark-row">
+          <div class="spark">
+            <p class="muted spark-label">Accuracy, 30 days</p>
+            <sumi-sparkline
+              ariaLabel="Daily answer accuracy over the last 30 days"
+              [points]="accuracySparkPoints()"
+              [value]="accuracyDisplay()"
+              [delta]="accuracyDelta()"
+            />
+          </div>
+          <div class="spark">
+            <p class="muted spark-label">Lessons, 30 days</p>
+            <sumi-sparkline
+              ariaLabel="Lessons started per day over the last 30 days"
+              [points]="lessonsSparkPoints()"
+              [value]="lessonsDisplay()"
+            />
+          </div>
+        </div>
+      </sumi-card>
+
+      <sumi-card class="trouble-card full">
+        <div sumiCardHeader class="head">
+          <div>
+            <h2>Trouble items</h2>
+            <p class="muted">Most lapses: fell back out of Guru</p>
+          </div>
+          <a routerLink="/browse" class="more">All in Items →</a>
+        </div>
+
+        @if (troubleRows().length === 0) {
+          <p class="muted quiet">No lapses yet.</p>
+        } @else {
+          <sumi-data-table
+            [columns]="troubleColumns()"
+            [rows]="troubleRows()"
+            rowKey="id"
+            rowLabel="label"
+            [activatable]="true"
+            (rowActivate)="openTroubleItem($event)"
+          >
+            <ng-template sumiTableCell="item" let-row>
+              <span class="glyph" lang="ja">
+                @if (row.item.subject.characters) {
+                  {{ row.item.subject.characters }}
+                } @else if (row.item.subject.character_image_url) {
+                  <img [src]="row.item.subject.character_image_url" [alt]="row.item.subject.slug" />
+                } @else {
+                  {{ row.item.subject.slug }}
+                }
+              </span>
+            </ng-template>
+          </sumi-data-table>
+        }
+      </sumi-card>
+    }
+  } @else if (error(); as message) {
+    <!-- No pattern and no page-end landscape: the page title already carries
+         the band (T4), and the error state brings its own landscape. -->
+    <sumi-error-state title="Can't reach the server" companion="tsuru" pattern="none">
+      {{ message }}
+      <button sumiErrorAction type="button" sumiButton variant="secondary" (click)="load()">
+        Try again
+      </button>
+    </sumi-error-state>
+  } @else {
+    <p class="muted">Loading …</p>
+  }
+</sumi-page>

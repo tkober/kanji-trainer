@@ -22,6 +22,11 @@ export const routes: Routes = [
     title: 'Forecast · Kanji Trainer',
   },
   {
+    path: 'stats',
+    loadComponent: () => import('./pages/stats/stats').then((m) => m.StatsPage),
+    title: 'Statistics · Kanji Trainer',
+  },
+  {
     path: 'browse',
     loadComponent: () => import('./pages/browse/browse').then((m) => m.Browse),
     title: 'Items · Kanji Trainer',

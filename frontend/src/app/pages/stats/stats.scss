@@ -1,0 +1,249 @@
+:host {
+  display: block;
+
+  /* Stage colours for the Stages sunburst, on the same scale as this page's
+     bars and legends: Apprentice and Guru use the bars' Apprentice and
+     Guru+ colours, the later stages go darker from there. */
+  --stage-master: color-mix(in oklab, var(--sumi-accent) 75%, var(--sumi-text));
+  --stage-enlightened: color-mix(in oklab, var(--sumi-accent) 55%, var(--sumi-text));
+  --stage-burned: color-mix(in oklab, var(--sumi-accent) 35%, var(--sumi-text));
+
+  /* One label width for every `sumi-progress-row` on the page, same
+     reasoning as the dashboard's own copy of this token. */
+  --sumi-progress-row-label-width: 6rem;
+}
+
+h2 {
+  margin: 0 0 0.25rem;
+  font-size: 1.15rem;
+  line-height: 1.25;
+}
+
+.muted {
+  color: var(--sumi-muted);
+}
+
+.quiet {
+  margin: 0;
+}
+
+.row {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 0.75rem;
+}
+
+.head {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 1rem;
+  flex-wrap: wrap;
+  margin-bottom: 0.75rem;
+
+  p {
+    margin: 0;
+    font-size: 0.88rem;
+  }
+}
+
+.more {
+  font-size: 0.88rem;
+  text-decoration: none;
+  white-space: nowrap;
+
+  &:hover {
+    text-decoration: underline;
+  }
+}
+
+/* --- A: controls ------------------------------------------------------------ */
+
+.controls {
+  margin-bottom: var(--sumi-space-4);
+
+  /* The segmented control never shrinks or wraps its own options (see the
+     library README) -- on a narrow screen it scrolls horizontally inside
+     its own box instead, which is exactly what keeps this row from ever
+     causing the page itself to scroll sideways. */
+  sumi-segmented-control {
+    min-width: 0;
+    max-width: 100%;
+  }
+}
+
+.field-label {
+  font-size: 0.88rem;
+  color: var(--sumi-muted);
+  white-space: nowrap;
+}
+
+/* --- B + C: stages and by-type, side by side on a wide screen -------------- */
+
+.main-grid {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: var(--sumi-space-4);
+  align-items: start;
+  margin-top: var(--sumi-space-4);
+}
+
+@media (max-width: 900px) {
+  .main-grid {
+    grid-template-columns: 1fr;
+  }
+}
+
+.stage-body {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: var(--sumi-space-4);
+
+  /* Capped so the text list fits beside it in a half-width card, as in the
+     mockup; on a phone the list wraps below. */
+  sumi-sunburst {
+    flex: 0 1 260px;
+    min-width: 0;
+  }
+}
+
+.stage-text {
+  flex: 1 1 220px;
+  min-width: 200px;
+}
+
+.settled-pct {
+  margin: 0 0 0.75rem;
+  display: flex;
+  align-items: baseline;
+  gap: 0.4rem;
+
+  .pct {
+    font-size: 1.8rem;
+    line-height: 1;
+    font-weight: 700;
+  }
+}
+
+.stage-line {
+  margin-bottom: 0.5rem;
+}
+
+.stage-label {
+  margin: 0;
+  font-weight: 600;
+
+  &.known {
+    color: var(--sumi-correct);
+    margin-top: 0.6rem;
+  }
+}
+
+.stage-sub {
+  margin: 0.1rem 0 0;
+  font-size: 0.85rem;
+}
+
+.type-rows sumi-progress-row + sumi-progress-row {
+  margin-top: 0.4rem;
+}
+
+/* --- shared legend convention (dashboard's tile-legend, same swatches) ------ */
+
+.tile-legend {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.25rem 0.9rem;
+  margin: 0.9rem 0 0;
+  padding: 0;
+  list-style: none;
+  font-size: 0.8rem;
+
+  li {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.35rem;
+  }
+}
+
+.swatch {
+  width: 0.7rem;
+  height: 0.7rem;
+  border-radius: 3px;
+  flex-shrink: 0;
+}
+
+.swatch-apprentice {
+  background: var(--sumi-seq-2);
+}
+
+.swatch-guru {
+  background: var(--sumi-seq-5);
+}
+
+.swatch-known {
+  background: var(--sumi-correct);
+}
+
+/* Matches the track itself (`rowSegments`' own "open" colour, `--sumi-sunken`)
+   rather than a solid fill -- a dashed outline is the only way this swatch
+   reads as anything at all against a same-coloured background. */
+.swatch-open {
+  background: transparent;
+  border: 1px dashed var(--sumi-line);
+}
+
+/* --- D, F, H: full-width cards ----------------------------------------------- */
+
+.full {
+  margin-top: var(--sumi-space-4);
+}
+
+.levels-card sumi-legend {
+  margin-top: 0.6rem;
+}
+
+/* --- F: activity --------------------------------------------------------------- */
+
+.streak {
+  font-size: 0.88rem;
+  white-space: nowrap;
+}
+
+.spark-row {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: var(--sumi-space-4);
+  margin-top: var(--sumi-space-4);
+}
+
+@media (max-width: 720px) {
+  .spark-row {
+    grid-template-columns: 1fr;
+  }
+}
+
+.spark-label {
+  margin: 0 0 0.3rem;
+  font-size: 0.85rem;
+}
+
+/* --- H: trouble items ------------------------------------------------------------ */
+
+.trouble-card .glyph {
+  font-size: 1.1rem;
+
+  img {
+    height: 1.4em;
+    vertical-align: middle;
+  }
+}
+
+/* Dropping the Type and Accuracy columns below 480px (so the table never
+   forces the page to scroll sideways at 390px) happens in `stats.ts`
+   (`troubleColumns`, driven by a `matchMedia` listener) rather than here --
+   `sumi-data-table`'s own `<table>` lives behind its view encapsulation, so
+   a page stylesheet cannot reach its cells to hide them without
+   `::ng-deep`. */
