@@ -9,10 +9,12 @@ it back when an item turns out to be shakier than it felt.
 from __future__ import annotations
 
 from datetime import datetime, timezone
+from typing import Literal
 
 from fastapi import APIRouter, Depends, HTTPException, Query
-from sqlalchemy import func, or_, select
+from sqlalchemy import case, cast, func, or_, select
 from sqlalchemy.ext.asyncio import AsyncSession
+from sqlalchemy.types import Float
 
 from .. import srs
 from ..db import Progress, Subject, get_session
@@ -32,6 +34,26 @@ from ..synonyms import load_synonyms, load_synonyms_map, save_synonyms
 
 router = APIRouter()
 
+#: "default" is the browse screen's own order (WaniKani's teaching order).
+#: "lapses" is for the statistics page's "trouble items" list -- items that
+#: keep falling out of Guru, worst first.
+ItemSort = Literal["default", "lapses"]
+
+
+def _lapses_order() -> list[object]:
+    """Worst offenders first: most lapses, then the worst incorrect ratio.
+
+    The ratio is guarded against division by zero -- an item with lapses but
+    (by some odd history) no logged answers sorts as if it had none, rather
+    than blowing up the query.
+    """
+    total_answers = Progress.correct_count + Progress.incorrect_count
+    incorrect_ratio = case(
+        (total_answers > 0, cast(Progress.incorrect_count, Float) / total_answers),
+        else_=0.0,
+    )
+    return [Progress.lapses.desc(), incorrect_ratio.desc(), Subject.id]
+
 
 @router.get("", response_model=ItemPage)
 async def list_items(
@@ -40,6 +62,14 @@ async def list_items(
     level: int | None = Query(default=None, ge=1),
     srs_stage: int | None = Query(default=None, ge=0, le=9),
     search: str | None = Query(default=None),
+    sort: ItemSort = Query(
+        default="default",
+        description=(
+            "'lapses': worst-offenders-first (progress.lapses desc, then incorrect"
+            " ratio desc). Does not filter -- combine with a client-side limit for"
+            " a short 'trouble items' list."
+        ),
+    ),
     limit: int = Query(default=50, ge=1, le=500),
     offset: int = Query(default=0, ge=0),
     session: AsyncSession = Depends(get_session),
@@ -63,6 +93,8 @@ async def list_items(
         pattern = f"%{search.strip()}%"
         filters.append(or_(Subject.characters.ilike(pattern), Subject.slug.ilike(pattern)))
 
+    order = _lapses_order() if sort == "lapses" else [Subject.sort_order, Subject.id]
+
     total = (
         await session.scalar(
             select(func.count())
@@ -77,7 +109,7 @@ async def list_items(
             select(Progress, Subject)
             .join(Subject, Subject.id == Progress.subject_id)
             .where(*filters)
-            .order_by(Subject.sort_order, Subject.id)
+            .order_by(*order)
             .offset(offset)
             .limit(limit)
         )

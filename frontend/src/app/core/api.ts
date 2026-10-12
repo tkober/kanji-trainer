@@ -3,6 +3,7 @@ import { Injectable, inject } from '@angular/core';
 import { firstValueFrom } from 'rxjs';
 
 import type {
+  Activity,
   AnswerResult,
   ImportRun,
   Illustration,
@@ -11,6 +12,7 @@ import type {
   ItemPage,
   LessonItem,
   Lessons,
+  LevelStats,
   Queue,
   QuestionType,
   QuizResult,
@@ -106,6 +108,9 @@ export class Api {
     level?: number;
     srs_stage?: number;
     search?: string;
+    /** 'lapses': worst-offenders-first, for the "trouble items" list --
+     *  pass a `limit` alongside it, since this does not filter on its own. */
+    sort?: 'default' | 'lapses';
     limit?: number;
     offset?: number;
   }): Promise<ItemPage> {
@@ -188,8 +193,33 @@ export class Api {
     return this.get('/api/import/latest');
   }
 
-  stats(): Promise<Stats> {
-    return this.get('/api/stats');
+  /** `tz`: an IANA name (e.g. `Europe/Berlin`) to move "today" to local
+   *  midnight for `reviews_today`/`accuracy_today`; omit for UTC midnight. */
+  stats(tz?: string): Promise<Stats> {
+    let params = new HttpParams();
+    if (tz) {
+      params = params.set('tz', tz);
+    }
+    return this.get('/api/stats', params);
+  }
+
+  /** Per level x object type, how many items sit in each SRS bucket --
+   *  the statistics page aggregates its own reference frame from this. */
+  levelStats(): Promise<LevelStats> {
+    return this.get('/api/stats/levels');
+  }
+
+  /** The activity calendar: one entry per local day over the last `days`
+   *  days (default 182), plus the current streak. */
+  activity(days?: number, tz?: string): Promise<Activity> {
+    let params = new HttpParams();
+    if (days !== undefined) {
+      params = params.set('days', days);
+    }
+    if (tz) {
+      params = params.set('tz', tz);
+    }
+    return this.get('/api/stats/activity', params);
   }
 
   forecast(hours: number): Promise<Forecast> {
