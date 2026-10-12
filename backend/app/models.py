@@ -506,3 +506,32 @@ class Activity(BaseModel):
     #: Consecutive local days with at least one answer, ending today or
     #: (if today has none yet) yesterday.
     streak: int
+
+
+# --- growth (issue #61) -------------------------------------------------------
+
+
+class GrowthDayOut(BaseModel):
+    date: date
+    earned: int
+    known: int
+
+
+class GrowthOut(BaseModel):
+    """"Settled over time", one entry per local calendar day, oldest first,
+    zero-filled from the earliest available history (or from ``days`` ago,
+    whichever is later -- see ``app.growth``).
+
+    Named with the ``Out`` suffix (unlike ``Activity``/``Stats`` elsewhere in
+    this file) only to keep the name distinct from ``app.growth``'s own
+    plain dataclasses of the same shape, which the pure reconstruction
+    function is built and tested against.
+    """
+
+    days: list[GrowthDayOut] = Field(default_factory=list)
+    #: Local date of the first succeeded import, or None if there never was
+    #: one.
+    imported_on: date | None = None
+    #: known count at the end of `imported_on`'s local day -- the Growth
+    #: card's marker label ("import · {n} known").
+    known_on_import: int = 0
