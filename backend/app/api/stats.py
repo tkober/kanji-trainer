@@ -61,6 +61,16 @@ _LEARNING_STAGE_FIELDS: dict[int, str] = {
 }
 
 
+def _utcnow() -> datetime:
+    """The current instant -- one seam for the tests to freeze the clock at.
+
+    "Today" depends on the time of day in two zones at once, so a test that
+    reads the real clock passes or fails depending on when it runs (issue
+    #68). Monkeypatched in tests, same pattern as `illustrations._client_factory`.
+    """
+    return datetime.now(timezone.utc)
+
+
 def _resolve_tz(tz: str | None) -> tzinfo:
     """An IANA zone, or UTC when none is given.
 
@@ -120,7 +130,7 @@ async def read_stats(
     local midnight; without it "today" stays UTC midnight, as before."""
     zone = _resolve_tz(tz)
     config = await load_runtime_config(session)
-    now = datetime.now(timezone.utc)
+    now = _utcnow()
     cutoff = due_cutoff(now, config.review_grace_minutes)
     today_start = _local_midnight(now.astimezone(zone).date(), zone)
 
@@ -288,7 +298,7 @@ async def read_activity(
     made the same call for hourly buckets).
     """
     zone = _resolve_tz(tz)
-    now = datetime.now(timezone.utc)
+    now = _utcnow()
     today = now.astimezone(zone).date()
     start_day = today - timedelta(days=days - 1)
     window_start = _local_midnight(start_day, zone)
@@ -383,7 +393,7 @@ async def read_growth(
     per-subject history, not just today's bucket counts.
     """
     zone = _resolve_tz(tz)
-    now = datetime.now(timezone.utc)
+    now = _utcnow()
 
     subject_query = select(
         Progress.subject_id,

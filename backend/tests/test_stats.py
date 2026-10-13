@@ -11,6 +11,7 @@ from __future__ import annotations
 
 from datetime import datetime, timedelta, timezone
 
+from app.api import stats as stats_api
 from app.db import Progress, ReviewLog, Subject
 from app.srs import STAGE_BURNED, STAGE_GURU_1, ItemState
 
@@ -203,11 +204,18 @@ async def test_guru_previous_week_window(client, session):
 # --- /api/stats: tz ----------------------------------------------------------
 
 
-async def test_stats_today_window_respects_tz(client, session):
+async def test_stats_today_window_respects_tz(client, session, monkeypatch):
     """An answer just before UTC midnight is already "today" in a zone ahead
-    of UTC -- Berlin is always at least one hour ahead, DST or not."""
+    of UTC -- Berlin is always at least one hour ahead, DST or not.
+
+    The clock is frozen at midday UTC: from 22:00 UTC (23:00 in winter) on,
+    Berlin has already moved to the next day, and no past instant is "today"
+    in Berlin but not in UTC any more (issue #68).
+    """
+    frozen_now = datetime(2026, 7, 1, 12, 0, tzinfo=timezone.utc)
+    monkeypatch.setattr(stats_api, "_utcnow", lambda: frozen_now)
     subject_id = await seed_item(session, wanikani_id=1, state=ItemState.LEARNING.value, stage=2)
-    today_utc_start = NOW.replace(hour=0, minute=0, second=0, microsecond=0)
+    today_utc_start = frozen_now.replace(hour=0, minute=0, second=0, microsecond=0)
     await log_answer(
         session,
         subject_id=subject_id,
