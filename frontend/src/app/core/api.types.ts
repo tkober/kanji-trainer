@@ -323,3 +323,27 @@ export interface Activity {
    *  (if today has none yet) yesterday. */
   streak: number;
 }
+
+export interface GrowthDay {
+  /** ISO date (`YYYY-MM-DD`), the local calendar day this entry covers. */
+  date: string;
+  /** Guru+ earned by review, not (yet) marked as known, at the end of this
+   *  local day (today: as of now). */
+  earned: number;
+  /** Marked as known (import or "das kann ich"), at the end of this local
+   *  day. */
+  known: number;
+}
+
+export interface Growth {
+  /** One entry per local calendar day, oldest first, zero-filled from the
+   *  earliest available history (or from the requested `days` ago,
+   *  whichever is later). */
+  days: GrowthDay[];
+  /** Local date of the first succeeded import, or null if there never was
+   *  one. */
+  imported_on: string | null;
+  /** known count at the end of `imported_on`'s local day -- the Growth
+   *  card's marker label. */
+  known_on_import: number;
+}

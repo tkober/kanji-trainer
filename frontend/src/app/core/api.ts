@@ -5,6 +5,7 @@ import { firstValueFrom } from 'rxjs';
 import type {
   Activity,
   AnswerResult,
+  Growth,
   ImportRun,
   Illustration,
   Item,
@@ -231,6 +232,23 @@ export class Api {
 
   forecast(hours: number): Promise<Forecast> {
     return this.get('/api/forecast', new HttpParams().set('hours', hours));
+  }
+
+  /** "Settled over time" (earned + known), reconstructed per local day --
+   *  the stats page's Growth card and the dashboard's "Settled, last 30
+   *  days" sparkline. Omit `days` for the full available history ("All"). */
+  growth(opts: { days?: number; tz?: string; maxLevel?: number } = {}): Promise<Growth> {
+    let params = new HttpParams();
+    if (opts.days !== undefined) {
+      params = params.set('days', opts.days);
+    }
+    if (opts.tz) {
+      params = params.set('tz', opts.tz);
+    }
+    if (opts.maxLevel !== undefined) {
+      params = params.set('max_level', opts.maxLevel);
+    }
+    return this.get('/api/stats/growth', params);
   }
 
   // --- plumbing ---------------------------------------------------------

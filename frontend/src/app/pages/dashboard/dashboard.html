@@ -125,12 +125,21 @@
           />
 
           <div class="progress-spark">
-            <p class="muted spark-label">Reached Guru, last 30 days</p>
+            <p class="muted spark-label">Settled, last 30 days</p>
             <sumi-sparkline
-              ariaLabel="Items that reached Guru, cumulative over the last 30 days"
-              [points]="guruSparklinePoints()"
-              [value]="guruSparklineTotal()"
+              ariaLabel="Items settled, cumulative over the last 30 days"
+              [points]="settledSparkPoints()"
+              [value]="settledToday()"
             />
+            @if (settledDeltaDisplay(); as delta) {
+              <p
+                class="spark-delta"
+                [class.up]="settledDelta()! > 0"
+                [class.down]="settledDelta()! < 0"
+              >
+                {{ delta }}
+              </p>
+            }
           </div>
         </div>
 

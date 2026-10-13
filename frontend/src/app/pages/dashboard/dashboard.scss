@@ -249,6 +249,20 @@ h2 {
   font-size: 0.85rem;
 }
 
+.spark-delta {
+  margin: 0.25rem 0 0;
+  font-size: 0.85rem;
+  color: var(--sumi-muted);
+
+  &.up {
+    color: var(--sumi-correct);
+  }
+
+  &.down {
+    color: var(--sumi-wrong);
+  }
+}
+
 .progress-rows {
   margin-top: 1.1rem;
 }

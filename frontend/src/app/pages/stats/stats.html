@@ -117,7 +117,7 @@
         <div sumiCardHeader class="head">
           <div>
             <h2>Levels</h2>
-            <p class="muted">Every level by stage</p>
+            <p class="muted">Every level by stage · click a column to open it in Items</p>
           </div>
           <sumi-segmented-control
             [options]="levelTypeOptions()"
@@ -132,6 +132,8 @@
           [series]="levelSeries"
           [height]="240"
           [table]="true"
+          [selectable]="true"
+          (barSelect)="openLevel($event)"
         />
 
         <sumi-legend [items]="levelLegendItems" />
@@ -175,6 +177,38 @@
             />
           </div>
         </div>
+      </sumi-card>
+
+      <sumi-card class="growth-card full">
+        <div sumiCardHeader class="head">
+          <div>
+            <h2>Growth</h2>
+            <p class="muted">Items settled over time · earned and marked as known stacked</p>
+          </div>
+          <sumi-segmented-control
+            [options]="growthRangeOptions"
+            [value]="growthRange()"
+            (valueChange)="growthRange.set($event)"
+          />
+        </div>
+
+        @if (growthLoading()) {
+          <p class="muted quiet">Loading …</p>
+        } @else if (growthError(); as message) {
+          <p class="muted quiet">{{ message }}</p>
+        } @else if (!growthHasData()) {
+          <p class="muted quiet">Nothing settled yet.</p>
+        } @else {
+          <sumi-line-chart
+            ariaLabel="Items settled over time, earned and marked as known"
+            [points]="growthPoints()"
+            [series]="growthSeries()"
+            mode="stacked-area"
+            [events]="growthEvents()"
+            [height]="220"
+            [table]="true"
+          />
+        }
       </sumi-card>
 
       <sumi-card class="trouble-card full">

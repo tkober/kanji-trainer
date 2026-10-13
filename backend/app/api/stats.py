@@ -15,8 +15,18 @@ from fastapi import APIRouter, Depends, HTTPException, Query
 from sqlalchemy import func, select
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from ..db import Progress, ReviewLog, Subject, get_session
-from ..models import Activity, ActivityDay, LevelStats, LevelTypeCounts, StageCounts, Stats
+from ..db import ImportRun, Progress, ReviewLog, Subject, get_session
+from ..growth import GrowthResult, ReviewLogRow, SubjectRow, compute_growth
+from ..models import (
+    Activity,
+    ActivityDay,
+    GrowthDayOut,
+    GrowthOut,
+    LevelStats,
+    LevelTypeCounts,
+    StageCounts,
+    Stats,
+)
 from ..runtime_config import load_runtime_config
 from ..srs import (
     STAGE_APPRENTICE_1,
@@ -349,3 +359,82 @@ async def read_activity(
         cursor -= timedelta(days=1)
 
     return Activity(days=activity_days, streak=streak)
+
+
+@router.get("/growth", response_model=GrowthOut)
+async def read_growth(
+    days: int | None = Query(default=None, ge=1, le=3650),
+    tz: str | None = Query(default=None),
+    max_level: int | None = Query(default=None, ge=1),
+    session: AsyncSession = Depends(get_session),
+) -> GrowthOut:
+    """"Settled over time" -- earned (Guru+) and known, reconstructed per
+    local day from `review_log` and `known_at` (the reconstruction itself
+    lives in `app.growth`, kept dependency-free and unit-tested on its own).
+
+    Only non-suspended subjects count, exactly like `/stats/levels` -- a
+    subject hidden today never contributes a day of history either, even one
+    from before it was suspended (`compute_growth` enforces this itself, not
+    just this query). `max_level` scopes to the stats page's own frame
+    (level <= max_level); the Growth card is the one place on the page a
+    frame switch causes a request at all -- every other card's frame
+    narrowing happens client-side against the already-fetched `/stats/levels`
+    rows, which this endpoint cannot reuse since it needs the full
+    per-subject history, not just today's bucket counts.
+    """
+    zone = _resolve_tz(tz)
+    now = datetime.now(timezone.utc)
+
+    subject_query = select(
+        Progress.subject_id,
+        Progress.state,
+        Progress.srs_stage,
+        Progress.known_at,
+        Progress.updated_at,
+    ).select_from(Progress)
+    if max_level is not None:
+        subject_query = subject_query.join(Subject, Subject.id == Progress.subject_id).where(
+            Subject.level <= max_level
+        )
+    subject_rows = (await session.execute(subject_query)).all()
+    subjects = [
+        SubjectRow(subject_id=row[0], state=row[1], srs_stage=row[2], known_at=row[3], updated_at=row[4])
+        for row in subject_rows
+    ]
+    # `max_level` only narrows which subjects count, so the matching
+    # review_log rows are filtered in Python against that same set -- one
+    # query each over progress/subjects and review_log, no per-day queries.
+    included_ids = {s.subject_id for s in subjects}
+
+    log_rows = await session.execute(
+        select(
+            ReviewLog.subject_id,
+            ReviewLog.answered_at,
+            ReviewLog.srs_stage_before,
+            ReviewLog.srs_stage_after,
+        )
+    )
+    review_logs = [
+        ReviewLogRow(subject_id=row[0], answered_at=row[1], srs_stage_before=row[2], srs_stage_after=row[3])
+        for row in log_rows
+        if row[0] in included_ids
+    ]
+
+    import_time = await session.scalar(
+        select(ImportRun.finished_at)
+        .where(ImportRun.status == "succeeded")
+        .order_by(ImportRun.finished_at)
+        .limit(1)
+    )
+
+    result: GrowthResult = compute_growth(subjects, review_logs, import_time, now=now, zone=zone)
+
+    history = result.days
+    if days is not None and len(history) > days:
+        history = history[-days:]
+
+    return GrowthOut(
+        days=[GrowthDayOut(date=d.date, earned=d.earned, known=d.known) for d in history],
+        imported_on=result.imported_on,
+        known_on_import=result.known_on_import,
+    )
