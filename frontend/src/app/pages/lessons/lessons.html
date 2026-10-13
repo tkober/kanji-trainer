@@ -82,6 +82,7 @@
                 @for (tile of group.tiles; track tile.subject.id) {
                   <app-item-tile
                     [tile]="tile"
+                    [fitWord]="group.key === 'vocabulary'"
                     [selectable]="tile.state === 'new'"
                     [selected]="isSelected(tile.subject.id)"
                     [disabled]="!isSelected(tile.subject.id) && capReached()"

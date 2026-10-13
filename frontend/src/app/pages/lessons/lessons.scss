@@ -131,7 +131,7 @@ sumi-legend {
   /* Vocabulary only (see `groups()` in lessons.ts): a wrapping row sized to
      each word instead of uniform squares, so アメリカ人 does not wrap onto a
      second line inside a box built for 大. Radicals and kanji keep the grid
-     above untouched. */
+     above untouched. The tile's own sizing comes from its `fitWord` input. */
   &.flow {
     display: flex;
     flex-wrap: wrap;

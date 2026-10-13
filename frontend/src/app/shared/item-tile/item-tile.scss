@@ -62,10 +62,15 @@
     border-color: transparent;
   }
 
-  /* The lessons picker wraps vocabulary tiles in `.tile-grid.flow` (sized to
-     the word, not a uniform square) -- the container class lives on the
-     page, this just keeps the tile itself able to follow it. */
-  .flow & {
+  /* `fitWord` (issue #71): sized to its word instead of a uniform square --
+     the lessons picker's vocabulary. The square tiles' 52px is the floor
+     for both sides, width following the content; `max-content` keeps a word
+     on one line, and only a word wider than the whole row (a phone at
+     375px) is capped by `max-width` and wraps rather than overflowing. An
+     input rather than a `.flow &` ancestor selector: emulated encapsulation
+     scopes `.flow` to this component too, and the page's container never
+     carries this component's attribute, so such a rule never matches. */
+  &.word {
     aspect-ratio: auto;
     width: max-content;
     max-width: 100%;

@@ -58,6 +58,9 @@ export type ItemTileSize = 'md' | 'sm';
  * the dashboard -- a much smaller box, a glyph sized to still read at that
  * box (not just scaled down with it), and no checkmark badge, which at that size
  * would cover more of the glyph than it annotates.
+ *
+ * `fitWord` (issue #71): size the tile to its word rather than a square --
+ * the lessons picker's vocabulary, so アメリカ人 is not as tall as it is wide.
  */
 @Component({
   selector: 'app-item-tile',
@@ -71,6 +74,7 @@ export class ItemTile {
   readonly selected = input(false);
   readonly disabled = input(false);
   readonly size = input<ItemTileSize>('md');
+  readonly fitWord = input(false);
   readonly toggle = output<void>();
 
   protected readonly band = computed(() => stageBand(this.tile().srs_stage));

@@ -3,6 +3,7 @@
     type="button"
     class="tile"
     [class.sm]="size() === 'sm'"
+    [class.word]="fitWord()"
     [attr.data-band]="band()"
     [class.selected]="selected()"
     [disabled]="disabled()"
@@ -24,6 +25,7 @@
   <span
     class="tile static"
     [class.sm]="size() === 'sm'"
+    [class.word]="fitWord()"
     [attr.data-band]="band()"
     [class.known]="tile().state === 'known'"
     [class.suspended]="tile().state === 'suspended'"
