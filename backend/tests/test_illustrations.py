@@ -27,6 +27,24 @@ PAGE_WITH_IMAGE = (
     "</body></html>"
 )
 PAGE_WITHOUT_IMAGE = "<html><body><p>Nothing to see here.</p></body></html>"
+# The page as WaniKani serves it since issue #73: client-side templates ahead
+# of the real element, each with a placeholder copy of it.
+_PLACEHOLDER = (
+    '<wk-mnemonic-image src="" class="subject-mnemonic-image__image '
+    'subject-mnemonic-image__image--${subjectCategory}" '
+    'aria-label="${mnemonicImageDescription}" style="aspect-ratio: 1/1;">'
+    "</wk-mnemonic-image>"
+)
+PAGE_WITH_TEMPLATES = (
+    "<html><body>"
+    f'<template data-template-name="subjectInfoMeaning">{_PLACEHOLDER}</template>'
+    f'<template data-template-name="subjectSlideMeaning">{_PLACEHOLDER}</template>'
+    + PAGE_WITH_IMAGE.removeprefix("<html><body>")
+)
+PAGE_WITH_ONLY_TEMPLATES = (
+    f'<html><body><template data-template-name="subjectInfoMeaning">{_PLACEHOLDER}'
+    "</template></body></html>"
+)
 SVG_BODY = '<svg xmlns="http://www.w3.org/2000/svg"><rect width="1" height="1"/></svg>'
 
 
@@ -115,6 +133,39 @@ async def test_first_view_fetches_and_stores(client, session, monkeypatch):
     row = await session.get(SubjectIllustration, subject_id)
     assert row is not None
     assert row.svg is not None and "<svg" in row.svg
+
+
+async def test_template_placeholders_ahead_of_the_real_element_are_skipped(
+    client, session, monkeypatch
+):
+    def handler(request: httpx.Request) -> httpx.Response:
+        if "files.wanikani.com" in str(request.url):
+            return _found_handler(request)
+        return httpx.Response(200, text=PAGE_WITH_TEMPLATES)
+
+    calls = _install_transport(monkeypatch, handler)
+    subject_id = await seed_radical(session)
+
+    body = (await client.get(f"/api/items/{subject_id}/illustration")).json()
+
+    assert body["available"] is True
+    assert body["alt"].startswith("The surface of the ground")
+    assert calls[1] == "https://files.wanikani.com/i8oxg6xj34x761lsdmqk5p9mh3kx"
+
+
+async def test_a_page_with_only_placeholders_is_none_without_their_label(
+    client, session, monkeypatch
+):
+    _install_transport(
+        monkeypatch, lambda _request: httpx.Response(200, text=PAGE_WITH_ONLY_TEMPLATES)
+    )
+    subject_id = await seed_radical(session)
+
+    body = (await client.get(f"/api/items/{subject_id}/illustration")).json()
+
+    assert body == {"available": False, "alt": None}
+    row = await session.get(SubjectIllustration, subject_id)
+    assert row is not None and row.svg is None and row.alt is None
 
 
 async def test_second_view_serves_from_the_database(client, session, monkeypatch):

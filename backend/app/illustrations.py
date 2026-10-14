@@ -175,20 +175,29 @@ async def _fetch(subject: Subject) -> _Fetched:
 
 
 def _extract_mnemonic_image(page_html: str) -> tuple[str | None, str | None]:
-    """The first ``<wk-mnemonic-image>``'s ``src`` and ``aria-label``, if any.
+    """The first real ``<wk-mnemonic-image>``'s ``src`` and ``aria-label``.
+
+    "Real" because the page also carries client-side ``<template>`` blocks,
+    ahead of the server-rendered element, whose copies are placeholders --
+    ``src=""`` and ``aria-label="${mnemonicImageDescription}"``. Taking the
+    first match regardless read every radical as having no art (issue #73),
+    so an element without a usable ``src`` is skipped, and its label with it.
 
     Attribute order does not matter (a real regex per attribute rather than
     one that assumes a fixed layout), and entities in the label (``&amp;``
     etc.) are unescaped -- WaniKani's mnemonics use plain punctuation, but the
     aria-label is free text and there is no reason to trust it is bare.
     """
-    element = _ELEMENT_RE.search(page_html)
-    if element is None:
-        return None, None
-    attrs = dict(_ATTR_RE.findall(element.group(1)))
-    src = attrs.get("src")
-    alt = attrs.get("aria-label")
-    return (src or None), (html.unescape(alt) if alt else None)
+    for element in _ELEMENT_RE.finditer(page_html):
+        attrs = dict(_ATTR_RE.findall(element.group(1)))
+        src = attrs.get("src")
+        if not src or "${" in src:
+            continue
+        alt = attrs.get("aria-label")
+        if alt and "${" in alt:
+            alt = None
+        return src, (html.unescape(alt) if alt else None)
+    return None, None
 
 
 async def _store(session: AsyncSession, subject_id: int, fetched: _Fetched) -> None:
