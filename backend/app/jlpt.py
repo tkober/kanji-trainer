@@ -149,6 +149,87 @@ def _vocab_level(characters: str, readings: list[dict[str, Any]]) -> int | None:
     return max(matches) if matches else None
 
 
+#: CJK Unified Ideographs plus the two blocks that matter here: Extension A
+#: (rarer kanji still in common dictionaries) and the Compatibility block
+#: (old/variant forms). Enough to tell "this character is a kanji" from kana,
+#: romaji and punctuation without a dependency -- not a claim that every code
+#: point in range is a real, teachable kanji (`kanji_level` still answers
+#: `None` for anything `kanji.csv` does not list).
+_KANJI_RANGES: tuple[tuple[int, int], ...] = ((0x4E00, 0x9FFF), (0x3400, 0x4DBF), (0xF900, 0xFAFF))
+
+
+def _is_kanji(ch: str) -> bool:
+    code = ord(ch)
+    return any(start <= code <= end for start, end in _KANJI_RANGES)
+
+
+def kanji_characters(text: str) -> list[str]:
+    """Every kanji character in `text`, in order, duplicates removed --
+    what `get_jlpt_levels` (issue #75) lists per item, independent of
+    whether each one is actually in `kanji.csv`."""
+    seen: dict[str, None] = {}
+    for ch in text:
+        if _is_kanji(ch):
+            seen.setdefault(ch, None)
+    return list(seen)
+
+
+def kanji_level(character: str) -> int | None:
+    """The JLPT level of one kanji character, straight from the kanji list --
+    independent of whether WaniKani teaches it. `None` if the list does not
+    have it (including when `character` is not actually a kanji)."""
+    _ensure_loaded()
+    assert _kanji_levels is not None  # set by `_ensure_loaded`
+    return _kanji_levels.get(character)
+
+
+def word_level(text: str, reading: str | None = None) -> int | None:
+    """The JLPT level of an arbitrary word, looked up against the checked-in
+    snapshot independent of whether WaniKani teaches it (issue #75's
+    `get_jlpt_levels`).
+
+    With `reading` given: match the expression *and* that reading, the same
+    rule `_vocab_level` applies to a WaniKani subject's own readings
+    (katakana folded to hiragana, a trailing する stripped on both sides).
+    Without one: the easiest (numerically largest) level among *every* entry
+    for that expression -- the same "easier level wins" rule for the 97 words
+    the list carries at two levels (see the module docstring), just applied
+    without a reading to narrow the candidates first.
+
+    A single character that is not itself a vocabulary expression falls back
+    to the kanji list (`kanji_level`) -- most single kanji are also words,
+    but a handful (e.g. purely grammatical ones) are kanji-list-only. `None`
+    when the word is not listed anywhere.
+    """
+    _ensure_loaded()
+    assert _vocab_index is not None  # set by `_ensure_loaded`
+    key = _strip_suru(_clean(text))
+    entries = _vocab_index.get(key) if key else None
+    if not entries:
+        return kanji_level(text) if len(text) == 1 else None
+
+    if reading is None:
+        return max(level for level, _ in entries)
+
+    wk_reading = _normalise(reading)
+    matches = [level for level, list_readings in entries if wk_reading in list_readings]
+    return max(matches) if matches else None
+
+
+#: `kana_vocabulary` carries no separate JLPT estimate of its own (see
+#: `jlpt_level`) -- it is taught the same way as `vocabulary` and always
+#: folds into it for any level-based grouping. The one place that grouping
+#: is defined, so `GET /api/stats/jlpt` and the MCP summary (issue #75) agree
+#: on it rather than each re-deriving it.
+VOCABULARY_OBJECT_TYPES: tuple[str, ...] = ("vocabulary", "kana_vocabulary")
+
+
+def fold_object_type(object_type: str) -> str:
+    """`kana_vocabulary` folds into `vocabulary`; every other object type
+    (`kanji`, `radical`) is returned unchanged."""
+    return "vocabulary" if object_type in VOCABULARY_OBJECT_TYPES else object_type
+
+
 def jlpt_level(
     object_type: str, characters: str | None, readings: list[dict[str, Any]] | None
 ) -> int | None:
@@ -163,7 +244,7 @@ def jlpt_level(
         return None
     if object_type == "kanji":
         return _kanji_levels.get(characters)  # type: ignore[union-attr]
-    if object_type in ("vocabulary", "kana_vocabulary"):
+    if object_type in VOCABULARY_OBJECT_TYPES:
         return _vocab_level(characters, readings or [])
     return None
 

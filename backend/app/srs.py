@@ -188,6 +188,25 @@ class _ProgressLike:
     known_at: datetime | None
 
 
+def is_known(progress: _ProgressLike, min_srs_stage: int = STAGE_GURU_1) -> bool:
+    """Whether another agent (issue #75's MCP tools) can treat this item as
+    already known by the learner.
+
+    ``state == KNOWN`` always counts, at any stage -- that is exactly what
+    :func:`mark_known` is for. Otherwise it counts only while ``LEARNING`` and
+    at or above ``min_srs_stage`` (Guru I, 5, by default -- the same bar
+    WaniKani itself uses for "this one has landed", see :func:`is_passed`).
+    ``SUSPENDED`` never counts, deliberately: it was set aside on purpose, not
+    forgotten. Neither does ``NEW`` -- nothing has happened with it yet.
+
+    The one function the "known" rule lives in, so every MCP tool that reads
+    progress agrees on what "known" means without re-deriving it.
+    """
+    if progress.state == ItemState.KNOWN:
+        return True
+    return progress.state == ItemState.LEARNING and progress.srs_stage >= min_srs_stage
+
+
 def begin_review(progress: _ProgressLike, object_type: str) -> None:
     """Set the outstanding questions, if this review has not started yet.
 

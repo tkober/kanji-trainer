@@ -294,6 +294,88 @@ at the back (`core/review-queue.ts`). A straight push to the back used to
 regroup every reading into one block at the end of the round, no matter how
 well the SQL order shuffled the items themselves (issue #27).
 
+## MCP server
+
+A read-only MCP server (issue #75, `app/mcp_server.py`), mounted at `/mcp`
+inside this FastAPI app rather than shipped as a separate service: a schema
+change and the tool reading it then always land in the same PR, and it costs
+no second container or database connection. It exists for
+`jp-reading-practice` (and other agents -- Claude, openclaw) to tailor a text
+to what the learner already knows, instead of guessing or re-teaching
+material WaniKani never covered for them.
+
+Built with the official `mcp` SDK's `FastMCP`, Streamable HTTP,
+`stateless_http=True` and `json_response=True` -- no server-side session
+state is worth keeping for read-only calls. Its session manager owns the
+task group every in-flight request runs under and has to run for exactly as
+long as the app does, so `app/main.py`'s lifespan enters
+`mcp.session_manager.run()` itself, nested with `init_db()`; the sub-app's
+own lifespan never runs, because only its route is used. That route
+(`streamable_http_path="/mcp"`) is added to the FastAPI router directly
+rather than mounted: under a `/mcp` prefix it would become `/mcp/mcp` (or
+redirect `/mcp` to `/mcp/`), and a mount at `/` would catch every unmatched
+path and replace FastAPI's JSON 404 with a plain-text one. It is verified
+with a real request in `tests/test_mcp.py`.
+
+Five tools, every one read-only, calling into the database through
+`get_sessionmaker()` -- the same engine and app-role credentials the HTTP
+routers use (`get_jlpt_levels` alone never touches the database -- see
+below):
+
+- `get_known_kanji(min_srs_stage=5)` / `get_known_vocabulary(min_srs_stage=5)`
+  (the latter including `kana_vocabulary`) -- every subject of that family
+  the learner knows, with its level, state, SRS stage, JLPT level and
+  meanings/readings (primary first, mnemonics and context sentences left
+  out -- lean on purpose, this is for "what does the learner know", not
+  "teach it").
+- `get_learning_summary()` -- `current_level` (`lowest_open_level()`, the
+  same definition the header's `Counters` and `/api/stats` use), item counts
+  per object type and state, and a `jlpt` breakdown (below).
+- `lookup_items(characters: list[str])` -- per requested string, found or
+  not and every subject it matches (a kanji and a vocabulary word can share
+  the same characters), each with its level, state, SRS stage, the known
+  flag, primary meaning/reading and JLPT level. Only ever matches the
+  learner's own subjects -- for a word WaniKani never taught, use
+  `get_jlpt_levels` instead.
+- `get_jlpt_levels(items: list[{text, reading?}])` -- the JLPT level of
+  arbitrary words and kanji, looked up against the checked-in snapshot
+  (`app/jlpt.py`'s new `word_level`/`kanji_level`, see "JLPT levels" below)
+  independent of whether WaniKani teaches them or the learner has imported
+  anything at all. For `jp-reading-practice`, which needs the level of every
+  word and kanji in a generated text, including ones never taught here. Per
+  item: the word's own level (`word_level` -- expression + reading when a
+  reading is given, else the easiest of every entry for that expression; a
+  single kanji that is not itself a listed word falls back to the kanji
+  list) and `kanji`, every kanji character in the text with its own
+  kanji-list level, in order, duplicates removed. Capped at 2000 items per
+  call (a long text's distinct tokens); a larger request raises.
+
+"Known" is one function, `app.srs.is_known`: `state == known` (any stage --
+exactly what `mark_known` is for), or `state == learning` at or above
+`min_srs_stage` (default Guru I, the same bar `is_passed` uses). `suspended`
+never counts, on purpose -- set aside, not forgotten -- and neither does
+`new`. Every tool defers to it rather than re-deriving the rule, and it is
+unit-tested directly in `tests/test_srs.py`. The `jlpt` breakdown applies the
+same rule per level: a suspended item counts in `total` but never in
+`known`, regardless of its stage.
+
+DNS-rebinding protection is `FastMCP`'s own `transport_security`: the request
+Host header must match `mcp_allowed_hosts` (env `MCP_ALLOWED_HOSTS`,
+comma-separated `host:port`, `:*` for any port). Empty -- the default --
+falls back to every localhost/127.0.0.1/`[::1]` form, any port; a request
+with any other Host gets a 421 before any tool runs. The backend publishes
+no port at all, so `frontend/nginx.conf`'s `location ^~ /mcp` (proxied like
+`/api/`, `proxy_buffering off`, a long `proxy_read_timeout` -- a Streamable
+HTTP POST can hold its response open) is how another stack reaches it, as
+`http://<host>:8086/mcp`.
+That location forwards `$http_host`, not `$host` like `/api/`: `$host`
+drops the port, and an allowed-hosts entry such as `192.168.2.230:8086`
+would then never match.
+
+The SDK is pinned to `mcp<2`. 2.x renamed `FastMCP` to `MCPServer` and
+changed the transport API; moving is a deliberate migration of its own, for
+this server and for its clients in the other apps together.
+
 ## Invariants worth preserving
 
 **A queue item never carries its answers.** `SubjectSummary` and
@@ -563,6 +645,15 @@ settled does not depend on which WaniKani levels the rest of the statistics
 page happens to be comparing against. The statistics page's JLPT card is
 loaded separately from the page's main `Promise.all`, same as the Growth
 card, so a failure there only hides the card instead of breaking the page.
+
+`kana_vocabulary` folding into `vocabulary` for any level-based grouping is
+one function, `app.jlpt.fold_object_type` (and its `VOCABULARY_OBJECT_TYPES`
+tuple) — `GET /api/stats/jlpt` and the MCP server's `get_learning_summary`
+(issue #75) both call it rather than each re-deriving the grouping.
+`app/jlpt.py` also exposes `word_level(text, reading=None)` and
+`kanji_level(character)`, independent lookups against the same snapshot for
+arbitrary text rather than a WaniKani subject — what the MCP server's
+`get_jlpt_levels` is built on, see the "MCP server" section above.
 
 ## Known gaps
 

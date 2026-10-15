@@ -17,6 +17,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 
 from ..db import ImportRun, Progress, ReviewLog, Subject, get_session
 from ..growth import GrowthResult, ReviewLogRow, SubjectRow, compute_growth
+from ..jlpt import VOCABULARY_OBJECT_TYPES, fold_object_type
 from ..models import (
     Activity,
     ActivityDay,
@@ -286,11 +287,6 @@ async def read_level_stats(session: AsyncSession = Depends(get_session)) -> Leve
     return LevelStats(current_level=await lowest_open_level(session), levels=levels)
 
 
-#: `kana_vocabulary` gets no separate JLPT estimate (see `app.jlpt`), so both
-#: object types fold into the one `vocabulary` bucket on this card.
-_VOCABULARY_TYPES: tuple[str, ...] = ("vocabulary", "kana_vocabulary")
-
-
 @router.get("/jlpt", response_model=JlptStats)
 async def read_jlpt_stats(session: AsyncSession = Depends(get_session)) -> JlptStats:
     """Settled per JLPT level, kanji and vocabulary, across all of WaniKani.
@@ -315,7 +311,7 @@ async def read_jlpt_stats(session: AsyncSession = Depends(get_session)) -> JlptS
         # `Subject.jlpt IS NOT NULL` already drops every radical (always
         # `None`, see `app.jlpt.jlpt_level`) and every kanji/word the list
         # simply does not have, so nothing further needs excluding here.
-        folded = "vocabulary" if object_type in _VOCABULARY_TYPES else object_type
+        folded = fold_object_type(object_type)
         counts = buckets.setdefault((jlpt, folded), StageCounts())
         field = _bucket_field(state, stage)
         setattr(counts, field, getattr(counts, field) + n)
@@ -336,7 +332,7 @@ async def read_jlpt_stats(session: AsyncSession = Depends(get_session)) -> JlptS
             select(func.count())
             .select_from(Progress)
             .join(Subject, Subject.id == Progress.subject_id)
-            .where(Subject.object_type.in_(_VOCABULARY_TYPES), not_suspended)
+            .where(Subject.object_type.in_(VOCABULARY_OBJECT_TYPES), not_suspended)
         )
         or 0
     )
@@ -346,7 +342,7 @@ async def read_jlpt_stats(session: AsyncSession = Depends(get_session)) -> JlptS
             .select_from(Progress)
             .join(Subject, Subject.id == Progress.subject_id)
             .where(
-                Subject.object_type.in_(_VOCABULARY_TYPES),
+                Subject.object_type.in_(VOCABULARY_OBJECT_TYPES),
                 Subject.jlpt.is_(None),
                 not_suspended,
             )

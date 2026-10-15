@@ -172,6 +172,41 @@ def test_demoting_a_burned_item_clears_burned_at():
     assert progress.burned_at is None
 
 
+# --- the known rule (issue #75) ---------------------------------------------
+
+
+def test_known_state_counts_at_any_stage():
+    progress = FakeProgress(stage=1, state=ItemState.KNOWN.value)
+    assert srs.is_known(progress) is True
+
+
+def test_learning_counts_only_at_or_above_the_threshold():
+    below = FakeProgress(stage=4, state=ItemState.LEARNING.value)
+    at = FakeProgress(stage=5, state=ItemState.LEARNING.value)
+    above = FakeProgress(stage=9, state=ItemState.LEARNING.value)
+
+    assert srs.is_known(below) is False
+    assert srs.is_known(at) is True
+    assert srs.is_known(above) is True
+
+
+def test_min_srs_stage_moves_the_threshold():
+    progress = FakeProgress(stage=3, state=ItemState.LEARNING.value)
+
+    assert srs.is_known(progress, min_srs_stage=3) is True
+    assert srs.is_known(progress, min_srs_stage=4) is False
+
+
+def test_suspended_never_counts_even_past_the_threshold():
+    progress = FakeProgress(stage=9, state=ItemState.SUSPENDED.value)
+    assert srs.is_known(progress) is False
+
+
+def test_new_never_counts():
+    progress = FakeProgress(stage=0, state=ItemState.NEW.value)
+    assert srs.is_known(progress) is False
+
+
 # --- the overrides ---------------------------------------------------------
 
 
