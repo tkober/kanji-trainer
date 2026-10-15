@@ -351,6 +351,13 @@ no port at all, so `frontend/nginx.conf`'s `location ^~ /mcp` (proxied like
 `/api/`, `proxy_buffering off`, a long `proxy_read_timeout` -- a Streamable
 HTTP POST can hold its response open) is how another stack reaches it, as
 `http://<host>:8086/mcp`.
+That location forwards `$http_host`, not `$host` like `/api/`: `$host`
+drops the port, and an allowed-hosts entry such as `192.168.2.230:8086`
+would then never match.
+
+The SDK is pinned to `mcp<2`. 2.x renamed `FastMCP` to `MCPServer` and
+changed the transport API; moving is a deliberate migration of its own, for
+this server and for its clients in the other apps together.
 
 ## Invariants worth preserving
 
