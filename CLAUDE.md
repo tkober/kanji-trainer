@@ -294,6 +294,64 @@ at the back (`core/review-queue.ts`). A straight push to the back used to
 regroup every reading into one block at the end of the round, no matter how
 well the SQL order shuffled the items themselves (issue #27).
 
+## MCP server
+
+A read-only MCP server (issue #75, `app/mcp_server.py`), mounted at `/mcp`
+inside this FastAPI app rather than shipped as a separate service: a schema
+change and the tool reading it then always land in the same PR, and it costs
+no second container or database connection. It exists for
+`jp-reading-practice` (and other agents -- Claude, openclaw) to tailor a text
+to what the learner already knows, instead of guessing or re-teaching
+material WaniKani never covered for them.
+
+Built with the official `mcp` SDK's `FastMCP`, Streamable HTTP,
+`stateless_http=True` and `json_response=True` -- no server-side session
+state is worth keeping for read-only calls. Its session manager owns the
+task group every in-flight request runs under and has to run for exactly as
+long as the app does, so `app/main.py`'s lifespan enters
+`mcp.session_manager.run()` itself, nested with `init_db()`; mounting the
+ASGI app alone does not start it, because Starlette never forwards lifespan
+events into a mounted sub-app. The mount is at the server root, not under a
+`/mcp` prefix -- `app/mcp_server.py` already sets `streamable_http_path`
+to `/mcp`, and prefixing it again would make the route `/mcp/mcp` (or redirect
+to it, for a `Mount("/mcp", ...)` matching only `/mcp/`). See the comments on
+both for the exact reasoning; it is verified with a real request in
+`tests/test_mcp.py`.
+
+Four tools, every one read-only, calling into the database through
+`get_sessionmaker()` -- the same engine and app-role credentials the HTTP
+routers use:
+
+- `get_known_kanji(min_srs_stage=5)` / `get_known_vocabulary(min_srs_stage=5)`
+  (the latter including `kana_vocabulary`) -- every subject of that family
+  the learner knows, with its level, state, SRS stage, and meanings/readings
+  (primary first, mnemonics and context sentences left out -- lean on
+  purpose, this is for "what does the learner know", not "teach it").
+- `get_learning_summary()` -- `current_level` (`lowest_open_level()`, the
+  same definition the header's `Counters` and `/api/stats` use) plus item
+  counts per object type and state.
+- `lookup_items(characters: list[str])` -- per requested string, found or
+  not and every subject it matches (a kanji and a vocabulary word can share
+  the same characters), each with its level, state, SRS stage, the known
+  flag and primary meaning/reading.
+
+"Known" is one function, `app.srs.is_known`: `state == known` (any stage --
+exactly what `mark_known` is for), or `state == learning` at or above
+`min_srs_stage` (default Guru I, the same bar `is_passed` uses). `suspended`
+never counts, on purpose -- set aside, not forgotten -- and neither does
+`new`. Every tool defers to it rather than re-deriving the rule, and it is
+unit-tested directly in `tests/test_srs.py`.
+
+DNS-rebinding protection is `FastMCP`'s own `transport_security`: the request
+Host header must match `mcp_allowed_hosts` (env `MCP_ALLOWED_HOSTS`,
+comma-separated `host:port`, `:*` for any port). Empty -- the default --
+falls back to every localhost/127.0.0.1/`[::1]` form, any port; a request
+with any other Host gets a 421 before any tool runs. The backend publishes
+no port at all, so `frontend/nginx.conf`'s `location ^~ /mcp` (proxied like
+`/api/`, `proxy_buffering off`, a long `proxy_read_timeout` -- a Streamable
+HTTP POST can hold its response open) is how another stack reaches it, as
+`http://<host>:8086/mcp`.
+
 ## Invariants worth preserving
 
 **A queue item never carries its answers.** `SubjectSummary` and

@@ -100,6 +100,13 @@ class Settings(BaseSettings):
     # --- Server ---
     cors_origins: str = "http://localhost:4200"
 
+    # --- MCP (issue #75) ---
+    # DNS-rebinding protection for the read-only /mcp endpoint: the Host
+    # header of every request must match one of these, "host:port" or
+    # "host:*" for any port, comma-separated. Empty means only localhost and
+    # 127.0.0.1 (every form, any port) are accepted -- see app/mcp_server.py.
+    mcp_allowed_hosts: str = ""
+
     @property
     def cors_origin_list(self) -> list[str]:
         return [origin.strip() for origin in self.cors_origins.split(",") if origin.strip()]

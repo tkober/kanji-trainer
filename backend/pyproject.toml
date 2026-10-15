@@ -13,6 +13,10 @@ dependencies = [
     "asyncpg>=0.30",
     "aiosqlite>=0.22.1",
     "alembic>=1.20.0",
+    # Pinned below 2.x: mcp 2.0 renamed FastMCP to MCPServer and changed its
+    # API (see app/mcp_server.py, issue #75). >=1.30 for the Streamable HTTP
+    # transport-security settings this app relies on.
+    "mcp>=1.30,<2",
 ]
 
 [dependency-groups]
