@@ -537,6 +537,33 @@ Forecast tests anchor their due times to the current *hour boundary*, not to
 depending on the minute the suite runs at, which is a test that fails once a
 week for no reason.
 
+## JLPT levels
+
+WaniKani has no JLPT data at all, so `app/data/jlpt/` (issue #62) checks in a
+snapshot of Jonathan Waller's lists (tanos.co.uk), the source most tools
+(Jisho included) use since there is no official list after the 2010 exam
+revision — see that directory's own README for the exact sources, licenses
+and the upstream CSV quirks.
+
+`app/jlpt.py` matches a kanji by `characters` alone; a vocabulary word (and
+`kana_vocabulary`, folded into the same estimate) by its expression *and* at
+least one reading, after folding katakana to hiragana and stripping a
+trailing する on both sides — an expression-only match would conflate, say,
+一月 read いちがつ ("January", what this app teaches) with the list's own 一月
+= ひとつき ("one month"). Radicals never get a level. The column itself
+(`Subject.jlpt`) is filled by `refresh_jlpt()`, called after `upgrade head` in
+`db.init_db()` and again at the end of every import, deliberately *not* from
+the Alembic revision that adds the column — a refreshed CSV snapshot or a
+matching-rule fix must take effect on every existing row without a new
+revision.
+
+`GET /api/stats/jlpt` is frame-independent — unlike `/stats/levels`, it never
+narrows by `current_level` or a level range, because which JLPT levels are
+settled does not depend on which WaniKani levels the rest of the statistics
+page happens to be comparing against. The statistics page's JLPT card is
+loaded separately from the page's main `Promise.all`, same as the Growth
+card, so a failure there only hides the card instead of breaking the page.
+
 ## Known gaps
 
 - No offline support and no service worker yet — see the TLS note above.

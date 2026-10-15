@@ -86,31 +86,74 @@
           }
         </sumi-card>
 
-        <sumi-card class="type-card">
-          <div sumiCardHeader>
-            <h2>By type</h2>
-            <p class="muted">Settled · learning · open</p>
-          </div>
+        <div class="side-col">
+          <sumi-card class="type-card">
+            <div sumiCardHeader>
+              <h2>By type</h2>
+              <p class="muted">Settled · learning · open</p>
+            </div>
 
-          <div class="type-rows">
-            @for (row of frameRows(); track row.key) {
-              <sumi-progress-row
-                [label]="row.label"
-                [ariaLabel]="row.label + ' progress across levels 1–' + frameUpper()"
-                [segments]="rowSegments(row.counts)"
-                [value]="rowSettled(row.counts)"
-                [total]="rowTotal(row.counts)"
-              />
-            }
-          </div>
+            <div class="type-rows">
+              @for (row of frameRows(); track row.key) {
+                <sumi-progress-row
+                  [label]="row.label"
+                  [ariaLabel]="row.label + ' progress across levels 1–' + frameUpper()"
+                  [segments]="rowSegments(row.counts)"
+                  [value]="rowSettled(row.counts)"
+                  [total]="rowTotal(row.counts)"
+                />
+              }
+            </div>
 
-          <ul class="tile-legend muted">
-            <li><span class="swatch swatch-guru" aria-hidden="true"></span>Guru+ earned</li>
-            <li><span class="swatch swatch-known" aria-hidden="true"></span>Marked as known</li>
-            <li><span class="swatch swatch-apprentice" aria-hidden="true"></span>Apprentice</li>
-            <li><span class="swatch swatch-open" aria-hidden="true"></span>Lesson open</li>
-          </ul>
-        </sumi-card>
+            <ul class="tile-legend muted">
+              <li><span class="swatch swatch-guru" aria-hidden="true"></span>Guru+ earned</li>
+              <li><span class="swatch swatch-known" aria-hidden="true"></span>Marked as known</li>
+              <li><span class="swatch swatch-apprentice" aria-hidden="true"></span>Apprentice</li>
+              <li><span class="swatch swatch-open" aria-hidden="true"></span>Lesson open</li>
+            </ul>
+          </sumi-card>
+
+          @if (jlptCardVisible()) {
+            <sumi-card class="jlpt-card">
+              <div sumiCardHeader class="head">
+                <div>
+                  <h2>JLPT</h2>
+                  <p class="muted">Settled per level · all of WaniKani</p>
+                </div>
+                <sumi-segmented-control
+                  [options]="jlptTypeOptions"
+                  [value]="jlptType()"
+                  (valueChange)="jlptType.set($event)"
+                />
+              </div>
+
+              <div class="type-rows">
+                @for (n of jlptLevels; track n) {
+                  <sumi-progress-row
+                    [label]="'N' + n"
+                    [ariaLabel]="'JLPT N' + n + ' ' + jlptType() + ' progress across all of WaniKani'"
+                    [segments]="rowSegments(jlptCounts(jlptType(), n))"
+                    [value]="rowSettled(jlptCounts(jlptType(), n))"
+                    [total]="rowTotal(jlptCounts(jlptType(), n))"
+                  />
+                }
+              </div>
+
+              <ul class="tile-legend muted">
+                <li><span class="swatch swatch-guru" aria-hidden="true"></span>Guru+ earned</li>
+                <li><span class="swatch swatch-known" aria-hidden="true"></span>Marked as known</li>
+                <li><span class="swatch swatch-apprentice" aria-hidden="true"></span>Apprentice</li>
+                <li><span class="swatch swatch-open" aria-hidden="true"></span>Lesson open</li>
+              </ul>
+
+              <p class="jlpt-note muted">
+                Totals are what WaniKani teaches per level. JLPT levels are estimates from
+                Jonathan Waller's lists; {{ jlptWithoutLevelPercent() }}&nbsp;% of WaniKani's
+                vocabulary has none.
+              </p>
+            </sumi-card>
+          }
+        </div>
       </div>
 
       <sumi-card class="levels-card full">

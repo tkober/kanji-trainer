@@ -38,6 +38,7 @@ import type {
   ActivityDay,
   Growth,
   Item,
+  JlptStats,
   LevelStats,
   LevelTypeCounts,
   ObjectType,
@@ -70,6 +71,15 @@ type LevelTypeFilter = 'all' | 'radical' | 'kanji' | 'vocabulary';
 /** The Growth card's own range control -- purely client-side, slicing the
  *  one fetched history rather than refetching. */
 type GrowthRange = '30d' | '90d' | '1y' | 'all';
+
+/** The JLPT card's own type switch -- local to that card, like the Levels
+ *  card's `LevelTypeFilter`. Radicals are never JLPT-leveled, so there is no
+ *  'all' or 'radical' option here. */
+type JlptType = 'kanji' | 'vocabulary';
+
+/** N5 (easiest) first, matching how the JLPT itself and the data README
+ *  order the levels -- the opposite of WaniKani's own level numbering. */
+const JLPT_LEVELS: readonly number[] = [5, 4, 3, 2, 1];
 
 const GROWTH_RANGE_DAYS: Record<Exclude<GrowthRange, 'all'>, number> = {
   '30d': 30,
@@ -143,6 +153,17 @@ export class StatsPage {
   protected readonly countKnown = signal(true);
   protected readonly levelTypeFilter = signal<LevelTypeFilter>('all');
 
+  // --- JLPT ------------------------------------------------------------------
+  // Loaded separately from `load()`'s own `Promise.all`, like Growth below --
+  // a failure here hides only this card, never the rest of the page.
+  protected readonly jlptStats = signal<JlptStats | null>(null);
+  protected readonly jlptType = signal<JlptType>('kanji');
+  protected readonly jlptTypeOptions: SumiSegmentedOption<JlptType>[] = [
+    { value: 'kanji', label: 'Kanji' },
+    { value: 'vocabulary', label: 'Vocab' },
+  ];
+  protected readonly jlptLevels = JLPT_LEVELS;
+
   // --- G: growth -------------------------------------------------------------
   protected readonly growth = signal<Growth | null>(null);
   protected readonly growthLoading = signal(false);
@@ -159,6 +180,7 @@ export class StatsPage {
 
   constructor() {
     void this.load();
+    void this.loadJlpt();
 
     if (this.narrowQuery) {
       const onChange = (event: MediaQueryListEvent) => this.narrow.set(event.matches);
@@ -203,6 +225,19 @@ export class StatsPage {
       this.error.set((err as Error).message);
     } finally {
       this.loading.set(false);
+    }
+  }
+
+  /** The JLPT card's own data, fetched once and never re-fetched -- unlike
+   *  Growth, nothing on this page narrows it (the card is frame-independent
+   *  by design, see `read_jlpt_stats` in the backend's `api/stats.py`). A failure just leaves
+   *  `jlptStats()` `null`, which `jlptCardVisible` reads as "hide the card"
+   *  rather than surfacing a second error banner next to the page's own. */
+  private async loadJlpt(): Promise<void> {
+    try {
+      this.jlptStats.set(await this.api.jlptStats());
+    } catch {
+      this.jlptStats.set(null);
     }
   }
 
@@ -410,6 +445,31 @@ export class StatsPage {
   protected rowTotal(counts: StageCounts): number {
     return frameTotal(counts);
   }
+
+  // --- JLPT ------------------------------------------------------------------
+  // Reuses `rowSegments`/`rowSettled`/`rowTotal` above -- same `StageCounts`
+  // shape, same "Count marked-as-known" toggle. "Compare against" does not
+  // apply: the JLPT card is frame-independent, see `read_jlpt_stats`.
+
+  /** Hidden while loading, on a failed fetch, and when the account simply
+   *  has no leveled subjects yet (an empty `levels`) -- all three collapse
+   *  to "nothing to show" rather than three different empty states. */
+  protected readonly jlptCardVisible = computed(() => (this.jlptStats()?.levels.length ?? 0) > 0);
+
+  protected jlptCounts(type: JlptType, jlpt: number): StageCounts {
+    const row = this.jlptStats()?.levels.find((l) => l.object_type === type && l.jlpt === jlpt);
+    return row?.counts ?? emptyStageCounts();
+  }
+
+  /** The footnote's "X % of WaniKani's vocabulary has none" -- rounded like
+   *  every other percentage on this page, 0 before the data has loaded. */
+  protected readonly jlptWithoutLevelPercent = computed(() => {
+    const data = this.jlptStats();
+    if (!data || data.vocabulary_total === 0) {
+      return 0;
+    }
+    return Math.round((data.vocabulary_without_level / data.vocabulary_total) * 100);
+  });
 
   // --- D: levels (stacked bar chart) -------------------------------------------
 

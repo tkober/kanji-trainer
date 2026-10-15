@@ -30,6 +30,7 @@ from sqlalchemy import func, select, update
 from sqlalchemy.ext.asyncio import AsyncSession, async_sessionmaker
 
 from .db import ImportRun, Progress, Subject, _upsert
+from .jlpt import refresh_jlpt
 from .runtime_config import RuntimeConfig
 from .srs import STAGE_BURNED, ItemState, schedule
 from .synonyms import load_synonyms, merge_from_import, set_synonyms
@@ -179,6 +180,11 @@ async def _import_everything(
     warning = _subscription_warning(user)
 
     imported, wk_ids = await _import_subjects(session, client, run_id)
+    # Characters and readings are exactly what just landed in `_flush_subjects`
+    # -- component resolution and progress rows below do not affect this at
+    # all, so this can run as soon as subjects exist. `_resolve_components`'s
+    # own commit carries these UPDATEs too, no separate one needed here.
+    await refresh_jlpt(session)
     await _resolve_components(session, wk_ids)
     await _ensure_progress_rows(session)
     # After subjects, so wk_ids resolve -- same reason _resolve_components runs

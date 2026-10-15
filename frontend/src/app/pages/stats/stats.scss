@@ -150,6 +150,21 @@ h2 {
   margin-top: 0.4rem;
 }
 
+/* By-type and JLPT share this column so the JLPT card fills the space
+   beside Stages rather than leaving it empty above the full-width Levels
+   card. Below 900px `.main-grid` already drops to one column, so this
+   stacks the same way it always did there. */
+.side-col {
+  display: grid;
+  gap: var(--sumi-space-4);
+  min-width: 0;
+}
+
+.jlpt-note {
+  margin: 0.5rem 0 0;
+  font-size: 0.8rem;
+}
+
 /* --- shared legend convention (dashboard's tile-legend, same swatches) ------ */
 
 .tile-legend {

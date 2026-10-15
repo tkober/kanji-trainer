@@ -479,6 +479,35 @@ class LevelTypeCounts(BaseModel):
     counts: StageCounts
 
 
+# --- JLPT levels (issue #62) -------------------------------------------------
+
+
+class JlptTypeCounts(BaseModel):
+    """One (JLPT level, object_type) bucket -- same shape as `LevelTypeCounts`,
+    but `kana_vocabulary` is already folded into `vocabulary` here (there is
+    no separate JLPT estimate for it, and the frontend never needs to tell
+    the two apart on this card)."""
+
+    jlpt: int
+    object_type: Literal["kanji", "vocabulary"]
+    counts: StageCounts
+
+
+class JlptStats(BaseModel):
+    """`/api/stats/jlpt`'s whole response -- independent of any level frame,
+    unlike `LevelStats`: this counts across all of WaniKani regardless of
+    `current_level`, so the card means the same thing before and after the
+    frame switch everywhere else on the page moves."""
+
+    levels: list[JlptTypeCounts]
+    #: All non-suspended vocabulary + kana_vocabulary subjects, and how many
+    #: of those have no JLPT estimate -- the figure the card's footnote
+    #: quotes ("X % of WaniKani's vocabulary has none"). Suspended items are
+    #: excluded to match the totals the rest of the page shows.
+    vocabulary_total: int
+    vocabulary_without_level: int
+
+
 class LevelStats(BaseModel):
     #: `lowest_open_level()` -- same definition `/stats` and the lesson
     #: picker use.
