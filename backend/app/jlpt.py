@@ -38,8 +38,8 @@ from .db import Subject
 #: never become part of what is compared.
 _TILDE = "～〜~"
 
-#: Variants within one CSV cell are separated by one of these -- a westernised
-#: comma shows up too (`日,本`), but the data README promises only `; `.
+#: Variants within one CSV cell are separated by one of these -- mostly `; `
+#: (`足; 脚`), but a comma shows up too (`(花を〜) 生ける, 活ける`).
 _VARIANT_SPLIT = re.compile(r"[;,、]")
 
 #: Parenthesised affixes/context, either bracket style (`(花を〜) 生ける`,

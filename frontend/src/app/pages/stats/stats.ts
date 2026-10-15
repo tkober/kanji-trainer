@@ -229,8 +229,8 @@ export class StatsPage {
   }
 
   /** The JLPT card's own data, fetched once and never re-fetched -- unlike
-   *  Growth, nothing on this page narrows it (see `app/jlpt.py`'s own note:
-   *  the card is frame-independent by design). A failure just leaves
+   *  Growth, nothing on this page narrows it (the card is frame-independent
+   *  by design, see `read_jlpt_stats` in the backend's `api/stats.py`). A failure just leaves
    *  `jlptStats()` `null`, which `jlptCardVisible` reads as "hide the card"
    *  rather than surfacing a second error banner next to the page's own. */
   private async loadJlpt(): Promise<void> {
@@ -449,7 +449,7 @@ export class StatsPage {
   // --- JLPT ------------------------------------------------------------------
   // Reuses `rowSegments`/`rowSettled`/`rowTotal` above -- same `StageCounts`
   // shape, same "Count marked-as-known" toggle. "Compare against" does not
-  // apply: the JLPT card is frame-independent, see `app/jlpt.py`.
+  // apply: the JLPT card is frame-independent, see `read_jlpt_stats`.
 
   /** Hidden while loading, on a failed fetch, and when the account simply
    *  has no leveled subjects yet (an empty `levels`) -- all three collapse
