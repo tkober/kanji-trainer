@@ -22,10 +22,9 @@ async def lifespan(_app: FastAPI) -> AsyncIterator[None]:
     await init_db()
     # The MCP session manager (issue #75) owns the task group that every
     # in-flight Streamable HTTP request runs under, and has to be running
-    # for exactly as long as the app is. Mounting `mcp_app` below does not
-    # start it on its own -- Starlette never forwards lifespan events into a
-    # mounted sub-app -- so it is driven from here instead, nested with the
-    # rest of startup.
+    # for exactly as long as the app is. Only `mcp_app`'s route is used
+    # below, never its own lifespan, so it is driven from here instead,
+    # nested with the rest of startup.
     async with mcp.session_manager.run():
         yield
 
@@ -45,11 +44,12 @@ app.add_middleware(
 
 app.include_router(router, prefix="/api")
 
-# Read-only MCP server (issue #75). `mcp_app`'s own Streamable HTTP route
-# already sits at "/mcp" (`streamable_http_path` in app/mcp_server.py), so it
-# is mounted at the root rather than under a "/mcp" prefix: a prefix mount
-# would make the route "/mcp/mcp", and mounting it at an empty sub-path still
-# only matches "/mcp" exactly -- nothing else here is unmatched by the routes
-# above, so this never shadows the API. DNS-rebinding protection (allowed
-# Host headers) lives in app/mcp_server.py's `transport_security` setting.
-app.mount("/", mcp_app)
+# Read-only MCP server (issue #75). `mcp_app` is a Starlette app with a single
+# route at "/mcp" (`streamable_http_path` in app/mcp_server.py) and no
+# middleware of its own, so its route is added to this app's router directly.
+# A mount would not do: under a "/mcp" prefix the route becomes "/mcp/mcp" (or
+# "/mcp" redirects to "/mcp/"), and a mount at "/" catches every unmatched
+# path, turning FastAPI's JSON 404 into the sub-app's plain-text one.
+# DNS-rebinding protection (allowed Host headers) lives in
+# app/mcp_server.py's `transport_security` setting.
+app.router.routes.extend(mcp_app.routes)

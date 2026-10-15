@@ -389,7 +389,7 @@ async def test_mcp_transport_end_to_end():
 
         # A real MCP client, over HTTP against the ASGI app, with an
         # allowed Host -- initialize, tools/list, then tools/call -- proves
-        # app/main.py's mount actually serves `/mcp` itself, not `/mcp/mcp`
+        # app/main.py's route actually serves `/mcp` itself, not `/mcp/mcp`
         # or a redirect to it.
         async with httpx.AsyncClient(
             transport=httpx.ASGITransport(app=app.main.app),

@@ -1,4 +1,4 @@
-"""Read-only MCP server (issue #75), mounted at ``/mcp`` by :mod:`app.main`.
+"""Read-only MCP server (issue #75), served at ``/mcp`` by :mod:`app.main`.
 
 ``jp-reading-practice`` (and other agents -- Claude, openclaw) need to know
 which kanji and vocabulary this learner already has, to tailor a text to the
@@ -69,20 +69,17 @@ mcp = FastMCP(
     ),
     stateless_http=True,
     json_response=True,
-    # Default is "/mcp" already, but named explicitly: app/main.py mounts
-    # the ASGI app this module builds (`mcp_app`) at the server root rather
-    # than under a "/mcp" prefix, specifically so this path is the whole
-    # story -- see the comment there for why a prefix would need a second
-    # "/mcp" segment or a trailing-slash redirect.
+    # Default is "/mcp" already, but named explicitly: app/main.py adds
+    # this route to the FastAPI router as it is, so this path is the whole
+    # story -- see the comment there for why it is not mounted.
     streamable_http_path="/mcp",
     transport_security=TransportSecuritySettings(allowed_hosts=_allowed_hosts()),
 )
 
 #: Built once at import time (this also lazily creates `mcp.session_manager`,
-#: which app/main.py's lifespan needs to be able to reach). Mounting this
-#: Starlette app does NOT start that session manager -- Starlette never
-#: forwards lifespan events into a mounted sub-app -- so app/main.py drives
-#: it from the FastAPI app's own lifespan instead.
+#: which app/main.py's lifespan needs to be able to reach). Only its route is
+#: used, so its own lifespan -- which would start that session manager --
+#: never runs; app/main.py drives it from the FastAPI app's lifespan instead.
 mcp_app = mcp.streamable_http_app()
 
 

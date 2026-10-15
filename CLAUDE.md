@@ -309,14 +309,13 @@ Built with the official `mcp` SDK's `FastMCP`, Streamable HTTP,
 state is worth keeping for read-only calls. Its session manager owns the
 task group every in-flight request runs under and has to run for exactly as
 long as the app does, so `app/main.py`'s lifespan enters
-`mcp.session_manager.run()` itself, nested with `init_db()`; mounting the
-ASGI app alone does not start it, because Starlette never forwards lifespan
-events into a mounted sub-app. The mount is at the server root, not under a
-`/mcp` prefix -- `app/mcp_server.py` already sets `streamable_http_path`
-to `/mcp`, and prefixing it again would make the route `/mcp/mcp` (or redirect
-to it, for a `Mount("/mcp", ...)` matching only `/mcp/`). See the comments on
-both for the exact reasoning; it is verified with a real request in
-`tests/test_mcp.py`.
+`mcp.session_manager.run()` itself, nested with `init_db()`; the sub-app's
+own lifespan never runs, because only its route is used. That route
+(`streamable_http_path="/mcp"`) is added to the FastAPI router directly
+rather than mounted: under a `/mcp` prefix it would become `/mcp/mcp` (or
+redirect `/mcp` to `/mcp/`), and a mount at `/` would catch every unmatched
+path and replace FastAPI's JSON 404 with a plain-text one. It is verified
+with a real request in `tests/test_mcp.py`.
 
 Four tools, every one read-only, calling into the database through
 `get_sessionmaker()` -- the same engine and app-role credentials the HTTP
