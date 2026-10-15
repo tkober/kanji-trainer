@@ -124,6 +124,11 @@ copyrighted content. Pulling them into your own trainer with your own active
 subscription is a personal-use copy. Publishing or redistributing the resulting
 database is not.
 
+The only data the repository does ship is a snapshot of approximate JLPT levels
+for kanji and vocabulary in [`backend/app/data/jlpt/`](backend/app/data/jlpt/),
+based on Jonathan Waller's lists (CC BY). Sources and licenses are listed
+there.
+
 ## Disclaimer
 
 Unofficial and not affiliated with or endorsed by Tofugu / WaniKani. It talks to
