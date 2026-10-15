@@ -12,7 +12,7 @@ from __future__ import annotations
 from datetime import datetime, timezone
 
 from app.db import Progress, Subject
-from app.jlpt import jlpt_level, refresh_jlpt
+from app.jlpt import jlpt_level, kanji_characters, kanji_level, refresh_jlpt, word_level
 from app.srs import ItemState
 
 NOW = datetime.now(timezone.utc)
@@ -76,6 +76,79 @@ def test_kana_vocabulary_with_no_readings_falls_back_to_its_own_characters():
 
 def test_vocabulary_not_in_the_list_is_none():
     assert jlpt_level("vocabulary", "存在しない言葉", []) is None
+
+
+# --- word_level / kanji_level / kanji_characters (issue #75) ----------------
+#
+# Independent lookups against the same checked-in snapshot, for arbitrary
+# text rather than a WaniKani subject -- `get_jlpt_levels`' backing logic.
+# Same convention as above: every assertion is checked against a `grep` of
+# the real CSVs first.
+
+
+def test_word_level_matches_by_expression_and_reading():
+    # `vocab.csv`: "1,妥協,だきょう" (N1).
+    assert word_level("妥協", "だきょう") == 1
+
+
+def test_word_level_rejects_a_reading_that_does_not_match():
+    # "一月" is listed only as ひとつき ("one month"), N5 -- a different
+    # reading of the same expression must not borrow its level.
+    assert word_level("一月", "いちがつ") is None
+
+
+def test_word_level_folds_a_katakana_reading_to_hiragana():
+    # "5,テレビ,テレビ" -- the list's own reading is katakana too, and both
+    # the katakana and the hiragana spelling of the query must match it.
+    assert word_level("テレビ", "テレビ") == 5
+    assert word_level("テレビ", "てれび") == 5
+
+
+def test_word_level_strips_a_trailing_suru_either_side():
+    # "1,妥協,だきょう" -- the する form of the same word must land on the
+    # same level however the suru is spelled on either side.
+    assert word_level("妥協する", "だきょうする") == 1
+    assert word_level("妥協", "だきょうする") == 1
+    assert word_level("妥協する", "だきょう") == 1
+
+
+def test_word_level_without_a_reading_is_the_easiest_of_every_entry():
+    # "そば" is listed twice: "5,そば,そば" and "2,そば,そば" -- without a
+    # reading to narrow it down, the easier (numerically larger) level wins.
+    assert word_level("そば") == 5
+
+
+def test_word_level_without_a_reading_still_needs_the_expression_listed():
+    assert word_level("存在しない言葉") is None
+
+
+def test_word_level_single_kanji_not_in_the_vocab_list_falls_back_to_kanji():
+    # "入" is in `kanji.csv` (N5) but, unlike "毎" or "水", never appears as
+    # its own entry in `vocab.csv` -- only inside longer words.
+    assert word_level("入") == 5
+    assert word_level("入") == kanji_level("入")
+
+
+def test_word_level_single_kanji_in_the_vocab_list_does_not_fall_back():
+    # "水" is itself an N5 vocabulary entry ("5,水,みず"). A reading that
+    # does not match it must not silently fall back to the kanji list either
+    # -- the expression was found, just not at this reading.
+    assert word_level("水", "みず") == 5
+    assert word_level("水", "水") is None
+
+
+def test_word_level_unlisted_multi_character_word_is_none():
+    assert word_level("存在しない") is None
+
+
+def test_kanji_level_known_and_unknown_characters():
+    assert kanji_level("一") == 5
+    assert kanji_level("瀧") is None
+
+
+def test_kanji_characters_lists_kanji_only_in_order_without_duplicates():
+    assert kanji_characters("高校生は楽しい高校生") == ["高", "校", "生", "楽"]
+    assert kanji_characters("ひらがなだけ") == []
 
 
 # --- refresh_jlpt -------------------------------------------------------------

@@ -119,11 +119,13 @@ Put TLS in front of the stack if you want it installed and offline-capable.
 
 A read-only MCP endpoint at `/mcp`, so other apps you run yourself — like
 `jp-reading-practice` — can ask what kanji and vocabulary you already know and
-tailor what they show you to it. It only reads: four tools (known kanji, known
-vocabulary, a learning summary, and a lookup by characters), nothing that
-writes back. Reachable at `http://<host>:8086/mcp`; see `CLAUDE.md`'s "MCP
-server" section for the tools, the "known" rule and `MCP_ALLOWED_HOSTS` if you
-need to reach it from another machine on your network.
+tailor what they show you to it. It only reads: five tools (known kanji, known
+vocabulary, a learning summary with a JLPT breakdown, a lookup by characters,
+and a JLPT level lookup for arbitrary words/kanji against the app's own JLPT
+data, independent of WaniKani), nothing that writes back. Reachable at
+`http://<host>:8086/mcp`; see `CLAUDE.md`'s "MCP server" section for the
+tools, the "known" rule and `MCP_ALLOWED_HOSTS` if you need to reach it from
+another machine on your network.
 
 ## A note on the content
 
