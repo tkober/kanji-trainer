@@ -11,6 +11,7 @@ import type {
   Item,
   Forecast,
   ItemPage,
+  JlptStats,
   LessonItem,
   Lessons,
   LevelStats,
@@ -215,6 +216,12 @@ export class Api {
    *  the statistics page aggregates its own reference frame from this. */
   levelStats(): Promise<LevelStats> {
     return this.get('/api/stats/levels');
+  }
+
+  /** Settled per JLPT level, kanji and vocabulary, across all of WaniKani --
+   *  independent of any level frame, unlike `levelStats()`. */
+  jlptStats(): Promise<JlptStats> {
+    return this.get('/api/stats/jlpt');
   }
 
   /** The activity calendar: one entry per local day over the last `days`

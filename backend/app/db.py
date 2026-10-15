@@ -252,6 +252,15 @@ class Subject(Base):
     # WaniKani's teaching order, preserved so lessons can follow it.
     sort_order: Mapped[int] = mapped_column(Integer, nullable=False, server_default="0")
 
+    # 5 (N5, easiest) .. 1 (N1), or NULL -- not WaniKani content, so it is not
+    # part of `_flush_subjects`'s upsert. Computed from the checked-in data in
+    # `app/jlpt.py` and kept current by `refresh_jlpt()`, which the migration
+    # that adds this column deliberately does not call: a refreshed CSV
+    # snapshot or a matching-rule fix must take effect without a new
+    # revision, and `init_db()`/the importer already refresh it on every
+    # startup and re-import.
+    jlpt: Mapped[int | None] = mapped_column(Integer, nullable=True)
+
     created_at: Mapped[datetime] = mapped_column(
         UtcDateTime, nullable=False, server_default=func.now()
     )
@@ -528,6 +537,12 @@ async def init_db() -> None:
             await _migrate_to_head(conn)
         async with async_sessionmaker(owner_engine, expire_on_commit=False)() as session:
             await ensure_settings_row(session)
+            # Not part of `_migrate_to_head`: see the `jlpt` column's own
+            # comment on `Subject` for why a data refresh belongs at startup
+            # rather than in a migration.
+            from .jlpt import refresh_jlpt
+
+            await refresh_jlpt(session)
             await session.commit()
     finally:
         await owner_engine.dispose()

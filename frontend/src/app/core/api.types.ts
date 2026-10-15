@@ -305,6 +305,25 @@ export interface LevelStats {
   levels: LevelTypeCounts[];
 }
 
+/** One (JLPT level, object_type) bucket -- `kana_vocabulary` is already
+ *  folded into `vocabulary` server-side, unlike `LevelTypeCounts`. */
+export interface JlptTypeCounts {
+  jlpt: number;
+  object_type: 'kanji' | 'vocabulary';
+  counts: StageCounts;
+}
+
+export interface JlptStats {
+  /** Across all of WaniKani, independent of any level frame -- every
+   *  (jlpt, object_type) pair that has at least one subject. */
+  levels: JlptTypeCounts[];
+  /** All non-suspended vocabulary + kana_vocabulary subjects, and how many
+   *  of those carry no JLPT estimate -- the figures the card's footnote
+   *  quotes as a percentage. */
+  vocabulary_total: number;
+  vocabulary_without_level: number;
+}
+
 export interface ActivityDay {
   /** ISO date (`YYYY-MM-DD`), the local calendar day this entry covers. */
   date: string;

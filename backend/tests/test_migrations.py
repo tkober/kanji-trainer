@@ -66,10 +66,12 @@ async def test_legacy_database_is_bridged_without_losing_data() -> None:
     try:
         await _reset_to_legacy_schema(owner_engine)
         subject_id = await _seed_legacy_row(owner_engine)
-        # A pre-Alembic database predates 0003 too. Dropped only after the
-        # seed, which inserts through the ORM model and so needs the column.
+        # A pre-Alembic database predates 0003 and 0007 too. Dropped only
+        # after the seed, which inserts through the ORM model and so needs
+        # the columns.
         async with owner_engine.begin() as conn:
             await conn.execute(text("ALTER TABLE subjects DROP COLUMN context_sentences"))
+            await conn.execute(text("ALTER TABLE subjects DROP COLUMN jlpt"))
     finally:
         await owner_engine.dispose()
 
@@ -95,6 +97,7 @@ async def test_legacy_database_is_bridged_without_losing_data() -> None:
     assert "subject_synonyms" in tables, "revision 0004 should have added the table"
     assert "lesson_batch_size" in columns, "migrate_schema should have added the missing column"
     assert "context_sentences" in subject_columns, "revision 0003 should have added the column"
+    assert "jlpt" in subject_columns, "revision 0007 should have added the column"
     assert version == _head_revision()
 
     from app.db import get_sessionmaker, reset_engines

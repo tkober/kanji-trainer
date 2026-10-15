@@ -22,6 +22,8 @@ from ..models import (
     ActivityDay,
     GrowthDayOut,
     GrowthOut,
+    JlptStats,
+    JlptTypeCounts,
     LevelStats,
     LevelTypeCounts,
     StageCounts,
@@ -282,6 +284,81 @@ async def read_level_stats(session: AsyncSession = Depends(get_session)) -> Leve
     levels.sort(key=lambda item: (item.level, _object_type_sort_key(item.object_type)))
 
     return LevelStats(current_level=await lowest_open_level(session), levels=levels)
+
+
+#: `kana_vocabulary` gets no separate JLPT estimate (see `app.jlpt`), so both
+#: object types fold into the one `vocabulary` bucket on this card.
+_VOCABULARY_TYPES: tuple[str, ...] = ("vocabulary", "kana_vocabulary")
+
+
+@router.get("/jlpt", response_model=JlptStats)
+async def read_jlpt_stats(session: AsyncSession = Depends(get_session)) -> JlptStats:
+    """Settled per JLPT level, kanji and vocabulary, across all of WaniKani.
+
+    Independent of any level frame -- unlike `/stats/levels`, there is no
+    `max_level` and no reference to `current_level` here, because "which
+    JLPT levels you've covered" does not depend on which WaniKani levels the
+    rest of the page happens to be comparing against right now. Bucketed
+    with the same `_bucket_field` every other card on this page uses, so
+    "known"/"suspended" mean the same thing here as everywhere else.
+    """
+    rows = await session.execute(
+        select(Subject.jlpt, Subject.object_type, Progress.state, Progress.srs_stage, func.count())
+        .select_from(Progress)
+        .join(Subject, Subject.id == Progress.subject_id)
+        .where(Subject.jlpt.is_not(None))
+        .group_by(Subject.jlpt, Subject.object_type, Progress.state, Progress.srs_stage)
+    )
+
+    buckets: dict[tuple[int, str], StageCounts] = {}
+    for jlpt, object_type, state, stage, n in rows:
+        # `Subject.jlpt IS NOT NULL` already drops every radical (always
+        # `None`, see `app.jlpt.jlpt_level`) and every kanji/word the list
+        # simply does not have, so nothing further needs excluding here.
+        folded = "vocabulary" if object_type in _VOCABULARY_TYPES else object_type
+        counts = buckets.setdefault((jlpt, folded), StageCounts())
+        field = _bucket_field(state, stage)
+        setattr(counts, field, getattr(counts, field) + n)
+
+    levels = [
+        JlptTypeCounts(jlpt=jlpt, object_type=object_type, counts=counts)
+        for (jlpt, object_type), counts in buckets.items()
+    ]
+    levels.sort(key=lambda item: (item.jlpt, item.object_type))
+
+    # The footnote's "X % of WaniKani's vocabulary has none" -- counted over
+    # all vocabulary + kana_vocabulary regardless of whether *this* request
+    # found any leveled ones, excluding suspended items to match the totals
+    # the rest of the page shows (same convention as `/stats`' own counts).
+    not_suspended = Progress.state != ItemState.SUSPENDED.value
+    vocabulary_total = (
+        await session.scalar(
+            select(func.count())
+            .select_from(Progress)
+            .join(Subject, Subject.id == Progress.subject_id)
+            .where(Subject.object_type.in_(_VOCABULARY_TYPES), not_suspended)
+        )
+        or 0
+    )
+    vocabulary_without_level = (
+        await session.scalar(
+            select(func.count())
+            .select_from(Progress)
+            .join(Subject, Subject.id == Progress.subject_id)
+            .where(
+                Subject.object_type.in_(_VOCABULARY_TYPES),
+                Subject.jlpt.is_(None),
+                not_suspended,
+            )
+        )
+        or 0
+    )
+
+    return JlptStats(
+        levels=levels,
+        vocabulary_total=vocabulary_total,
+        vocabulary_without_level=vocabulary_without_level,
+    )
 
 
 @router.get("/activity", response_model=Activity)
