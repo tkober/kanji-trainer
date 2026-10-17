@@ -1,4 +1,4 @@
-<sumi-page width="narrow" [inkEnd]="false">
+<sumi-page [width]="phase() === 'ended' ? 'default' : 'narrow'" [inkEnd]="false">
   @switch (phase()) {
     @case ('idle') {
       @if (loading()) {

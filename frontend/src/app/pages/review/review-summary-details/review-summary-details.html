@@ -2,7 +2,9 @@
   <section class="stage-section">
     <div class="section-head">
       <h3>Reached a new stage</h3>
-      <span class="muted count">{{ summary().newStageCount }} items</span>
+      <span class="muted count"
+        >{{ summary().newStageCount }} {{ summary().newStageCount === 1 ? 'item' : 'items' }}</span
+      >
     </div>
 
     <div class="stage-cards">
@@ -63,7 +65,7 @@
               <th>Type</th>
               <th class="num">Items</th>
               <th class="num">Correct</th>
-              <th class="num">New st.</th>
+              <th class="num">New stage</th>
             </tr>
           </thead>
           <tbody>

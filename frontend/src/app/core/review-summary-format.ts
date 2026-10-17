@@ -52,7 +52,7 @@ export function withinStagePossessive(count: number): 'its' | 'their' {
 const TYPE_ROW_ORDER: readonly { key: TallyType; label: string }[] = [
   { key: 'radical', label: 'Radicals' },
   { key: 'kanji', label: 'Kanji' },
-  { key: 'vocabulary', label: 'Vocab.' },
+  { key: 'vocabulary', label: 'Vocabulary' },
 ];
 
 export interface ByTypeRow {
@@ -65,7 +65,7 @@ export interface ByTypeRow {
 
 /** "By type" table rows, fixed radical/kanji/vocabulary order, types with no
  *  items this session dropped entirely (a radicals-only session shows no
- *  Kanji/Vocab. row). */
+ *  Kanji/Vocabulary row). */
 export function byTypeRows(byType: TallySummary['byType']): readonly ByTypeRow[] {
   return TYPE_ROW_ORDER.map(({ key, label }) => {
     const row = byType[key];

@@ -129,11 +129,8 @@ h3 {
   gap: var(--sumi-space-4);
 }
 
-// ~600px was the brief's own approximation; the component's *actual*
-// available width inside `pages/review`'s `<sumi-page width="narrow">` (640px)
-// plus the wide gate's own ink-backdrop padding works out to ~576px even at
-// a roomy desktop viewport -- a literal 600px breakpoint would never fire
-// there and the split would always stack. Measured against that, not round.
+// Side by side from 560px of the component's own width: the wide gate
+// tops out at 680px, so this holds on any desktop, while a phone stacks.
 @container (min-width: 560px) {
   .split--side-by-side {
     grid-template-columns: 3fr 2fr;
@@ -150,6 +147,16 @@ h3 {
     padding: var(--sumi-space-1) var(--sumi-space-2);
     text-align: left;
     font-size: var(--sumi-text-sm);
+  }
+
+  // The dot and the type name must never split across lines. Headers may
+  // wrap ("New stage" on a phone) and then sit on the row line together.
+  td:first-child {
+    white-space: nowrap;
+  }
+
+  th {
+    vertical-align: bottom;
   }
 
   th {
@@ -189,4 +196,13 @@ h3 {
   margin: 0;
   text-align: center;
   font-size: var(--sumi-text-sm);
+}
+
+// A phone leaves this table ~260px: tighter cells keep "Vocabulary" and
+// four columns inside it without a horizontal scroll.
+@container (max-width: 360px) {
+  .by-type-table th,
+  .by-type-table td {
+    padding-inline: var(--sumi-space-1);
+  }
 }
