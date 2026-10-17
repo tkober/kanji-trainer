@@ -12,6 +12,8 @@
    emulated encapsulation -- `@container` resolves on the box tree, not on
    component identity. */
 .strip {
+  /* Offset parent for the tiles' `offsetLeft`, see `keepInView()`. */
+  position: relative;
   display: flex;
   gap: 0.4rem;
   min-width: 0;

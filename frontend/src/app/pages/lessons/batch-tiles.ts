@@ -1,4 +1,4 @@
-import { Component, ElementRef, effect, input, output, viewChildren } from '@angular/core';
+import { Component, ElementRef, effect, input, output, viewChild, viewChildren } from '@angular/core';
 
 /**
  * One tile's worth of presentation data, computed by `lessons.ts` from the
@@ -30,6 +30,20 @@ export interface BatchTileData {
  * `display: none` by a container query in `lessons.scss`, rather than one
  * copy moved by JS -- see that file's own comment.
  */
+/** Scrolls only the strip itself, never the page: `scrollIntoView` would
+ *  also scroll the window, and on a phone that yanked the page up to the
+ *  strip above the item card on every Next. A hidden copy of the strip
+ *  (`display: none`, see lessons.scss) has no width and is left alone. */
+function keepInView(strip: HTMLElement, tile: HTMLElement): void {
+  const left = tile.offsetLeft;
+  const right = left + tile.offsetWidth;
+  if (left < strip.scrollLeft) {
+    strip.scrollLeft = left;
+  } else if (right > strip.scrollLeft + strip.clientWidth) {
+    strip.scrollLeft = right - strip.clientWidth;
+  }
+}
+
 @Component({
   selector: 'app-batch-tiles',
   templateUrl: './batch-tiles.html',
@@ -46,14 +60,17 @@ export class BatchTiles {
   readonly jump = output<number>();
 
   private readonly tileEls = viewChildren<ElementRef<HTMLButtonElement>>('tileEl');
+  private readonly strip = viewChild<ElementRef<HTMLElement>>('strip');
 
   constructor() {
-    // Keep the current tile in view as `index` changes, exactly like
-    // `LevelPicker`'s own active-option scrolling -- a batch can run to 100
-    // items, scrolled horizontally inside its own strip.
+    // Keep the current tile in view as `index` changes -- a batch can run to
+    // 100 items, scrolled horizontally inside its own strip.
     effect(() => {
-      const i = this.current();
-      this.tileEls()[i]?.nativeElement.scrollIntoView({ block: 'nearest', inline: 'nearest' });
+      const tile = this.tileEls()[this.current()]?.nativeElement;
+      const strip = this.strip()?.nativeElement;
+      if (tile && strip) {
+        keepInView(strip, tile);
+      }
     });
   }
 

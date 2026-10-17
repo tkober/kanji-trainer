@@ -615,22 +615,29 @@ export class LessonsPage {
 
   previous(): void {
     this.index.update((i) => Math.max(0, i - 1));
-    this.markCurrentVisited();
+    this.enterCurrentItem();
   }
 
   next(): void {
     this.index.update((i) => Math.min(this.items().length - 1, i + 1));
-    this.markCurrentVisited();
+    this.enterCurrentItem();
   }
 
   /** A tile click (issue #87) -- same visited bookkeeping as stepping there
    *  one item at a time. */
   protected jumpTo(i: number): void {
     this.index.set(Math.max(0, Math.min(this.items().length - 1, i)));
-    this.markCurrentVisited();
+    this.enterCurrentItem();
   }
 
-  private markCurrentVisited(): void {
+  /** Every move to another item (Back, Next, a tile, "I know this one")
+   *  starts it from the top, so it never opens halfway down the previous
+   *  item's mnemonics -- with the sticky bar, Next is reachable from
+   *  anywhere on the page (issue #87). */
+  private enterCurrentItem(): void {
+    if (typeof window !== 'undefined' && window.scrollY > 0) {
+      window.scrollTo({ top: 0 });
+    }
     const id = this.current()?.subject.id;
     if (id === undefined) {
       return;
@@ -790,6 +797,7 @@ export class LessonsPage {
       this.items.set(rest);
       // Clamp for the case where the declared item was the last one.
       this.index.update((i) => Math.min(i, rest.length - 1));
+      this.enterCurrentItem();
       this.error.set(null);
     } catch (err) {
       this.error.set((err as Error).message);

@@ -287,8 +287,16 @@
                   I know this one
                 </button>
                 @if (onLastItem()) {
-                  <button type="button" sumiButton variant="primary" [disabled]="busy()" (click)="goToQuizGate()">
-                    Continue to quiz
+                  <button
+                    type="button"
+                    sumiButton
+                    variant="primary"
+                    aria-label="Continue to quiz"
+                    [disabled]="busy()"
+                    (click)="goToQuizGate()"
+                  >
+                    <span class="quiz-label">Continue to quiz</span>
+                    <span class="quiz-label-short" aria-hidden="true">Quiz</span>
                   </button>
                 } @else {
                   <button type="button" sumiButton variant="primary" (click)="next()">Next</button>
