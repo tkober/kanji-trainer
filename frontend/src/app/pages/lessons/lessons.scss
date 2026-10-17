@@ -62,15 +62,6 @@ sumi-prompt-card {
   margin-bottom: 1rem;
 }
 
-.nav {
-  margin-top: 1rem;
-}
-
-.footnote {
-  font-size: 0.85rem;
-  margin-bottom: 0;
-}
-
 /* --- reading phase: three cards, container-queried (issue #86) ---------- */
 
 /* The query container -- a plain wrapper, not the grid itself: container
@@ -156,11 +147,137 @@ sumi-prompt-card {
   min-width: 0;
 }
 
-/* Mnemonics and context sentences only -- the nav row and the radical
-   illustration stay full width. ~70ch keeps a long mnemonic readable
-   however wide the content column ends up. */
+/* Mnemonics and context sentences only -- the radical illustration stays
+   full width. ~70ch keeps a long mnemonic readable however wide the
+   content column ends up. */
 .prose {
   max-width: 70ch;
+}
+
+/* --- reading phase: sticky action bar, tiles, focus mode (issue #87) ---- */
+
+/* The header's "Batch N of M" + "End session" while reading or at the quiz
+   gate -- registered into the shell via `*sumiShellFocusActions`, not
+   rendered here (see the `*sumiShellFocusActions` comment in the template).
+   `sumi-session-bar` would fit the look but always shows accuracy, which
+   neither phase has one of yet. */
+.focus-actions {
+  display: flex;
+  align-items: center;
+  gap: var(--sumi-space-3);
+  min-width: 0;
+
+  span {
+    font-size: var(--sumi-text-sm);
+    white-space: nowrap;
+  }
+}
+
+/* The tile strip shown above the item card below 900px -- the bar's own
+   copy (`.bar-left`) takes over at 900px+, see the container query above
+   and `app-batch-tiles`' own comment for why this is rendered twice rather
+   than moved by JS. */
+.reading-tiles-top {
+  display: flex;
+  justify-content: center;
+  margin-bottom: var(--sumi-space-4);
+}
+
+/* "I already know all N" + its info popover, at the end of the content
+   below 900px -- the bar's own copy (inside `.bar-left`) takes over at
+   900px+. */
+.reading-know-all-mobile {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 0.4rem;
+  margin-top: var(--sumi-space-4);
+}
+
+/* The paragraph projected into `app-info-popover` here (see the component's
+   own doc comment on why this styling lives with the caller, not with it). */
+.info-popover p {
+  margin: 0;
+  font-size: 0.85rem;
+  line-height: 1.45;
+}
+
+.bar-left {
+  display: none;
+  align-items: center;
+  gap: 0.6rem;
+  /* Takes the row's slack, and the tile strip inside it (min-width: 0,
+     scrolls on its own) gives way first when a long batch would not fit. */
+  flex: 1 1 auto;
+  min-width: 0;
+
+  button {
+    flex: none;
+    white-space: nowrap;
+  }
+}
+
+.bar-right {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  flex: none;
+}
+
+.divider {
+  width: 1px;
+  height: 1.5rem;
+  background: var(--sumi-line);
+  flex: none;
+}
+
+.back-icon,
+.quiz-label-short {
+  display: none;
+}
+
+/* Narrow bar (issue #87): Back icon-only and "Continue to quiz" shortened
+   to "Quiz", each with an `aria-label` carrying the full name -- so the
+   three buttons share one row on a 360px phone instead of wrapping Next onto
+   a second line. "I know this one" takes whatever width is left. */
+@container (max-width: 479px) {
+  .back-label,
+  .quiz-label {
+    display: none;
+  }
+
+  .back-icon,
+  .quiz-label-short {
+    display: inline;
+  }
+
+  .bar-right {
+    flex: 1 1 auto;
+    min-width: 0;
+    display: grid;
+    grid-template-columns: auto minmax(0, 1fr) auto;
+
+    button {
+      padding-inline: var(--sumi-space-3);
+      white-space: nowrap;
+    }
+  }
+}
+
+/* The bar's own left section takes over from the two narrow-width copies
+   above at 900px+ (issue #87) -- this has to come *after* the base rules
+   above in source order: same specificity either way, and an `@container`
+   block earlier in the file (e.g. next to `.reading-grid`'s own) would lose
+   to these later plain rules instead of overriding them. */
+@container (min-width: 900px) {
+  .reading-tiles-top,
+  .reading-know-all-mobile {
+    display: none;
+  }
+
+  .bar-left {
+    display: flex;
+  }
 }
 
 /* --- selection phase ----------------------------------------------------- */
@@ -222,8 +339,10 @@ sumi-legend {
 
 /* Sticks above the phone tab bar rather than behind it. It only started
    sticking at all once sumi-ui#90 stopped <main> from being its scroll
-   container. */
-.action-bar {
+   container. Shared with the reading phase's own bottom bar (issue #87,
+   `.reading-bar`) -- one look, not a second copy. */
+.action-bar,
+.reading-bar {
   position: sticky;
   bottom: var(--sumi-shell-bottom-height);
   display: flex;
@@ -244,6 +363,12 @@ sumi-legend {
 
 .spacer {
   flex: 1;
+}
+
+/* One row always: the tile strip scrolls and the narrow-bar rules shorten
+   labels, so nothing needs to wrap here, unlike the selection bar. */
+.reading-bar {
+  flex-wrap: nowrap;
 }
 
 /* --- quiz phase --------------------------------------------------------- */

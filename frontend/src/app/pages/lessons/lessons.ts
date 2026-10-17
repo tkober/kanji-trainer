@@ -1,6 +1,6 @@
 import { Component, computed, inject, signal } from '@angular/core';
 import { RouterLink } from '@angular/router';
-import { SUMI_KEYS, SumiHotkeys, injectHotkey } from 'sumi-ui/core';
+import { SUMI_KEYS, SumiHotkeys, SumiKeyboardVisibility, injectHotkey } from 'sumi-ui/core';
 import {
   SumiBanner,
   SumiCard,
@@ -31,10 +31,12 @@ import { Mnemonic } from '../../core/mnemonic';
 import { reinsert, shuffleQuestions } from '../../core/review-queue';
 import { LevelPicker } from '../../shared/level-picker/level-picker';
 import { ContextSentences } from '../../shared/context-sentences/context-sentences';
+import { InfoPopover } from '../../shared/info-popover/info-popover';
 import { ItemTile } from '../../shared/item-tile/item-tile';
 import { RadicalIllustration } from '../../shared/radical-illustration/radical-illustration';
 import { Readings } from '../../shared/readings/readings';
 import { Synonyms } from '../../shared/synonyms/synonyms';
+import { BatchTiles, type BatchTileData } from './batch-tiles';
 
 /** One item in the quiz, with the questions it still owes. */
 interface QuizCard {
@@ -119,7 +121,9 @@ function questionsCount(items: readonly { subject: { object_type: ObjectType } }
 @Component({
   selector: 'app-lessons',
   imports: [
+    BatchTiles,
     ContextSentences,
+    InfoPopover,
     ItemTile,
     LevelPicker,
     Mnemonic,
@@ -147,6 +151,10 @@ export class LessonsPage {
   private readonly api = inject(Api);
   protected readonly counters = inject(Counters);
   private readonly hotkeys = inject(SumiHotkeys);
+  /** Hides the reading phase's own sticky action bar while the on-screen
+   *  keyboard is open (issue #87) -- same signal the shell itself reads to
+   *  hide its bottom tab bar, so the bar does not cover the synonym field. */
+  protected readonly keyboard = inject(SumiKeyboardVisibility);
 
   protected readonly phase = signal<Phase>('select');
 
@@ -193,6 +201,34 @@ export class LessonsPage {
 
   protected readonly items = signal<LessonItem[]>([]);
   protected readonly index = signal(0);
+
+  /** Subject ids seen this batch (issue #87's item tiles) -- by id, not
+   *  array index: `markCurrentKnown()` splices an item out of `items()`,
+   *  which would leave an index-based set pointing at the wrong neighbour
+   *  the moment that happens. Reset in `openChunk()`, below. */
+  protected readonly visited = signal<ReadonlySet<number>>(new Set());
+
+  /** `app-batch-tiles`' own view of the current batch -- plain data, not
+   *  `toneFor`/`typeLabel` handed down as functions, so that component
+   *  stays decoupled from `api.types` and this page's own helpers. */
+  protected readonly batchTiles = computed<BatchTileData[]>(() => {
+    const items = this.items();
+    const total = items.length;
+    return items.map((item, i) => {
+      const subject = item.subject;
+      return {
+        id: subject.id,
+        characters: subject.characters,
+        imageUrl: subject.character_image_url,
+        alt: subject.slug,
+        tone: this.toneFor(subject.object_type),
+        isWord: subject.object_type === 'vocabulary' || subject.object_type === 'kana_vocabulary',
+        ariaLabel:
+          `${subject.characters ?? subject.slug}, ${this.typeLabel(subject.object_type).toLowerCase()}, ` +
+          `item ${i + 1} of ${total}`,
+      };
+    });
+  });
 
   protected readonly queue = signal<QuizCard[]>([]);
   protected readonly value = signal('');
@@ -512,12 +548,15 @@ export class LessonsPage {
   // --- the run --------------------------------------------------------
 
   private openChunk(i: number): void {
-    this.items.set(this.chunks()[i] ?? []);
+    const items = this.chunks()[i] ?? [];
+    this.items.set(items);
     this.index.set(0);
     this.phase.set('reading');
     this.queue.set([]);
     this.feedback.set(null);
     this.value.set('');
+    // Fresh batch, fresh tile strip -- only the first item starts visited.
+    this.visited.set(items[0] ? new Set([items[0].subject.id]) : new Set());
   }
 
   /** Commit the current chunk, or wrap up the whole run if it was the last one. */
@@ -576,10 +615,34 @@ export class LessonsPage {
 
   previous(): void {
     this.index.update((i) => Math.max(0, i - 1));
+    this.enterCurrentItem();
   }
 
   next(): void {
     this.index.update((i) => Math.min(this.items().length - 1, i + 1));
+    this.enterCurrentItem();
+  }
+
+  /** A tile click (issue #87) -- same visited bookkeeping as stepping there
+   *  one item at a time. */
+  protected jumpTo(i: number): void {
+    this.index.set(Math.max(0, Math.min(this.items().length - 1, i)));
+    this.enterCurrentItem();
+  }
+
+  /** Every move to another item (Back, Next, a tile, "I know this one")
+   *  starts it from the top, so it never opens halfway down the previous
+   *  item's mnemonics -- with the sticky bar, Next is reachable from
+   *  anywhere on the page (issue #87). */
+  private enterCurrentItem(): void {
+    if (typeof window !== 'undefined' && window.scrollY > 0) {
+      window.scrollTo({ top: 0 });
+    }
+    const id = this.current()?.subject.id;
+    if (id === undefined) {
+      return;
+    }
+    this.visited.update((set) => (set.has(id) ? set : new Set(set).add(id)));
   }
 
   /** The last item's "Continue to quiz" button -- the new `gate` phase
@@ -734,6 +797,7 @@ export class LessonsPage {
       this.items.set(rest);
       // Clamp for the case where the declared item was the last one.
       this.index.update((i) => Math.min(i, rest.length - 1));
+      this.enterCurrentItem();
       this.error.set(null);
     } catch (err) {
       this.error.set((err as Error).message);
@@ -762,6 +826,11 @@ export class LessonsPage {
   }
 
   // --- presentation -----------------------------------------------------
+
+  /** The "I already know all N" info popover's button label (issue #87) --
+   *  one constant, since the button is rendered twice (mobile and desktop
+   *  bar, see lessons.html) but means the same thing either way. */
+  protected readonly knowAllInfoLabel = 'What does "I already know all" do?';
 
   protected typeLabel(type: ObjectType): string {
     return {

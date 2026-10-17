@@ -3,6 +3,7 @@ import { SumiHoldFocus } from 'sumi-ui/practice';
 
 import type { ObjectType, Reading } from '../../core/api.types';
 import { type ReadingGroup, readingGroups } from '../../core/readings';
+import { InfoPopover } from '../info-popover/info-popover';
 
 /** A flyout's worth of explanation for one reading type, plus the link every
  *  flyout ends with. English, short — this is a reminder, not the full
@@ -23,8 +24,6 @@ const COMMON_INFO =
   'Reviews ask for the reading taught first; the others are shown dimmed as “not asked in ' +
   'reviews”. Answering with one of those is not counted as a mistake — you are simply asked again.';
 
-let nextInstanceId = 0;
-
 /**
  * One item's readings, grouped and rendered — shared by the review "Show
  * item" panel, the lessons reading phase and the browse detail dialog, which
@@ -43,15 +42,13 @@ let nextInstanceId = 0;
  */
 @Component({
   selector: 'app-readings',
-  imports: [SumiHoldFocus],
+  imports: [SumiHoldFocus, InfoPopover],
   templateUrl: './readings.html',
   styleUrl: './readings.scss',
 })
 export class Readings {
   readonly readings = input.required<Reading[]>();
   readonly objectType = input.required<ObjectType>();
-
-  private readonly instanceId = `readings-${++nextInstanceId}`;
 
   protected readonly groups = computed<ReadingGroup[]>(() => readingGroups(this.readings()));
 
@@ -64,10 +61,6 @@ export class Readings {
   }
 
   protected readonly commonInfo = COMMON_INFO;
-
-  protected popoverId(type: string): string {
-    return `${this.instanceId}-info-${type}`;
-  }
 
   /** Which converted (on'yomi) readings currently show their hiragana because
    *  of a tap — hover is plain CSS (`@media (hover: hover)`) and needs none

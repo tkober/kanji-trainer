@@ -15,6 +15,23 @@
     />
   }
 
+  <!-- Reading and the quiz gate both run in focus mode (issue #87), so this
+       stays registered across the whole reading -> gate -> reading range --
+       one `*sumiShellFocusActions` for both phases rather than two that
+       would have to hand off to each other on every transition. `end`
+       replaces "Back to selection" in the header -- same label and action
+       the quiz's own `sumi-session-bar` uses. -->
+  @if (phase() === 'reading' || phase() === 'gate') {
+    <div *sumiShellFocusActions class="focus-actions">
+      @if (totalChunks() > 1) {
+        <span class="muted sumi-tabular">Batch {{ chunkIndex() + 1 }} of {{ totalChunks() }}</span>
+      }
+      <button type="button" sumiButton variant="ghost" size="sm" [disabled]="busy()" (click)="backToSelection()">
+        End session
+      </button>
+    </div>
+  }
+
   @if (loadFailed()) {
     <!-- No pattern and no page-end landscape: the page title already carries
          the band (T4), and the error state brings its own landscape. -->
@@ -121,14 +138,6 @@
         </section>
       }
     } @else if (phase() === 'reading') {
-      <p class="muted count">
-        @if (totalChunks() > 1) {
-          Batch {{ chunkIndex() + 1 }} of {{ totalChunks() }} · {{ items().length }} in this batch
-        } @else {
-          {{ items().length }} in this batch
-        }
-      </p>
-
       @if (current(); as item) {
         <!-- Three cards in a container-queried layout (issue #86): the item
              and facts cards stay with the glyph in a sticky left column once
@@ -136,13 +145,33 @@
              its own without the item ever leaving view. Below 900px content
              width (not viewport -- `.reading` is the query container) the
              three stack and everything scrolls normally, see `.reading` /
-             `.reading-grid` / `.reading-aside` below. -->
-        <div class="reading">
+             `.reading-grid` / `.reading-aside` below.
+
+             The sticky action bar lives inside this same container (issue
+             #87), so its own 900px container query matches the grid's --
+             and so do the two breakpoint-swapped copies of the tile strip
+             and "I already know all N" (`.reading-tiles-top` /
+             `.reading-know-all-mobile` vs. `.bar-left`), toggled with
+             `display: none` in lessons.scss rather than moved by JS. -->
+        <div class="reading" sumiFocusMode>
+          <!-- A plain wrapper, not a class on `<app-batch-tiles>` itself --
+               that component's host is `display: contents` (same
+               convention as `app-item-tile`), so a layout class belongs on
+               a real box around it, not on the host that disappears. -->
+          <div class="reading-tiles-top">
+            <app-batch-tiles
+              [tiles]="batchTiles()"
+              [current]="index()"
+              [visited]="visited()"
+              (jump)="jumpTo($event)"
+            />
+          </div>
+
           <div class="reading-grid">
             <div class="reading-aside">
               <sumi-prompt-card
                 [text]="item.subject.characters ?? undefined"
-                [meta]="[typeLabel(item.subject.object_type), 'Level ' + item.subject.level, (index() + 1) + ' / ' + items().length]"
+                [meta]="[typeLabel(item.subject.object_type), 'Level ' + item.subject.level]"
                 [tone]="toneFor(item.subject.object_type)"
               >
                 @if (!item.subject.characters && item.subject.character_image_url) {
@@ -204,84 +233,106 @@
                 [subjectId]="item.subject.id"
                 [objectType]="item.subject.object_type"
               />
+            </sumi-card>
+          </div>
 
-              <!-- Stays at the end of the content card for now; issue #87
-                   moves it into a sticky action bar. -->
-              <div class="row nav">
-                <button
-                  type="button"
-                  sumiButton
-                  [disabled]="index() === 0"
-                  (click)="previous()"
-                >
-                  Back
+          <!-- Below 900px only -- moved to the end of the content, after
+               the content card (issue #87); the bar's own copy below
+               carries it at 900px+. -->
+          <div class="reading-know-all-mobile">
+            <button type="button" sumiButton variant="ghost" [disabled]="busy()" (click)="markChunkKnown()">
+              I already know all {{ items().length }}
+            </button>
+            <app-info-popover [label]="knowAllInfoLabel">
+              <p>
+                The fast way through items you already know from elsewhere: they go straight to
+                “known”, with no quiz and without ever entering the review queue.
+              </p>
+            </app-info-popover>
+          </div>
+
+          <!-- The sticky action bar (issue #87, E1 variant A) -- hidden
+               while the on-screen keyboard is open (the synonym field in
+               the aside above), same signal the shell uses to hide its own
+               tab bar. -->
+          @if (!keyboard.isOpen()) {
+            <div class="reading-bar">
+              <div class="bar-left">
+                <app-batch-tiles
+                  [tiles]="batchTiles()"
+                  [current]="index()"
+                  [visited]="visited()"
+                  (jump)="jumpTo($event)"
+                />
+                <span class="divider" aria-hidden="true"></span>
+                <button type="button" sumiButton variant="ghost" [disabled]="busy()" (click)="markChunkKnown()">
+                  I already know all {{ items().length }}
+                </button>
+                <app-info-popover [label]="knowAllInfoLabel">
+                  <p>
+                    The fast way through items you already know from elsewhere: they go straight to
+                    “known”, with no quiz and without ever entering the review queue.
+                  </p>
+                </app-info-popover>
+              </div>
+
+              <span class="spacer"></span>
+
+              <div class="bar-right">
+                <button type="button" sumiButton [disabled]="index() === 0" aria-label="Back" (click)="previous()">
+                  <span class="back-label">Back</span>
+                  <span class="back-icon" aria-hidden="true">←</span>
+                </button>
+                <button type="button" sumiButton [disabled]="busy()" (click)="markCurrentKnown()">
+                  I know this one
                 </button>
                 @if (onLastItem()) {
                   <button
                     type="button"
                     sumiButton
                     variant="primary"
+                    aria-label="Continue to quiz"
                     [disabled]="busy()"
                     (click)="goToQuizGate()"
                   >
-                    Continue to quiz
+                    <span class="quiz-label">Continue to quiz</span>
+                    <span class="quiz-label-short" aria-hidden="true">Quiz</span>
                   </button>
                 } @else {
-                  <button type="button" sumiButton (click)="next()">Next</button>
+                  <button type="button" sumiButton variant="primary" (click)="next()">Next</button>
                 }
-                <button type="button" sumiButton [disabled]="busy()" (click)="markCurrentKnown()">
-                  I know this one
-                </button>
               </div>
-            </sumi-card>
-          </div>
+            </div>
+          }
         </div>
       }
-
-      <sumi-card class="batch">
-        <div class="row">
-          <button type="button" sumiButton [disabled]="busy()" (click)="markChunkKnown()">
-            I already know all {{ items().length }}
-          </button>
-          <button
-            type="button"
-            sumiButton
-            [disabled]="busy()"
-            (click)="backToSelection()"
-          >
-            Back to selection
-          </button>
-        </div>
-        <p class="muted footnote">
-          The fast way through items you already know from elsewhere: they go straight to “known”,
-          with no quiz and without ever entering the review queue. “Back to selection” abandons any
-          batch not yet committed; batches already started stay started.
-        </p>
-      </sumi-card>
     } @else if (phase() === 'gate') {
-      <sumi-session-gate
-        title="Quiz time"
-        [text]="gateText()"
-        companion="tsuru"
-        [showAction]="false"
-        (start)="startQuiz()"
-      >
-        <!-- Own buttons rather than the gate's, so "Back to reading" can sit
-             after the primary action instead of above it. Enter still starts. -->
-        <div class="row gate-actions">
-          <button
-            type="button"
-            sumiButton
-            variant="primary"
-            (click)="startQuiz()"
-          >
-            Start quiz
-          </button>
-          <button type="button" sumiButton variant="ghost" (click)="backToReading()">
-            Back to reading
-          </button>
-        </div>
-      </sumi-session-gate>
+      <div sumiFocusMode>
+        <sumi-session-gate
+          title="Quiz time"
+          [text]="gateText()"
+          companion="tsuru"
+          [showAction]="false"
+          (start)="startQuiz()"
+        >
+          <!-- Own buttons rather than the gate's, so "Back to reading" can
+               sit after the primary action instead of above it. Enter
+               still starts. -->
+          <div class="row gate-actions">
+            <button
+              type="button"
+              sumiButton
+              variant="primary"
+              (click)="startQuiz()"
+            >
+              Start quiz
+            </button>
+            <button type="button" sumiButton variant="ghost" (click)="backToReading()">
+              Back to reading
+            </button>
+          </div>
+        </sumi-session-gate>
+      </div>
     } @else if (phase() === 'ended') {
       <!-- No title: sumi-session-summary supplies its own heading. -->
       <sumi-session-gate [showAction]="false" companion="tsuru" (start)="restartFromEnded()">

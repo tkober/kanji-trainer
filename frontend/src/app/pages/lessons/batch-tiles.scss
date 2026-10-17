@@ -1,0 +1,96 @@
+/* `display: contents` so the component itself never becomes a flex item --
+   the strip below is, promoted straight into the bar/strip row it is
+   placed in (same convention as `app-item-tile`). */
+:host {
+  display: contents;
+}
+
+/* Horizontal scroll, not wrap: a batch can run to 100 items (issue #87),
+   and a strip that wrapped would break the action bar it lives in. The
+   container query below answers to `.reading`'s own container (lessons.scss),
+   since this component's styles are not scoped out of that by Angular's
+   emulated encapsulation -- `@container` resolves on the box tree, not on
+   component identity. */
+.strip {
+  /* Offset parent for the tiles' `offsetLeft`, see `keepInView()`. */
+  position: relative;
+  display: flex;
+  gap: 0.4rem;
+  min-width: 0;
+  overflow-x: auto;
+  scrollbar-width: thin;
+  padding: 2px;
+}
+
+.tile {
+  position: relative;
+  flex: none;
+  width: 40px;
+  height: 40px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: var(--sumi-radius);
+  border: 1px solid var(--sumi-line);
+  background: var(--sumi-surface);
+  /* Not yet visited: muted text (issue #87's three states). */
+  color: var(--sumi-muted);
+  font-family: inherit;
+  padding: 0;
+  cursor: pointer;
+  overflow: hidden;
+
+  img {
+    width: 60%;
+    height: 60%;
+    object-fit: contain;
+  }
+
+  /* The type stripe, in the item's own tone -- `toneFor()` in lessons.ts. */
+  &::after {
+    content: '';
+    position: absolute;
+    inset: auto 0 0 0;
+    height: 3px;
+    background: var(--tile-tone);
+  }
+
+  /* Visited this batch: full-strength text. */
+  &.visited {
+    color: var(--sumi-text);
+  }
+
+  /* The current item: accent border, `aria-current` carries this for a11y. */
+  &.current {
+    border-color: var(--sumi-accent);
+    border-width: 2px;
+    color: var(--sumi-text);
+  }
+
+  /* Vocabulary sizes to the word (issue #71's `fitWord`, same reasoning) --
+     アメリカ人 is not as tall as it is wide. */
+  &.word {
+    width: max-content;
+    min-width: 40px;
+    padding: 0 0.5rem;
+  }
+
+  &:focus-visible {
+    outline: 3px solid var(--sumi-accent);
+    outline-offset: 1px;
+  }
+}
+
+/* Below ~480px (the bar's own narrow breakpoint, lessons.scss), the tiles
+   shrink rather than keep eating width the Back/Next buttons need. */
+@container (max-width: 479px) {
+  .tile {
+    width: 32px;
+    height: 32px;
+
+    &.word {
+      min-width: 32px;
+      padding: 0 0.4rem;
+    }
+  }
+}

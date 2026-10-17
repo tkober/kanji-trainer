@@ -1,0 +1,12 @@
+<button
+  type="button"
+  sumiHoldFocus
+  class="info"
+  [attr.aria-label]="label()"
+  [attr.popovertarget]="popoverId"
+>
+  i
+</button>
+<div [id]="popoverId" popover class="info-popover">
+  <ng-content />
+</div>
