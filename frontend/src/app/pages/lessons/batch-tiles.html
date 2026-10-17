@@ -1,0 +1,22 @@
+<div class="strip">
+  @for (tile of tiles(); track tile.id; let i = $index) {
+    <button
+      type="button"
+      #tileEl
+      class="tile"
+      [class.word]="tile.isWord"
+      [class.current]="i === current()"
+      [class.visited]="i !== current() && visited().has(tile.id)"
+      [style.--tile-tone]="tile.tone"
+      [attr.aria-current]="i === current() ? 'true' : null"
+      [attr.aria-label]="tile.ariaLabel"
+      (click)="onClick(i)"
+    >
+      @if (tile.characters) {
+        <span lang="ja">{{ tile.characters }}</span>
+      } @else if (tile.imageUrl) {
+        <img [src]="tile.imageUrl" [alt]="tile.alt" />
+      }
+    </button>
+  }
+</div>

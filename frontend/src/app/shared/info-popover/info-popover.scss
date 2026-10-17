@@ -1,0 +1,56 @@
+/* `display: contents`: the button and the popover (never both visible
+   anywhere else in the box) sit directly in whatever row this is placed
+   in, same convention as `app-item-tile`. */
+:host {
+  display: contents;
+}
+
+/* The (i) button: small, round, never louder than the heading/control it
+   sits next to -- it is a reminder on demand, not a call to action.
+   `font: inherit` lets it sit inside an uppercase, letter-spaced `<dt>`
+   (app-readings) and still read as plain text -- harmless where there is
+   no such ancestor (lessons.html's bar). */
+.info {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 1.1rem;
+  height: 1.1rem;
+  padding: 0;
+  border-radius: 50%;
+  border: 1px solid var(--sumi-muted);
+  background: none;
+  color: var(--sumi-muted);
+  font: inherit;
+  font-size: 0.65rem;
+  font-style: italic;
+  line-height: 1;
+  text-transform: none;
+  letter-spacing: 0;
+  cursor: pointer;
+
+  &:hover {
+    border-color: var(--sumi-accent-ink);
+    color: var(--sumi-accent-ink);
+    background: none;
+  }
+}
+
+/* The native Popover API: light-dismiss and the top layer come for free,
+   and its default UA position -- centred in the viewport -- needs no
+   anchoring maths to stay on screen at 390px. Only the container's own
+   look lives here; the projected content keeps whatever styles its own
+   caller gives it (see e.g. `app-readings`' `.title`/`.common` rules, or
+   lessons.scss' `.info-popover p`). */
+.info-popover {
+  max-width: min(22rem, calc(100vw - 2rem));
+  background: var(--sumi-surface);
+  color: var(--sumi-text);
+  border: 1px solid var(--sumi-line);
+  border-radius: var(--sumi-radius);
+  box-shadow: var(--sumi-shadow);
+  padding: 0.9rem 1rem;
+  text-transform: none;
+  letter-spacing: 0;
+  font-weight: 400;
+}

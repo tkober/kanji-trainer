@@ -52,75 +52,37 @@ dd {
   }
 }
 
-/* The (i) button: small, round, never louder than the heading it sits next
-   to — it is a reminder on demand, not a call to action. */
-.info {
-  display: inline-flex;
-  align-items: center;
-  justify-content: center;
-  width: 1.1rem;
-  height: 1.1rem;
-  padding: 0;
-  border-radius: 50%;
-  border: 1px solid var(--sumi-muted);
-  background: none;
-  color: var(--sumi-muted);
-  font: inherit;
-  font-size: 0.65rem;
-  font-style: italic;
-  line-height: 1;
-  text-transform: none;
-  letter-spacing: 0;
-  cursor: pointer;
-
-  &:hover {
-    border-color: var(--sumi-accent-ink);
-    color: var(--sumi-accent-ink);
-    background: none;
-  }
+/* The (i) button and the popover container now live in `app-info-popover`
+   (issue #87, extracted so the lessons reading phase's "I already know all
+   N" info can reuse the exact same look). What stays here is only the look
+   of what this component projects *into* that popover -- Angular's
+   emulated encapsulation scopes a component's own stylesheet to elements
+   declared in its own template, so these rules would not reach content
+   declared inside `app-info-popover`'s own template, but do reach this
+   (projected) content exactly as before extraction. */
+.title {
+  display: block;
+  margin: 0 0 0.4rem;
+  font-size: 0.95rem;
+  font-weight: 700;
 }
 
-/* The native Popover API: light-dismiss (outside click, a second click on the
-   invoker, Esc) and the top layer come for free, and its default UA position
-   — centred in the viewport — needs no anchoring maths to stay on screen at
-   390px. `sumiHoldFocus` on the invoking button keeps this from taking the
-   caret on the review screen; opening the popover itself moves no focus. */
-.info-popover {
-  max-width: min(22rem, calc(100vw - 2rem));
-  background: var(--sumi-surface);
-  color: var(--sumi-text);
-  border: 1px solid var(--sumi-line);
-  border-radius: var(--sumi-radius);
-  box-shadow: var(--sumi-shadow);
-  padding: 0.9rem 1rem;
+p {
+  margin: 0 0 0.5rem;
+  font-size: 0.85rem;
+  line-height: 1.45;
   /* Inside a <dt>, which is uppercase and letter-spaced; none of that here. */
   text-transform: none;
   letter-spacing: 0;
-  font-weight: 400;
+  color: var(--sumi-text);
+}
 
-  .title {
-    display: block;
-    margin: 0 0 0.4rem;
-    font-size: 0.95rem;
-    font-weight: 700;
-  }
+.common {
+  color: var(--sumi-muted);
+}
 
-  p {
-    margin: 0 0 0.5rem;
-    font-size: 0.85rem;
-    line-height: 1.45;
-    text-transform: none;
-    letter-spacing: 0;
-    color: var(--sumi-text);
-  }
-
-  .common {
-    color: var(--sumi-muted);
-  }
-
-  a {
-    font-size: 0.85rem;
-  }
+a {
+  font-size: 0.85rem;
 }
 
 /* A reading that WaniKani stores in hiragana but is shown in katakana
