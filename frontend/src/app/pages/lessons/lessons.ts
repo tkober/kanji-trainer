@@ -43,7 +43,6 @@ import {
   canGoBack,
   canGoForward,
   canMarkKnown,
-  canOpenHelp,
 } from './reading-hotkeys';
 
 /** One item in the quiz, with the questions it still owes. */
@@ -422,35 +421,16 @@ export class LessonsPage {
       handler: () => void this.markCurrentKnown(),
     });
 
-    // `?`: a settled quiz verdict is on screen (unchanged), or the reading
-    // phase outside the synonym field (issue #88, `canOpenHelp`).
-    //
-    // Kept at scope `feedback`, not `page`: `sumi-hotkey-help` itself already
-    // registers `?` unconditionally at scope `page` (its own "Show hotkeys"
-    // toggle, blocked only by the ground rule while a field has focus). That
-    // default alone already covers reading's plain case -- nothing but this
-    // registration's own `allowInEditable` is actually needed for the quiz's
-    // read-only-but-still-`<input>` field, which stays focused (and so
-    // "editable") even once a verdict is settled, blocking the default via
-    // the ground rule. Using scope `page` here too (tried and reverted) made
-    // the default and this registration both enabled at once wherever this
-    // one is, which showed up as two near-identical "On this page" rows in
-    // the help panel and the dev-mode "multiple registrations match"
-    // warning on every `?` press -- `feedback`'s own "After answering"
-    // heading at least keeps the two visually apart. Extending `enabled()`
-    // to reading still means that warning fires there (two registrations
-    // really are enabled at once, the default among them) -- harmless
-    // (dev-mode only, the most-recently-registered one wins the same way
-    // the quiz override already relies on) but worth knowing about. The
-    // label drops "after answering", no longer the only case this is up for.
+    // `?` only becomes a hotkey once a settled quiz verdict is up -- same
+    // reasoning as the review screen. In the reading phase (issue #88)
+    // `sumi-hotkey-help`'s own default `?` already opens the help, and the
+    // ground rule keeps it out of the synonym field, so nothing extra here.
     injectHotkey({
       keys: SUMI_KEYS.help,
-      label: 'Toggle this menu',
+      label: 'Toggle this menu (after answering)',
       scope: 'feedback',
       allowInEditable: true,
-      enabled: () =>
-        (this.phase() === 'quiz' && this.hasSettledFeedback()) ||
-        canOpenHelp(this.readingHotkeyState(), document.activeElement),
+      enabled: () => this.phase() === 'quiz' && this.hasSettledFeedback(),
       handler: () => this.hotkeys.toggleHelp(),
     });
   }

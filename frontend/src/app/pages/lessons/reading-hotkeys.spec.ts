@@ -3,7 +3,6 @@ import {
   canGoBack,
   canGoForward,
   canMarkKnown,
-  canOpenHelp,
   type ReadingHotkeyState,
 } from './reading-hotkeys';
 
@@ -84,32 +83,5 @@ describe('canMarkKnown', () => {
   it('is false while busy', () => {
     const div = document.createElement('div');
     expect(canMarkKnown(state({ busy: true }), div)).toBe(false);
-  });
-});
-
-describe('canOpenHelp', () => {
-  it('is true in the reading phase with focus on a non-editable element', () => {
-    const div = document.createElement('div');
-    expect(canOpenHelp(state(), div)).toBe(true);
-  });
-
-  it('is false with focus in an input -- typing "?" into the synonym field must type a "?"', () => {
-    const input = document.createElement('input');
-    expect(canOpenHelp(state(), input)).toBe(false);
-  });
-
-  it('is false with focus in a textarea', () => {
-    const textarea = document.createElement('textarea');
-    expect(canOpenHelp(state(), textarea)).toBe(false);
-  });
-
-  it('is false outside the reading phase', () => {
-    const div = document.createElement('div');
-    expect(canOpenHelp(state({ phase: 'gate' }), div)).toBe(false);
-  });
-
-  it('stays true while busy -- it only shows the help, it does not act', () => {
-    const div = document.createElement('div');
-    expect(canOpenHelp(state({ busy: true }), div)).toBe(true);
   });
 });

@@ -47,14 +47,3 @@ export function canGoForward(state: ReadingHotkeyState): boolean {
 export function canMarkKnown(state: ReadingHotkeyState, activeElement: Element | null): boolean {
   return state.phase === 'reading' && !state.busy && !isEditableTarget(activeElement);
 }
-
-/**
- * The reading-phase half of `?`'s `enabled()` (issue #88) -- the other half,
- * "a settled quiz verdict is on screen", is unchanged and lives in
- * `LessonsPage` itself. Not gated on `busy()`: opening the help view is not
- * one of "the three" hotkeys the issue locks during a write, and reading
- * never busies the page for long enough for that to matter.
- */
-export function canOpenHelp(state: ReadingHotkeyState, activeElement: Element | null): boolean {
-  return state.phase === 'reading' && !isEditableTarget(activeElement);
-}
