@@ -1,0 +1,188 @@
+@switch (roundPhase()) {
+  @case ('active') {
+    <div class="practice-bar" *sumiShellFocusActions>
+      <span class="practice-bar__title">Practice</span>
+      <sumi-badge>No SRS</sumi-badge>
+      <span class="practice-bar__progress sumi-tabular">{{ progressLabel() }}</span>
+      <button type="button" sumiButton variant="ghost" size="sm" (click)="endRound()">End</button>
+    </div>
+
+    <div sumiFocusMode>
+      @if (error(); as message) {
+        <p class="error">{{ message }}</p>
+      }
+      @for (note of skippedNotes(); track note) {
+        <p class="muted skipped-note">{{ note }}</p>
+      }
+
+      <sumi-session-progress ariaLabel="Practice progress" [segments]="progressSegments()" />
+
+      @if (current(); as entry) {
+        <sumi-prompt-card
+          appearance="tinted"
+          [text]="promptText(entry.subject)"
+          [kind]="typeLabel(entry.subject.object_type)"
+          [meta]="['Level ' + entry.subject.level, 'Practice']"
+          [tone]="toneFor(entry.subject.object_type)"
+        >
+          @if (!entry.subject.characters && entry.subject.character_image_url) {
+            <img
+              sumiPromptVisual="ink"
+              [src]="entry.subject.character_image_url"
+              [alt]="entry.subject.slug"
+            />
+          }
+        </sumi-prompt-card>
+
+        <sumi-answer-field
+          #field
+          [mode]="entry.question === 'reading' ? 'kana' : 'latin'"
+          [label]="entry.question === 'reading' ? 'Reading' : 'Meaning'"
+          [modeCue]="true"
+          [placeholder]="entry.question === 'reading' ? 'Reading' : 'Meaning'"
+          [iDontKnow]="true"
+          [(value)]="value"
+          [verdict]="fieldVerdict()"
+          (submitted)="onSubmitted($event)"
+          (confirmed)="onConfirmed()"
+          (edited)="onEdited()"
+          (next)="next()"
+          (gaveUp)="onGaveUp()"
+        />
+
+        <div class="row actions">
+          <button
+            type="button"
+            sumiButton
+            variant="primary"
+            sumiHoldFocus
+            [disabled]="submitting()"
+            (click)="field.submit()"
+          >
+            {{ checkButtonLabel() }}
+          </button>
+        </div>
+
+        @if (settledKind(); as kind) {
+          <sumi-verdict
+            class="verdict"
+            [kind]="kind"
+            [title]="verdictTitle()"
+            [expected]="kind === 'wrong' ? feedback()?.expected : undefined"
+            [message]="verdictMessage()"
+            [(detailsOpen)]="detailsOpen"
+          >
+            @if (feedback()?.subject; as subject) {
+              <div sumiVerdictDetails>
+                @if (gaveUp()) {
+                  <p class="gave-up">Gave up — the answer was revealed.</p>
+                }
+                <dl>
+                  <dt>Meanings</dt>
+                  <dd>{{ primaryMeanings(feedback()!) }}</dd>
+                </dl>
+
+                <app-synonyms
+                  [subjectId]="subject.id"
+                  [synonyms]="subject.synonyms"
+                  (synonymsChange)="onSynonymsChange(subject.id, $event)"
+                  (done)="field.focus()"
+                />
+
+                <app-readings [readings]="subject.readings" [objectType]="subject.object_type" />
+
+                <dl>
+                  @if (subject.parts_of_speech.length > 0) {
+                    <dt>Part of speech</dt>
+                    <dd>{{ subject.parts_of_speech.join(', ') }}</dd>
+                  }
+                  @if (subject.meaning_mnemonic) {
+                    <dt>Meaning mnemonic</dt>
+                    <dd [innerHTML]="subject.meaning_mnemonic | mnemonic"></dd>
+                  }
+                  @if (subject.reading_mnemonic) {
+                    <dt>Reading mnemonic</dt>
+                    <dd [innerHTML]="subject.reading_mnemonic | mnemonic"></dd>
+                  }
+                </dl>
+
+                <app-context-sentences
+                  [sentences]="subject.context_sentences"
+                  [characters]="subject.characters"
+                />
+
+                <app-radical-illustration
+                  [subjectId]="subject.id"
+                  [objectType]="subject.object_type"
+                />
+
+                <dl>
+                  @if (subject.wanikani_url; as url) {
+                    <dt>Source</dt>
+                    <dd>
+                      <a [href]="url" target="_blank" rel="noopener"
+                        >Open the original on WaniKani ↗</a
+                      >
+                    </dd>
+                  }
+                </dl>
+              </div>
+            }
+          </sumi-verdict>
+          <p class="muted hint-line">Enter: next · F: show item</p>
+        }
+      }
+    </div>
+  }
+
+  @case ('ended') {
+    <sumi-session-gate [showAction]="false" companion="tsuru" (start)="goBack()">
+      <sumi-session-summary
+        headline="Practice complete"
+        actionLabel="Back to summary"
+        timePosition="last"
+        [durationMs]="durationMs()"
+        [secondaryActionLabel]="shakyCount() > 0 ? 'Practice again' : undefined"
+        [secondaryActionCount]="shakyCount()"
+        (restart)="goBack()"
+        (secondaryAction)="practiceAgain()"
+      >
+        <sumi-hanko sumiSummaryArt characters="練習" label="Practice" />
+        <div sumiSummaryTile label="Items">{{ endStats()?.items ?? 0 }}</div>
+        <div sumiSummaryTile label="First try">
+          {{ endStats()?.firstTryItems ?? 0 }} <small>({{ firstTryPercent() }}%)</small>
+        </div>
+
+        <div sumiSummaryDetails>
+          <p class="muted">No stage changed.</p>
+          @if (shakyCount() > 0) {
+            <section class="shaky-section">
+              <h3>Still shaky</h3>
+              <div class="chips">
+                @for (subject of endStats()?.shaky ?? []; track subject.id) {
+                  <a
+                    class="chip"
+                    lang="ja"
+                    [routerLink]="['/browse']"
+                    [queryParams]="{ item: subject.id }"
+                    [title]="chipTitle(subject)"
+                    [style.--chip-color]="typeColor(subject.object_type)"
+                  >
+                    @if (subject.characters) {
+                      {{ subject.characters }}
+                    } @else if (subject.character_image_url) {
+                      <img [src]="subject.character_image_url" [alt]="subject.slug" />
+                    } @else {
+                      {{ subject.slug }}
+                    }
+                  </a>
+                }
+              </div>
+              <p class="muted">Needed more than one try. Each opens in Items.</p>
+            </section>
+          }
+        </div>
+      </sumi-session-summary>
+    </sumi-session-gate>
+  }
+}

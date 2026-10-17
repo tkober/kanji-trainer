@@ -15,6 +15,7 @@ import type {
   LessonItem,
   Lessons,
   LevelStats,
+  PracticeOut,
   Queue,
   QuestionType,
   QuizResult,
@@ -100,6 +101,30 @@ export class Api {
 
   startLessons(subjectIds: number[]): Promise<{ changed: number }> {
     return this.post('/api/lessons/start', { subject_ids: subjectIds });
+  }
+
+  /**
+   * "Review mistakes" (#95/#96, epic #85): check one answer against an
+   * item already in the rotation, without touching the SRS at all -- no
+   * `ReviewLog`, no `Progress` change. There is no `confirm` flag here,
+   * unlike `answer()` -- the backend never holds a practice verdict, so the
+   * soft-answer hold is simulated entirely in the frontend (see
+   * `pages/review/review-practice`), which always gets the real verdict
+   * back and decides for itself whether to show it yet. `gaveUp` is Alt+H,
+   * same meaning as `answer()`/`quiz()`.
+   */
+  practiceAnswer(
+    subjectId: number,
+    question: QuestionType,
+    answer: string,
+    gaveUp = false,
+  ): Promise<PracticeOut> {
+    return this.post('/api/practice/answer', {
+      subject_id: subjectId,
+      question,
+      answer,
+      gave_up: gaveUp,
+    });
   }
 
   // --- items and the overrides -----------------------------------------

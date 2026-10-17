@@ -5,6 +5,7 @@ import {
   recordAnswer,
   recordKnown,
   recordReset,
+  requiredQuestions,
   type ReviewTally,
   stageGroup,
   summarize,
@@ -89,6 +90,18 @@ describe('tallyType', () => {
   });
 });
 
+describe('requiredQuestions', () => {
+  it('is meaning-only for a radical and kana_vocabulary', () => {
+    expect(requiredQuestions('radical')).toEqual(['meaning']);
+    expect(requiredQuestions('kana_vocabulary')).toEqual(['meaning']);
+  });
+
+  it('is meaning and reading for kanji and vocabulary', () => {
+    expect(requiredQuestions('kanji')).toEqual(['meaning', 'reading']);
+    expect(requiredQuestions('vocabulary')).toEqual(['meaning', 'reading']);
+  });
+});
+
 describe('recordAnswer', () => {
   it('ignores a held result entirely', () => {
     const tally = recordAnswer(EMPTY_TALLY, subject(1), 'meaning', answer({ held: true }));
@@ -146,6 +159,8 @@ describe('recordAnswer', () => {
     expect(summary.byType.kanji).toEqual({ items: 1, correct: 1, newStage: 1 });
     expect(summary.answers.meaning).toEqual({ answered: 1, correct: 1 });
     expect(summary.answers.reading).toEqual({ answered: 1, correct: 1 });
+    // #96: a rise is not a mistake, nothing to practise.
+    expect(summary.practiceItems).toEqual([]);
   });
 
   it('a kanji with a wrong reading then both correct does not rise, lands in mistakeIds and flow guru->apprentice', () => {
@@ -201,6 +216,9 @@ describe('recordAnswer', () => {
     expect(summary.flow).toEqual([{ from: 'guru', to: 'apprentice', count: 1 }]);
     expect(summary.mistakeIds).toEqual([s.id]);
     expect(summary.answers.reading).toEqual({ answered: 2, correct: 1 });
+    // #96: only the reading was ever wrong this session, so practising this
+    // item should ask only the reading, not the meaning too.
+    expect(summary.practiceItems).toEqual([{ subject: s, questions: ['reading'] }]);
   });
 
   it('Apprentice I with a mistake never drops below it, and is not correct', () => {
@@ -241,6 +259,8 @@ describe('recordAnswer', () => {
     expect(summary.withinStageUp).toBe(0);
     expect(summary.newStageCount).toBe(0);
     expect(summary.mistakeIds).toEqual([s.id]);
+    // #96: a radical has only one question, and it was the one that was wrong.
+    expect(summary.practiceItems).toEqual([{ subject: s, questions: ['meaning'] }]);
   });
 
   it('counts a within-stage rise (Apprentice II -> III) without a group change', () => {
@@ -400,6 +420,137 @@ describe('summarize: open items', () => {
 
     const summary = summarize(tally);
     expect(summary.open).toBe(1);
+  });
+});
+
+describe('summarize: practiceItems (#96, "Review mistakes")', () => {
+  it('practises every required question when a completed non-rise carries no wrong answer this session', () => {
+    const s = subject(40, 'kanji');
+    // Both halves answered correctly this session, but the item still does
+    // not rise -- an earlier, half-answered session is where the mistake
+    // actually happened, and this tally has no record of it.
+    let tally = EMPTY_TALLY;
+    tally = recordAnswer(
+      tally,
+      s,
+      'meaning',
+      answer({
+        correct: true,
+        completed: false,
+        srs_stage_before: 5,
+        srs_stage_after: 5,
+        remaining: ['reading'],
+      }),
+    );
+    tally = recordAnswer(
+      tally,
+      s,
+      'reading',
+      answer({
+        correct: true,
+        completed: true,
+        srs_stage_before: 5,
+        srs_stage_after: 5,
+        remaining: [],
+      }),
+    );
+
+    const summary = summarize(tally);
+    expect(summary.practiceItems).toEqual([{ subject: s, questions: ['meaning', 'reading'] }]);
+  });
+
+  it('excludes an item marked known in this session even if it were somehow also completed', () => {
+    const s = subject(41, 'kanji');
+    let tally = EMPTY_TALLY;
+    tally = recordAnswer(
+      tally,
+      s,
+      'meaning',
+      answer({
+        correct: false,
+        completed: true,
+        srs_stage_before: 3,
+        srs_stage_after: 3,
+        remaining: [],
+      }),
+    );
+    tally = recordKnown(tally, s);
+
+    const summary = summarize(tally);
+    expect(summary.practiceItems).toEqual([]);
+  });
+
+  it('excludes an item reset in this session even if it were somehow also completed', () => {
+    const s = subject(42, 'kanji');
+    let tally = EMPTY_TALLY;
+    tally = recordAnswer(
+      tally,
+      s,
+      'meaning',
+      answer({
+        correct: false,
+        completed: true,
+        srs_stage_before: 3,
+        srs_stage_after: 3,
+        remaining: [],
+      }),
+    );
+    tally = recordReset(tally, s);
+
+    const summary = summarize(tally);
+    expect(summary.practiceItems).toEqual([]);
+  });
+
+  it('never includes an item still open at an early end', () => {
+    const s = subject(43, 'kanji');
+    const tally = recordAnswer(
+      EMPTY_TALLY,
+      s,
+      'meaning',
+      answer({
+        correct: true,
+        completed: false,
+        srs_stage_before: 3,
+        srs_stage_after: 3,
+        remaining: ['reading'],
+      }),
+    );
+
+    const summary = summarize(tally);
+    expect(summary.practiceItems).toEqual([]);
+  });
+
+  it('orders practiceItems in first-seen (completion) order', () => {
+    const a = subject(50, 'radical');
+    const b = subject(51, 'radical');
+    let tally = EMPTY_TALLY;
+    tally = recordAnswer(
+      tally,
+      b,
+      'meaning',
+      answer({
+        correct: false,
+        completed: true,
+        srs_stage_before: 1,
+        srs_stage_after: 1,
+        remaining: [],
+      }),
+    );
+    tally = recordAnswer(
+      tally,
+      a,
+      'meaning',
+      answer({
+        correct: false,
+        completed: true,
+        srs_stage_before: 1,
+        srs_stage_after: 1,
+        remaining: [],
+      }),
+    );
+
+    const summary = summarize(tally);
+    expect(summary.practiceItems.map((p) => p.subject.id)).toEqual([b.id, a.id]);
   });
 });
 

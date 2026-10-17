@@ -10,7 +10,8 @@ export type QuestionType = 'meaning' | 'reading';
 type ItemState = 'new' | 'learning' | 'known' | 'suspended';
 
 /** Mirrors backend/app/models.py REVIEW_ITEM_ORDERS / REVIEW_TYPE_ORDERS. */
-export type ReviewItemOrder = 'random' | 'oldest_first' | 'lowest_stage_first' | 'lowest_level_first';
+export type ReviewItemOrder =
+  'random' | 'oldest_first' | 'lowest_stage_first' | 'lowest_level_first';
 export type ReviewTypeOrder = 'mixed' | 'grouped';
 
 /** What the review queue is allowed to carry: the prompt, never the answer. */
@@ -124,6 +125,24 @@ export interface AnswerResult {
   next_review_at: string | null;
   /** Null while the question is still open, so the answer is not revealed. */
   subject: SubjectDetail | null;
+}
+
+/** A practice verdict (#95/#96, epic #85) -- mirrors backend/app/models.py's
+ *  `PracticeOut`. No SRS fields (practice moves nothing) and no `held`:
+ *  the soft-answer hold is simulated entirely in the frontend, see
+ *  `pages/review/review-practice`. Unlike `AnswerResult`, `expected` and
+ *  `subject` are never withheld -- there is no held verdict to protect them
+ *  from, see `backend/app/api/study.py`'s `practice_answer` for why that is
+ *  safe here. */
+export interface PracticeOut {
+  correct: boolean;
+  expected: string;
+  secondary: boolean;
+  typo: boolean;
+  /** A real reading of the character, of the type not asked. Costs nothing. */
+  retry: boolean;
+  hint: string | null;
+  subject: SubjectDetail;
 }
 
 export interface LessonItem {

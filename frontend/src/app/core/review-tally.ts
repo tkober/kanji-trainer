@@ -55,6 +55,21 @@ export function tallyType(type: ObjectType): TallyType {
   return type === 'kana_vocabulary' ? 'vocabulary' : type;
 }
 
+/** Mirrors backend/app/srs.py's `REQUIRED_QUESTIONS` -- what one review (or
+ * practice round) of this object type asks. Exported for `summarize`'s
+ * "no wrong answer recorded this session" fallback (#96) and for anything
+ * else that needs the same mapping without re-deriving it. */
+const REQUIRED_QUESTIONS: Readonly<Record<ObjectType, readonly QuestionType[]>> = {
+  radical: ['meaning'],
+  kanji: ['meaning', 'reading'],
+  vocabulary: ['meaning', 'reading'],
+  kana_vocabulary: ['meaning'],
+};
+
+export function requiredQuestions(type: ObjectType): readonly QuestionType[] {
+  return REQUIRED_QUESTIONS[type];
+}
+
 export interface CompletedItem {
   subject: SubjectSummary;
   stageBefore: number;
@@ -71,6 +86,12 @@ export interface ReviewTally {
   touchedIds: readonly number[]; // unique
   knownIds: readonly number[]; // "I know this"
   resetIds: readonly number[]; // "Relearn" / reset to Apprentice I
+  /** Per subject, which question types got at least one counted *wrong*
+   *  answer this session (#96, "Review mistakes") -- monotonic, like
+   *  `wrongIds`: once a question is wrong it stays in this set even if a
+   *  later presentation of the same half (same item, re-asked) is answered
+   *  correctly, since the question was still wrong *at some point*. */
+  wrongQuestions: Readonly<Record<number, readonly QuestionType[]>>;
 }
 
 export const EMPTY_TALLY: ReviewTally = {
@@ -83,7 +104,20 @@ export const EMPTY_TALLY: ReviewTally = {
   touchedIds: [],
   knownIds: [],
   resetIds: [],
+  wrongQuestions: {},
 };
+
+function withWrongQuestion(
+  record: Readonly<Record<number, readonly QuestionType[]>>,
+  subjectId: number,
+  question: QuestionType,
+): Readonly<Record<number, readonly QuestionType[]>> {
+  const existing = record[subjectId] ?? [];
+  if (existing.includes(question)) {
+    return record;
+  }
+  return { ...record, [subjectId]: [...existing, question] };
+}
 
 function withId(ids: readonly number[], id: number): readonly number[] {
   return ids.includes(id) ? ids : [...ids, id];
@@ -119,6 +153,9 @@ export function recordAnswer(
     answers,
     touchedIds: withId(tally.touchedIds, subject.id),
     wrongIds: result.correct ? tally.wrongIds : withId(tally.wrongIds, subject.id),
+    wrongQuestions: result.correct
+      ? tally.wrongQuestions
+      : withWrongQuestion(tally.wrongQuestions, subject.id, question),
     completed: result.completed
       ? [
           ...tally.completed,
@@ -147,6 +184,14 @@ export function recordReset(tally: ReviewTally, subject: SubjectSummary): Review
   };
 }
 
+/** One item to practise (#96, "Review mistakes"): the prompt the practice
+ *  round needs plus only the questions it actually owes this round -- see
+ *  `summarize`'s doc comment on how `questions` is chosen. */
+export interface PracticeItem {
+  subject: SubjectSummary;
+  questions: readonly QuestionType[];
+}
+
 export interface TallySummary {
   items: number; // completed.length
   correctItems: number; // completed with stageAfter > stageBefore
@@ -164,8 +209,20 @@ export interface TallySummary {
   /** Touched, but neither completed, known nor reset -- only non-zero when the session was ended early. */
   open: number;
   /** For "Review mistakes" (#85): wrongIds union completed items that did
-   * not rise (stageAfter <= stageBefore), unique, first-seen order. */
+   * not rise (stageAfter <= stageBefore), unique, first-seen order.
+   * Kept for whatever else might read it; `practiceItems` below is what
+   * actually powers the "Review mistakes" button (#96) -- nothing else in
+   * this app reads `mistakeIds` today. */
   mistakeIds: readonly number[];
+  /** The practice round's items (#96): completed items that did not rise,
+   *  excluding ones marked known or reset in this session (a deliberate
+   *  action, not a mistake to drill), first-seen order. Each carries only
+   *  the questions that were wrong *this session*; a completed item that
+   *  did not rise but has no wrong answer recorded this session (its
+   *  mistake came from an earlier, half-answered session -- this tally
+   *  only ever covers one) practises every question its type owes, since
+   *  which half was actually wrong is lost to that earlier session. */
+  practiceItems: readonly PracticeItem[];
 }
 
 export function summarize(tally: ReviewTally): TallySummary {
@@ -250,6 +307,27 @@ export function summarize(tally: ReviewTally): TallySummary {
     }
   }
 
+  // "Review mistakes" (#96): completed, did not rise, and not a deliberate
+  // "I know this" / reset action elsewhere in the session -- those never
+  // actually land in `completed` (see `recordKnown`/`recordReset`), so this
+  // exclusion is defensive rather than reachable today, but it is exactly
+  // what the issue asks for if that ever changes.
+  const deliberatelySettled = new Set<number>([...tally.knownIds, ...tally.resetIds]);
+  const practiceItems: PracticeItem[] = [];
+  const seenPractice = new Set<number>();
+  for (const item of tally.completed) {
+    const id = item.subject.id;
+    if (item.stageAfter > item.stageBefore || deliberatelySettled.has(id) || seenPractice.has(id)) {
+      continue;
+    }
+    seenPractice.add(id);
+    const wrong = tally.wrongQuestions[id];
+    practiceItems.push({
+      subject: item.subject,
+      questions: wrong && wrong.length > 0 ? wrong : requiredQuestions(item.subject.object_type),
+    });
+  }
+
   return {
     items: tally.completed.length,
     correctItems,
@@ -263,5 +341,6 @@ export function summarize(tally: ReviewTally): TallySummary {
     reset: tally.resetIds.length,
     open,
     mistakeIds,
+    practiceItems,
   };
 }
