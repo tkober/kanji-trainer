@@ -41,12 +41,13 @@ import { ContextSentences } from '../../shared/context-sentences/context-sentenc
 import { RadicalIllustration } from '../../shared/radical-illustration/radical-illustration';
 import { Readings } from '../../shared/readings/readings';
 import { Synonyms } from '../../shared/synonyms/synonyms';
+import { ReviewPractice } from './review-practice/review-practice';
 import { ReviewSummaryDetails } from './review-summary-details/review-summary-details';
 
 /** A queue entry plus what it still owes. */
 type Card = QueueItem;
 
-type Phase = 'idle' | 'active' | 'ended';
+type Phase = 'idle' | 'active' | 'ended' | 'practice';
 
 /** One review round's exact question size, and the correct answers given
  * while it was the active round -- `rounds[i]` while `i` has been fetched,
@@ -81,6 +82,7 @@ function questionsCount(cards: readonly Card[]): number {
     RadicalIllustration,
     Readings,
     RouterLink,
+    ReviewPractice,
     ReviewSummaryDetails,
     Synonyms,
     SumiButtonDirective,
@@ -150,6 +152,10 @@ export class Review {
    * not yet read anywhere. Reset wherever `answered`/`correct` are reset. */
   protected readonly tally = signal<ReviewTally>(EMPTY_TALLY);
   protected readonly tallySummary = computed(() => summarize(this.tally()));
+  /** "Review mistakes" (#96): the summary's secondary action and the
+   *  practice round's input -- see `review-tally.ts`'s `practiceItems` doc
+   *  comment for exactly which items/questions land here. */
+  protected readonly practiceItems = computed(() => this.tallySummary().practiceItems);
   /** The ended summary's "Correct" tile -- item accuracy (every question an
    *  item owed answered right the first time it was asked), not the
    *  question accuracy `sessionAccuracy`/the hanko use. Rounded, 0 rather
@@ -472,6 +478,22 @@ export class Review {
   /** The idle gate's error state's "Try again". */
   protected retryLoad(): void {
     void this.fetchQueue();
+  }
+
+  /** "Review mistakes" (#96), the summary's secondary action -- the tally
+   *  (and everything the summary itself shows) is untouched by switching
+   *  phases, so "Back to summary" just switches back. */
+  protected startPractice(): void {
+    if (this.practiceItems().length === 0) {
+      return;
+    }
+    this.phase.set('practice');
+  }
+
+  /** `(back)` from `app-review-practice` -- "Back to summary" on its own
+   *  end screen, or straight back from "End" with nothing yet answered. */
+  protected backToSummary(): void {
+    this.phase.set('ended');
   }
 
   /** "Practice again" after a summary, or `Enter` on that gate -- unlike

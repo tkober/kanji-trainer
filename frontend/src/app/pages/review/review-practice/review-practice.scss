@@ -1,0 +1,156 @@
+:host {
+  display: block;
+}
+
+.error {
+  color: var(--sumi-wrong);
+  margin: 0 0 0.75rem;
+}
+
+.muted {
+  color: var(--sumi-muted);
+}
+
+.row {
+  display: flex;
+  gap: 0.5rem;
+  align-items: center;
+  flex-wrap: wrap;
+}
+
+/* --- header (the review header's closest app-side equivalent -- plain
+   `sumi-session-bar` has no title/tag slot, see review-practice.ts's own
+   doc comment). Every piece stays on one line and the row itself never
+   wraps -- `min-width: 0` lets it shrink inside the shell's flex header
+   (`.sumi-app-shell__focus-actions`) instead of forcing an overflow, and
+   the gap tightens below `sumi-session-bar`'s own 480px breakpoint (see
+   `SUMI_SESSION_NARROW_BREAKPOINT`), the same width `sumi-session-progress`
+   below teleports into the shell's narrow strip at, so the header itself
+   only ever has to fit the title/tag/count/End button, never the progress
+   bar too. */
+
+.practice-bar {
+  display: flex;
+  align-items: center;
+  gap: var(--sumi-space-2);
+  min-width: 0;
+}
+
+.practice-bar__title {
+  font-family: var(--sumi-font-display);
+  font-weight: 700;
+  white-space: nowrap;
+}
+
+.practice-bar__progress {
+  margin-left: auto;
+  white-space: nowrap;
+  flex: none;
+}
+
+@media (max-width: 480px) {
+  .practice-bar {
+    gap: var(--sumi-space-1);
+  }
+}
+
+/* Same placement/spacing as the review screen's own `sumi-session-progress`
+   (review.scss) -- right above the prompt card, same max-width since
+   neither carries one of its own. */
+sumi-session-progress {
+  margin-bottom: 1rem;
+}
+
+sumi-prompt-card {
+  display: block;
+  margin-bottom: 1rem;
+}
+
+sumi-answer-field {
+  display: block;
+}
+
+.actions {
+  margin-top: 1rem;
+}
+
+.hint-line {
+  font-size: 0.85rem;
+  margin-top: 0.5rem;
+}
+
+.verdict {
+  display: block;
+  margin-top: 1rem;
+}
+
+.gave-up {
+  color: var(--sumi-retry);
+  margin: 0 0 0.6rem;
+}
+
+.skipped-note {
+  font-size: var(--sumi-text-sm);
+}
+
+/* Same app-specific item detail as the review screen's own verdict details. */
+[sumiVerdictDetails] {
+  dl {
+    margin: 0.5rem 0 0;
+  }
+
+  dt {
+    font-size: 0.8rem;
+    text-transform: uppercase;
+    letter-spacing: 0.06em;
+    color: var(--sumi-muted);
+    margin-top: 0.6rem;
+  }
+
+  dd {
+    margin: 0.15rem 0 0;
+  }
+}
+
+/* --- end screen's "Still shaky" chips -- same look as the review summary's
+   own stage-card chips (review-summary-details.scss), tinted by type. ---- */
+
+.shaky-section h3 {
+  margin: 0 0 var(--sumi-space-3);
+  font-family: var(--sumi-font-display);
+  font-size: 1.05rem;
+  font-weight: 700;
+}
+
+.chips {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--sumi-space-1);
+  margin-top: var(--sumi-space-2);
+}
+
+.chip {
+  --chip-color: var(--sumi-text);
+
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-width: 1.6em;
+  height: 1.6em;
+  padding: 0 0.3em;
+  border-radius: var(--sumi-radius-sm);
+  border-bottom: 2px solid var(--chip-color);
+  background: color-mix(in oklab, var(--chip-color) 14%, var(--sumi-surface));
+  color: var(--sumi-text);
+  font-size: var(--sumi-text-sm);
+  text-decoration: none;
+
+  img {
+    height: 1em;
+    filter: var(--sumi-ink-image-filter, brightness(0));
+  }
+
+  &:hover {
+    text-decoration: underline;
+  }
+}

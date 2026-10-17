@@ -1,6 +1,20 @@
 import type { QuestionType } from './api.types';
 
 /**
+ * Fisher–Yates, generic -- the one shuffle this app uses, so every caller
+ * (an item's own questions here, the practice round's whole queue in
+ * `core/practice-queue.ts`) agrees on the same algorithm.
+ */
+export function shuffle<T>(items: readonly T[]): T[] {
+  const result = [...items];
+  for (let i = result.length - 1; i > 0; i--) {
+    const j = Math.floor(Math.random() * (i + 1));
+    [result[i], result[j]] = [result[j], result[i]];
+  }
+  return result;
+}
+
+/**
  * Randomise the order of an item's own questions.
  *
  * The backend always builds `questions` as `['meaning', 'reading']`
@@ -12,12 +26,7 @@ import type { QuestionType } from './api.types';
  * function also covers an item with more than two outstanding questions.
  */
 export function shuffleQuestions<T extends { questions: QuestionType[] }>(item: T): T {
-  const questions = [...item.questions];
-  for (let i = questions.length - 1; i > 0; i--) {
-    const j = Math.floor(Math.random() * (i + 1));
-    [questions[i], questions[j]] = [questions[j], questions[i]];
-  }
-  return { ...item, questions };
+  return { ...item, questions: shuffle(item.questions) };
 }
 
 /**

@@ -44,7 +44,10 @@
           [durationMs]="sessionDurationMs()"
           [levelUp]="levelUp()"
           timePosition="last"
+          [secondaryActionLabel]="practiceItems().length > 0 ? 'Review mistakes' : undefined"
+          [secondaryActionCount]="practiceItems().length"
           (restart)="restart()"
+          (secondaryAction)="startPractice()"
         >
           <sumi-hanko sumiSummaryArt [characters]="hankoCharacters()" [label]="hankoLabel()" />
           <div sumiSummaryTile label="Items">{{ tallySummary().items }}</div>
@@ -57,6 +60,10 @@
           <app-review-summary-details sumiSummaryDetails [summary]="tallySummary()" />
         </sumi-session-summary>
       </sumi-session-gate>
+    }
+
+    @case ('practice') {
+      <app-review-practice [items]="practiceItems()" (back)="backToSummary()" />
     }
 
     @default {
