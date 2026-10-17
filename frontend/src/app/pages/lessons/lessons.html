@@ -282,9 +282,19 @@
                 <button type="button" sumiButton [disabled]="index() === 0" aria-label="Back" (click)="previous()">
                   <span class="back-label">Back</span>
                   <span class="back-icon" aria-hidden="true">←</span>
+                  <span class="hint" aria-hidden="true">
+                    @for (key of backKeys; track $index) {
+                      <kbd sumiKbd>{{ key }}</kbd>
+                    }
+                  </span>
                 </button>
                 <button type="button" sumiButton [disabled]="busy()" (click)="markCurrentKnown()">
                   I know this one
+                  <span class="hint" aria-hidden="true">
+                    @for (key of knowKeys; track $index) {
+                      <kbd sumiKbd>{{ key }}</kbd>
+                    }
+                  </span>
                 </button>
                 @if (onLastItem()) {
                   <button
@@ -297,9 +307,21 @@
                   >
                     <span class="quiz-label">Continue to quiz</span>
                     <span class="quiz-label-short" aria-hidden="true">Quiz</span>
+                    <span class="hint" aria-hidden="true">
+                      @for (key of nextKeys; track $index) {
+                        <kbd sumiKbd>{{ key }}</kbd>
+                      }
+                    </span>
                   </button>
                 } @else {
-                  <button type="button" sumiButton variant="primary" (click)="next()">Next</button>
+                  <button type="button" sumiButton variant="primary" (click)="next()">
+                    Next
+                    <span class="hint" aria-hidden="true">
+                      @for (key of nextKeys; track $index) {
+                        <kbd sumiKbd>{{ key }}</kbd>
+                      }
+                    </span>
+                  </button>
                 }
               </div>
             </div>

@@ -224,6 +224,22 @@ sumi-prompt-card {
   flex: none;
 }
 
+/* Key hints inside the bar's own buttons (issue #88) -- shown only with a
+   fine pointer and hover, same query `sumi-hotkey-help` uses for its own
+   floating button: a touch device has no hardware keyboard for these to
+   remind anyone of. Hidden again below 479px regardless (see the narrow-bar
+   query below), where the labels themselves are already shortened and the
+   three buttons already compete for the row's width. */
+.hint {
+  display: none;
+  gap: 0.15rem;
+  margin-left: 0.4rem;
+
+  @media (hover: hover) and (pointer: fine) {
+    display: inline-flex;
+  }
+}
+
 .divider {
   width: 1px;
   height: 1.5rem;
@@ -249,6 +265,13 @@ sumi-prompt-card {
   .back-icon,
   .quiz-label-short {
     display: inline;
+  }
+
+  /* Never shown this narrow (issue #88), whatever the hover/pointer media
+     query above says -- the labels are already shortened and there is no
+     room left for key caps too. */
+  .hint {
+    display: none;
   }
 
   .bar-right {

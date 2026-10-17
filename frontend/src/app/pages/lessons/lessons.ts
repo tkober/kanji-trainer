@@ -1,6 +1,6 @@
 import { Component, computed, inject, signal } from '@angular/core';
 import { RouterLink } from '@angular/router';
-import { SUMI_KEYS, SumiHotkeys, SumiKeyboardVisibility, injectHotkey } from 'sumi-ui/core';
+import { SUMI_KEYS, SumiHotkeys, SumiKeyboardVisibility, formatKeys, injectHotkey } from 'sumi-ui/core';
 import {
   SumiBanner,
   SumiCard,
@@ -11,7 +11,7 @@ import {
   SumiPage,
   SumiShellFocusActionsDirective,
 } from 'sumi-ui/layout';
-import { SumiButtonDirective, SumiCheckboxDirective } from 'sumi-ui/forms';
+import { SumiButtonDirective, SumiCheckboxDirective, SumiKbdDirective } from 'sumi-ui/forms';
 import { SumiLegend, type SumiLegendItem } from 'sumi-ui/charts';
 import { SUMI_PRACTICE, type SumiSessionProgressSegment, type SumiVerdict } from 'sumi-ui/practice';
 
@@ -37,14 +37,20 @@ import { RadicalIllustration } from '../../shared/radical-illustration/radical-i
 import { Readings } from '../../shared/readings/readings';
 import { Synonyms } from '../../shared/synonyms/synonyms';
 import { BatchTiles, type BatchTileData } from './batch-tiles';
+import {
+  type Phase,
+  type ReadingHotkeyState,
+  canGoBack,
+  canGoForward,
+  canMarkKnown,
+  canOpenHelp,
+} from './reading-hotkeys';
 
 /** One item in the quiz, with the questions it still owes. */
 interface QuizCard {
   subject: SubjectDetail;
   questions: QuestionType[];
 }
-
-type Phase = 'select' | 'reading' | 'gate' | 'quiz' | 'ended';
 
 /** One of the three tile groups the selection view is organised into. */
 interface TileGroup {
@@ -139,6 +145,7 @@ function questionsCount(items: readonly { subject: { object_type: ObjectType } }
     SumiErrorState,
     SumiFocusModeDirective,
     SumiHanko,
+    SumiKbdDirective,
     SumiLegend,
     SumiPage,
     SumiShellFocusActionsDirective,
@@ -367,17 +374,83 @@ export class LessonsPage {
     return `Level ${level}`;
   });
 
+  /** The reading phase's hotkeys' own `enabled()` plumbing, as the plain
+   * object `reading-hotkeys.ts`'s pure functions take (issue #88) -- one
+   * computed rather than each hotkey rebuilding it from the same four
+   * signals. */
+  private readonly readingHotkeyState = computed<ReadingHotkeyState>(() => ({
+    phase: this.phase(),
+    busy: this.busy(),
+    index: this.index(),
+    itemCount: this.items().length,
+  }));
+
   constructor() {
     void this.load();
 
-    // `?` only becomes a hotkey once a settled quiz verdict is up -- same
-    // reasoning as the review screen.
+    // Issue #88: Back/Next/"I know this one", active only in the reading
+    // phase and never while busy -- `canGoBack`/`canGoForward`/
+    // `canMarkKnown` (reading-hotkeys.ts) are the single source both this
+    // page and its spec check against.
+    injectHotkey({
+      keys: 'ArrowLeft',
+      label: 'Previous item',
+      scope: 'page',
+      enabled: () => canGoBack(this.readingHotkeyState()),
+      handler: () => this.previous(),
+    });
+    injectHotkey({
+      keys: 'ArrowRight',
+      label: 'Next item / continue to quiz',
+      scope: 'page',
+      enabled: () => canGoForward(this.readingHotkeyState()),
+      handler: () => (this.onLastItem() ? this.goToQuizGate() : this.next()),
+    });
+    injectHotkey({
+      keys: SUMI_KEYS.iKnow,
+      label: 'I know this one',
+      scope: 'page',
+      // `SumiHotkeys`' ground rule already lets Alt combos through while an
+      // editable element has focus (only bare keys are blocked there), so
+      // the synonym field would otherwise still trigger this. `enabled()`
+      // gets no event, so `canMarkKnown` checks `document.activeElement`
+      // itself instead -- the same element the ground rule would have
+      // inspected. The quiz phase's own Alt+K lives on `sumi-answer-field`,
+      // which is never mounted while `phase() === 'reading'` (see
+      // lessons.html), so the two can never collide.
+      enabled: () => canMarkKnown(this.readingHotkeyState(), document.activeElement),
+      handler: () => void this.markCurrentKnown(),
+    });
+
+    // `?`: a settled quiz verdict is on screen (unchanged), or the reading
+    // phase outside the synonym field (issue #88, `canOpenHelp`).
+    //
+    // Kept at scope `feedback`, not `page`: `sumi-hotkey-help` itself already
+    // registers `?` unconditionally at scope `page` (its own "Show hotkeys"
+    // toggle, blocked only by the ground rule while a field has focus). That
+    // default alone already covers reading's plain case -- nothing but this
+    // registration's own `allowInEditable` is actually needed for the quiz's
+    // read-only-but-still-`<input>` field, which stays focused (and so
+    // "editable") even once a verdict is settled, blocking the default via
+    // the ground rule. Using scope `page` here too (tried and reverted) made
+    // the default and this registration both enabled at once wherever this
+    // one is, which showed up as two near-identical "On this page" rows in
+    // the help panel and the dev-mode "multiple registrations match"
+    // warning on every `?` press -- `feedback`'s own "After answering"
+    // heading at least keeps the two visually apart. Extending `enabled()`
+    // to reading still means that warning fires there (two registrations
+    // really are enabled at once, the default among them) -- harmless
+    // (dev-mode only, the most-recently-registered one wins the same way
+    // the quiz override already relies on) but worth knowing about. The
+    // label drops "after answering", no longer the only case this is up for.
     injectHotkey({
       keys: SUMI_KEYS.help,
-      label: 'Toggle this menu (after answering)',
+      label: 'Toggle this menu',
       scope: 'feedback',
       allowInEditable: true,
-      enabled: () => this.phase() === 'quiz' && this.hasSettledFeedback(),
+      enabled: () =>
+        (this.phase() === 'quiz' && this.hasSettledFeedback()) ||
+        canOpenHelp(this.readingHotkeyState(), document.activeElement),
       handler: () => this.hotkeys.toggleHelp(),
     });
   }
@@ -831,6 +904,14 @@ export class LessonsPage {
    *  one constant, since the button is rendered twice (mobile and desktop
    *  bar, see lessons.html) but means the same thing either way. */
   protected readonly knowAllInfoLabel = 'What does "I already know all" do?';
+
+  /** Key hints inside the reading bar's own buttons (issue #88) -- static
+   *  per session (platform doesn't change mid-visit), formatted once rather
+   *  than on every render. Only shown with a fine pointer and hover
+   *  (lessons.scss, same media query as `sumi-hotkey-help`'s own button). */
+  protected readonly backKeys = formatKeys('ArrowLeft');
+  protected readonly nextKeys = formatKeys('ArrowRight');
+  protected readonly knowKeys = formatKeys(SUMI_KEYS.iKnow);
 
   protected typeLabel(type: ObjectType): string {
     return {
