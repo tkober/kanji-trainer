@@ -1,0 +1,192 @@
+:host {
+  display: grid;
+  gap: var(--sumi-space-6);
+
+  /* Sections query this width directly rather than the wrapping
+     `sumi-session-gate`'s own named container -- see the class doc. */
+  container-type: inline-size;
+}
+
+h3 {
+  margin: 0 0 var(--sumi-space-3);
+  font-family: var(--sumi-font-display);
+  font-size: 1.05rem;
+  font-weight: 700;
+}
+
+.muted {
+  color: var(--sumi-muted);
+}
+
+/* --- Reached a new stage ---------------------------------------------- */
+
+.section-head {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: var(--sumi-space-3);
+  margin-bottom: var(--sumi-space-3);
+
+  h3 {
+    margin: 0;
+  }
+
+  .count {
+    font-size: var(--sumi-text-sm);
+    white-space: nowrap;
+  }
+}
+
+.stage-cards {
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  gap: var(--sumi-space-3);
+}
+
+@container (max-width: 520px) {
+  .stage-cards {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+}
+
+.stage-card {
+  background: var(--sumi-surface);
+  border: 1px solid var(--sumi-line);
+  border-top: 4px solid var(--sumi-line);
+  border-radius: var(--sumi-radius);
+  padding: var(--sumi-space-3);
+  min-width: 0;
+}
+
+.stage-card__head {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: var(--sumi-space-2);
+}
+
+.stage-card__name {
+  font-size: var(--sumi-text-sm);
+}
+
+.stage-card__count {
+  font-size: var(--sumi-text-xl);
+  font-weight: 700;
+}
+
+.chips {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--sumi-space-1);
+  margin-top: var(--sumi-space-2);
+}
+
+.chip {
+  --chip-color: var(--sumi-text);
+
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-width: 1.6em;
+  height: 1.6em;
+  padding: 0 0.3em;
+  border-radius: var(--sumi-radius-sm);
+  border-bottom: 2px solid var(--chip-color);
+  background: color-mix(in oklab, var(--chip-color) 14%, var(--sumi-surface));
+  color: var(--sumi-text);
+  font-size: var(--sumi-text-sm);
+  text-decoration: none;
+
+  img {
+    height: 1em;
+    filter: var(--sumi-ink-image-filter, brightness(0));
+  }
+
+  &:hover {
+    text-decoration: underline;
+  }
+}
+
+.chip--more {
+  color: var(--sumi-muted);
+  background: var(--sumi-sunken);
+  border-bottom-color: transparent;
+}
+
+.within-stage {
+  margin: var(--sumi-space-3) 0 0;
+  font-size: var(--sumi-text-sm);
+
+  strong {
+    color: var(--sumi-text);
+  }
+}
+
+/* --- By type + Answers, side by side on a wide container --------------- */
+
+.split {
+  display: grid;
+  gap: var(--sumi-space-4);
+}
+
+// ~600px was the brief's own approximation; the component's *actual*
+// available width inside `pages/review`'s `<sumi-page width="narrow">` (640px)
+// plus the wide gate's own ink-backdrop padding works out to ~576px even at
+// a roomy desktop viewport -- a literal 600px breakpoint would never fire
+// there and the split would always stack. Measured against that, not round.
+@container (min-width: 560px) {
+  .split--side-by-side {
+    grid-template-columns: 3fr 2fr;
+    align-items: start;
+  }
+}
+
+.by-type-table {
+  width: 100%;
+  border-collapse: collapse;
+
+  th,
+  td {
+    padding: var(--sumi-space-1) var(--sumi-space-2);
+    text-align: left;
+    font-size: var(--sumi-text-sm);
+  }
+
+  th {
+    color: var(--sumi-muted);
+    font-weight: 400;
+  }
+
+  th.num,
+  td.num {
+    text-align: right;
+  }
+
+  tbody tr {
+    border-top: 1px solid var(--sumi-line);
+  }
+}
+
+.dot {
+  display: inline-block;
+  width: 9px;
+  height: 9px;
+  border-radius: 50%;
+  margin-right: 0.4em;
+}
+
+.rise {
+  color: var(--sumi-accent-ink);
+}
+
+.answers-section sumi-progress-row + sumi-progress-row {
+  margin-top: var(--sumi-space-2);
+}
+
+/* --- Footer -------------------------------------------------------------- */
+
+.footer-line {
+  margin: 0;
+  text-align: center;
+  font-size: var(--sumi-text-sm);
+}

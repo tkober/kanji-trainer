@@ -1,13 +1,6 @@
 :host {
   display: block;
 
-  /* Stage colours for the Stages sunburst, on the same scale as this page's
-     bars and legends: Apprentice and Guru use the bars' Apprentice and
-     Guru+ colours, the later stages go darker from there. */
-  --stage-master: color-mix(in oklab, var(--sumi-accent) 75%, var(--sumi-text));
-  --stage-enlightened: color-mix(in oklab, var(--sumi-accent) 55%, var(--sumi-text));
-  --stage-burned: color-mix(in oklab, var(--sumi-accent) 35%, var(--sumi-text));
-
   /* One label width for every `sumi-progress-row` on the page, same
      reasoning as the dashboard's own copy of this token. */
   --sumi-progress-row-label-width: 6rem;

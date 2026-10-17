@@ -1,0 +1,110 @@
+@if (showStageSection()) {
+  <section class="stage-section">
+    <div class="section-head">
+      <h3>Reached a new stage</h3>
+      <span class="muted count">{{ summary().newStageCount }} items</span>
+    </div>
+
+    <div class="stage-cards">
+      @for (card of stageCards(); track card.key) {
+        <div class="stage-card" [style.border-top-color]="'var(--stage-' + card.key + ')'">
+          <div class="stage-card__head">
+            <span class="muted stage-card__name">{{ card.label }}</span>
+            <span class="sumi-tabular stage-card__count" [class.muted]="card.count === 0">{{
+              card.count
+            }}</span>
+          </div>
+          @if (card.count > 0) {
+            <div class="chips">
+              @for (subject of card.visible; track subject.id) {
+                <a
+                  class="chip"
+                  lang="ja"
+                  [routerLink]="['/browse']"
+                  [queryParams]="{ item: subject.id }"
+                  [title]="chipTitle(subject)"
+                  [style.--chip-color]="typeColor(subject.object_type)"
+                >
+                  @if (subject.characters) {
+                    {{ subject.characters }}
+                  } @else if (subject.character_image_url) {
+                    <img [src]="subject.character_image_url" [alt]="subject.slug" />
+                  } @else {
+                    {{ subject.slug }}
+                  }
+                </a>
+              }
+              @if (card.overflow > 0) {
+                <span class="chip chip--more">+{{ card.overflow }}</span>
+              }
+            </div>
+          }
+        </div>
+      }
+    </div>
+
+    @if (summary().withinStageUp > 0) {
+      <p class="muted within-stage">
+        <strong>{{ summary().withinStageUp }}</strong> more moved up within
+        {{ withinStagePossessive() }} stage, e.g. Apprentice II → III.
+      </p>
+    }
+  </section>
+}
+
+@if (byTypeRows().length > 0 || answerRows().length > 0) {
+  <div class="split" [class.split--side-by-side]="showSplit()">
+    @if (byTypeRows().length > 0) {
+      <section class="by-type-section">
+        <h3>By type</h3>
+        <table class="by-type-table">
+          <thead>
+            <tr>
+              <th>Type</th>
+              <th class="num">Items</th>
+              <th class="num">Correct</th>
+              <th class="num">New st.</th>
+            </tr>
+          </thead>
+          <tbody>
+            @for (row of byTypeRows(); track row.key) {
+              <tr>
+                <td>
+                  <span class="dot" [style.background]="typeColor(row.key)"></span>
+                  {{ row.label }}
+                </td>
+                <td class="num sumi-tabular">{{ row.items }}</td>
+                <td class="num sumi-tabular">{{ row.correctPercent }}%</td>
+                <td class="num sumi-tabular">
+                  @if (row.newStage > 0) {
+                    <span class="rise">↑ {{ row.newStage }}</span>
+                  } @else {
+                    <span class="muted">–</span>
+                  }
+                </td>
+              </tr>
+            }
+          </tbody>
+        </table>
+      </section>
+    }
+
+    @if (answerRows().length > 0) {
+      <section class="answers-section">
+        <h3>Answers</h3>
+        @for (row of answerRows(); track row.key) {
+          <sumi-progress-row
+            [label]="row.label"
+            [segments]="row.segments"
+            [value]="row.correct"
+            [total]="row.answered"
+          />
+        }
+      </section>
+    }
+  </div>
+}
+
+@if (footerLine(); as line) {
+  <p class="muted footer-line">{{ line }}</p>
+}
