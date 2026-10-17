@@ -282,6 +282,20 @@ class QuizOut(BaseModel):
     hint: str | None = None
 
 
+class PracticeOut(QuizOut):
+    """A practice verdict (issue #95, epic #85) -- the same shape as a
+    lesson-quiz verdict, plus the subject detail the review screen's "Show
+    item" panel needs.
+
+    No SRS fields, same reasoning as `QuizOut`: practice moves nothing either.
+    Unlike `AnswerOut`, there is no held verdict to speak of, so `expected`
+    and `subject` are never withheld -- see `study.practice_answer` for why
+    that is safe here.
+    """
+
+    subject: SubjectDetail
+
+
 # --- overrides -------------------------------------------------------------
 
 
