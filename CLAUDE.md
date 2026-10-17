@@ -70,10 +70,10 @@ npm start                   # ng serve on :4200
 npx ng build                # AOT + template type-check
 ```
 
-The frontend has no spec files, so `ng test` finds nothing. `ng build` is the
-correctness gate: it type-checks templates, so run it after touching any
-component. The backend suite is the real safety net and `srs.py` is where it
-matters most.
+There are now spec files for pure core logic (`core/*.spec.ts`), run with
+`npx ng test --watch=false`. `ng build` stays the gate for templates: it
+type-checks them, so run it after touching any component. The backend suite
+is the real safety net and `srs.py` is where it matters most.
 
 ## Persistence
 

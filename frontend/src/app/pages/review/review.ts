@@ -29,6 +29,14 @@ import type {
 import { Counters } from '../../core/counters';
 import { Mnemonic } from '../../core/mnemonic';
 import { reinsert, shuffleQuestions } from '../../core/review-queue';
+import {
+  EMPTY_TALLY,
+  recordAnswer,
+  recordKnown,
+  recordReset,
+  summarize,
+  type ReviewTally,
+} from '../../core/review-tally';
 import { ContextSentences } from '../../shared/context-sentences/context-sentences';
 import { RadicalIllustration } from '../../shared/radical-illustration/radical-illustration';
 import { Readings } from '../../shared/readings/readings';
@@ -136,6 +144,10 @@ export class Review {
 
   protected readonly answered = signal(0);
   protected readonly correct = signal(0);
+  /** Every event of this session, raw -- feeds the session summary (#80),
+   * not yet read anywhere. Reset wherever `answered`/`correct` are reset. */
+  protected readonly tally = signal<ReviewTally>(EMPTY_TALLY);
+  protected readonly tallySummary = computed(() => summarize(this.tally()));
   /** Correctly answered questions this session (issue #54) -- separate from
    * `correct`/`answered`, which stay the accuracy's own numbers. A non-retry
    * correct verdict counts one question; "I know this" counts every open
@@ -375,8 +387,12 @@ export class Review {
 
   /** 合格 ("passed") at 80% or above, 練習 ("practice") otherwise -- see
    * docs/concept.md#tuschemotive and sumi-ui#38's `sumi-hanko` example. */
-  protected readonly hankoCharacters = computed(() => (this.sessionAccuracy() >= 0.8 ? '合格' : '練習'));
-  protected readonly hankoLabel = computed(() => (this.sessionAccuracy() >= 0.8 ? 'Passed' : 'Practice'));
+  protected readonly hankoCharacters = computed(() =>
+    this.sessionAccuracy() >= 0.8 ? '合格' : '練習',
+  );
+  protected readonly hankoLabel = computed(() =>
+    this.sessionAccuracy() >= 0.8 ? 'Passed' : 'Practice',
+  );
 
   /** Set once `counters.level()` (refreshed at session end) is higher than
    * it was when the session started. `undefined`, not a falsy level, so
@@ -424,6 +440,7 @@ export class Review {
     }
     this.answered.set(0);
     this.correct.set(0);
+    this.tally.set(EMPTY_TALLY);
     this.done.set(0);
     this.rounds.set([{ size: questionsCount(this.queue()), done: 0 }]);
     this.sessionStartedAt = Date.now();
@@ -445,6 +462,7 @@ export class Review {
   protected async restart(): Promise<void> {
     this.answered.set(0);
     this.correct.set(0);
+    this.tally.set(EMPTY_TALLY);
     this.done.set(0);
     this.startLevel = this.counters.level();
     this.phase.set('idle');
@@ -638,6 +656,8 @@ export class Review {
       // either direction, so it stays out of the session tally too.
       if (!result.retry) {
         this.answered.update((n) => n + 1);
+        // `recordAnswer` also ignores retry/held itself -- belt and braces.
+        this.tally.update((tally) => recordAnswer(tally, card.subject, question, result));
         if (result.correct) {
           this.correct.update((n) => n + 1);
           this.addDone(1);
@@ -758,6 +778,7 @@ export class Review {
     }
     try {
       await this.api.markKnown([card.subject.id]);
+      this.tally.update((tally) => recordKnown(tally, card.subject));
       // The whole item is known, meaning and reading together -- every
       // question it still owed counts as done right away, not just the half
       // that happened to be on screen.
@@ -779,6 +800,7 @@ export class Review {
     }
     try {
       await this.api.resetItems([card.subject.id]);
+      this.tally.update((tally) => recordReset(tally, card.subject));
       // Its open questions leave the session without ever becoming done --
       // the session total shrinks rather than holding steady.
       this.shrinkOpen(card.questions.length);
