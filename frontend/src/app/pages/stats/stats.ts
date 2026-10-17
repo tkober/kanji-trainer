@@ -8,11 +8,11 @@ import {
   SumiLegend,
   SumiLineChart,
   SumiProgressRow,
-  SumiSparkline,
   SumiStatGrid,
   SumiStatTile,
   SumiSunburst,
   SumiTableCellTemplate,
+  type SumiBar,
   type SumiBarSelectEvent,
   type SumiBarSeries,
   type SumiChartEvent,
@@ -87,6 +87,33 @@ const GROWTH_RANGE_DAYS: Record<Exclude<GrowthRange, 'all'>, number> = {
   '1y': 365,
 };
 
+/** 3-letter English month names for `shortDate` below -- the same format
+ *  `sumi-line-chart`'s own `formatLineChartDateLabel` uses for its x-axis
+ *  ticks (e.g. "18 Sep"), reproduced here rather than imported since the
+ *  library does not export it. */
+const MONTHS = [
+  'Jan',
+  'Feb',
+  'Mar',
+  'Apr',
+  'May',
+  'Jun',
+  'Jul',
+  'Aug',
+  'Sep',
+  'Oct',
+  'Nov',
+  'Dec',
+];
+
+/** `"18 Sep"` for an ISO `yyyy-mm-dd` date -- parsed straight from the
+ *  string's own components (never `new Date(...)`), so the result never
+ *  shifts by a day depending on the viewer's timezone. */
+function shortDate(iso: string): string {
+  const [, month, day] = iso.split('-').map(Number);
+  return `${day} ${MONTHS[month - 1]}`;
+}
+
 interface TroubleRow extends SumiTableRow {
   id: number;
   label: string;
@@ -126,7 +153,6 @@ const NARROW_BREAKPOINT = 480;
     SumiBarChart,
     SumiLineChart,
     SumiCalendarHeatmap,
-    SumiSparkline,
     SumiDataTable,
     SumiTableCellTemplate,
     SumiLegend,
@@ -213,7 +239,7 @@ export class StatsPage {
       const [stats, levelStats, activity, troubleItems] = await Promise.all([
         this.api.stats(tz),
         this.api.levelStats(),
-        this.api.activity(182, tz),
+        this.api.activity(364, tz),
         this.api.items({ sort: 'lapses', limit: 10 }),
       ]);
       this.stats.set(stats);
@@ -363,10 +389,9 @@ export class StatsPage {
   });
 
   private readonly last30Days = computed(() => (this.activity()?.days ?? []).slice(-30));
-  private readonly previous30Days = computed(() => (this.activity()?.days ?? []).slice(-60, -30));
 
   /** `null` when nothing was answered in the window -- the tile and the
-   *  sparkline both render "–" rather than a misleading 0 %. */
+   *  accuracy chart head both render "–" rather than a misleading 0 %. */
   protected readonly accuracyPercent = computed<number | null>(() => {
     const days = this.last30Days();
     const answers = sumDays(days, 'answers');
@@ -611,32 +636,50 @@ export class StatsPage {
     return [{ date: importedOn, label }];
   });
 
-  /** Days without an answer are skipped (not carried forward, not shown as
-   *  0 %) -- a day nothing was answered on has no accuracy to plot, and
-   *  carrying the previous day's figure into it would read as if it had
-   *  been measured that day too. */
-  protected readonly accuracySparkPoints = computed<number[]>(() =>
+  /** `sumi-line-chart`'s single series for the accuracy chart -- a class
+   *  field like `levelSeries`/`growthSeries`, never recomputed. */
+  protected readonly accuracySeries: readonly SumiLineSeries[] = [
+    { key: 'accuracy', label: 'Accuracy' },
+  ];
+
+  /** Narrow no-break space before the `%`, the same character
+   *  `accuracyDisplay` already uses -- bound as a property rather than
+   *  written into the template attribute, where the escape would not
+   *  survive. */
+  protected readonly accuracyUnit = ' %';
+
+  /** Days without an answer are skipped entirely (not carried forward, not
+   *  plotted as 0 %) -- a day nothing was answered on has no accuracy to
+   *  plot, and carrying the previous day's figure into it would read as if
+   *  it had been measured that day too. `[gaps]="true"` on the chart draws
+   *  the resulting hole as a break in the line rather than bridging it. */
+  protected readonly accuracyPoints = computed<SumiLinePoint[]>(() =>
     this.last30Days()
       .filter((day) => day.answers > 0)
-      .map((day) => Math.round((day.correct / day.answers) * 100)),
+      .map((day) => ({
+        date: day.date,
+        values: { accuracy: Math.round((day.correct / day.answers) * 100) },
+      })),
   );
 
-  protected readonly accuracyDelta = computed<number | null>(() => {
-    const current = this.accuracyPercent();
-    const previous = this.previous30Days();
-    const previousAnswers = sumDays(previous, 'answers');
-    if (current === null || previousAnswers === 0) {
-      return null;
-    }
-    const previousPercent = Math.round((sumDays(previous, 'correct') / previousAnswers) * 100);
-    return current - previousPercent;
-  });
+  /** Fixes the chart's x-domain to the full 30-day window regardless of
+   *  which days actually have points (see `accuracyPoints`) -- `endDate`
+   *  is always today, even on a day with no answers yet. */
+  protected readonly accuracyStartDate = computed(() => this.last30Days()[0]?.date);
+  protected readonly accuracyEndDate = computed(
+    () => this.last30Days()[this.last30Days().length - 1]?.date,
+  );
 
-  protected readonly lessonsSparkPoints = computed<number[]>(() =>
-    this.last30Days().map((day) => day.lessons_started),
+  /** `sumi-bar-chart`'s plain `bars` input -- one bar per calendar day,
+   *  zero days included (unlike the accuracy chart above, a day with no
+   *  lessons is a real value, not a gap). */
+  protected readonly lessonsBars = computed<SumiBar[]>(() =>
+    this.last30Days().map((day) => ({
+      label: shortDate(day.date),
+      value: day.lessons_started,
+    })),
   );
   protected readonly lessonsSum = computed(() => sumDays(this.last30Days(), 'lessons_started'));
-  protected readonly lessonsDisplay = computed(() => `${this.lessonsSum()} started`);
 
   // --- H: trouble items ----------------------------------------------------
 
