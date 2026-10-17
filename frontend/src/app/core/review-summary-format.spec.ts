@@ -5,6 +5,8 @@ import {
   byTypeRows,
   footerLine,
   stageCards,
+  stageFlowAriaLabel,
+  stageFlowHint,
   withinStagePossessive,
 } from './review-summary-format';
 import { EMPTY_TALLY, recordAnswer, summarize } from './review-tally';
@@ -128,5 +130,30 @@ describe('footerLine', () => {
 
   it('skips a zero part without leaving a stray separator', () => {
     expect(footerLine(0, 1, 0)).toBe('Also this session: 1 reset to Apprentice');
+  });
+});
+
+describe('stageFlowHint', () => {
+  it('singularises exactly one item', () => {
+    expect(stageFlowHint(1)).toBe('where the 1 item went');
+  });
+
+  it('pluralises everything else', () => {
+    expect(stageFlowHint(0)).toBe('where the 0 items went');
+    expect(stageFlowHint(20)).toBe('where the 20 items went');
+  });
+});
+
+describe('stageFlowAriaLabel', () => {
+  it('singularises exactly one item', () => {
+    expect(stageFlowAriaLabel(1)).toBe(
+      "Where this session's 1 item went, from their stage before the session to their stage after it",
+    );
+  });
+
+  it('pluralises everything else', () => {
+    expect(stageFlowAriaLabel(20)).toBe(
+      "Where this session's 20 items went, from their stage before the session to their stage after it",
+    );
   });
 });

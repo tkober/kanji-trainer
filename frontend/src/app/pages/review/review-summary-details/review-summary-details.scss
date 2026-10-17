@@ -190,6 +190,69 @@ h3 {
   margin-top: var(--sumi-space-2);
 }
 
+/* --- Stage flow (desktop only, collapsible) ----------------------------- */
+
+// Desktop only, same breakpoint the By type / Answers split above uses: a
+// phone has no room for the chart's own side category labels next to its
+// bars, so the whole box is not rendered there at all (`display: none`)
+// rather than squeezed into something illegible.
+.stage-flow {
+  display: none;
+  background: var(--sumi-surface);
+  border: 1px solid var(--sumi-line);
+  border-radius: var(--sumi-radius);
+  padding: 10px 14px;
+}
+
+@container (min-width: 560px) {
+  .stage-flow {
+    display: block;
+  }
+}
+
+.stage-flow__summary {
+  display: flex;
+  align-items: center;
+  gap: var(--sumi-space-2);
+  cursor: pointer;
+  list-style: none; // hides the native disclosure triangle (Firefox)
+
+  &::-webkit-details-marker {
+    display: none; // same, for Chrome/Safari
+  }
+
+  &:focus-visible {
+    outline: none;
+    border-radius: var(--sumi-radius-sm);
+    box-shadow: var(--sumi-focus-ring);
+  }
+
+  h3 {
+    margin: 0;
+  }
+}
+
+.stage-flow__chevron {
+  flex: none;
+  color: var(--sumi-muted);
+  transition: transform 150ms ease;
+}
+
+.stage-flow[open] .stage-flow__chevron {
+  transform: rotate(180deg);
+}
+
+.stage-flow__hint {
+  margin-left: auto;
+  font-size: var(--sumi-text-sm);
+  white-space: nowrap;
+}
+
+.stage-flow__chart {
+  display: block;
+  margin-top: var(--sumi-space-3);
+}
+
 /* --- Footer -------------------------------------------------------------- */
 
 .footer-line {
