@@ -107,6 +107,23 @@
   </div>
 }
 
+@if (showStageFlowSection()) {
+  <details class="stage-flow" [open]="stageFlowOpen()" (toggle)="onStageFlowToggle($event)">
+    <summary class="stage-flow__summary">
+      <sumi-icon class="stage-flow__chevron" name="chevron-down" />
+      <h3>Stage flow</h3>
+      <span class="muted stage-flow__hint">{{ stageFlowHint() }}</span>
+    </summary>
+    <sumi-flow-chart
+      class="stage-flow__chart"
+      [ariaLabel]="stageFlowAriaLabel()"
+      [categories]="stageFlowCategories"
+      [flows]="stageFlowFlows()"
+      [height]="260"
+    />
+  </details>
+}
+
 @if (footerLine(); as line) {
   <p class="muted footer-line">{{ line }}</p>
 }

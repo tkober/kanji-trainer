@@ -125,3 +125,13 @@ export function footerLine(markedKnown: number, reset: number, open: number): st
   }
   return parts.length > 0 ? `Also this session: ${parts.join(' · ')}` : null;
 }
+
+/** "Stage flow"'s right-aligned summary hint -- "where the N item(s) went". */
+export function stageFlowHint(items: number): string {
+  return `where the ${items} ${pluralize(items, 'item')} went`;
+}
+
+/** `sumi-flow-chart`'s required `ariaLabel` for "Stage flow". */
+export function stageFlowAriaLabel(items: number): string {
+  return `Where this session's ${items} ${pluralize(items, 'item')} went, from their stage before the session to their stage after it`;
+}

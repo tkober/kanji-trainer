@@ -1,6 +1,12 @@
-import { Component, computed, input } from '@angular/core';
+import { Component, computed, input, signal } from '@angular/core';
 import { RouterLink } from '@angular/router';
-import { SumiProgressRow, type SumiSegment } from 'sumi-ui/charts';
+import { SumiIcon } from 'sumi-ui/core';
+import {
+  SumiFlowChart,
+  SumiProgressRow,
+  type SumiFlowCategory,
+  type SumiSegment,
+} from 'sumi-ui/charts';
 
 import type { ObjectType, SubjectSummary } from '../../../core/api.types';
 import {
@@ -8,9 +14,39 @@ import {
   byTypeRows,
   footerLine,
   stageCards,
+  stageFlowAriaLabel,
+  stageFlowHint,
   withinStagePossessive,
 } from '../../../core/review-summary-format';
 import { tallyType, type TallySummary } from '../../../core/review-tally';
+
+/** `sumi-flow-chart`'s `categories`, in ladder order -- Apprentice included
+ *  (unlike `RiseGroup`/the stage cards above): a flow's `from` side can be
+ *  Apprentice even though it is never a rise *target*. Colours are the same
+ *  `--stage-*` tokens the "Reached a new stage" cards use (`app-tokens.scss`),
+ *  so the two sections read as the same colour language. Module-level since
+ *  it never depends on `summary`. */
+const STAGE_FLOW_CATEGORIES: readonly SumiFlowCategory[] = [
+  { key: 'apprentice', label: 'Apprentice', color: 'var(--stage-apprentice)' },
+  { key: 'guru', label: 'Guru', color: 'var(--stage-guru)' },
+  { key: 'master', label: 'Master', color: 'var(--stage-master)' },
+  { key: 'enlightened', label: 'Enlightened', color: 'var(--stage-enlightened)' },
+  { key: 'burned', label: 'Burned', color: 'var(--stage-burned)' },
+];
+
+const STAGE_FLOW_KEY = 'kt-summary-stage-flow';
+
+/** Collapsed unless an earlier summary was explicitly left open -- same
+ *  try/catch-and-fall-back shape as `lessons.ts`'s `readBatchingPreference`,
+ *  but defaulting closed rather than open: a missing/invalid value here
+ *  means "never opened", not "no preference set". */
+function readStageFlowOpen(): boolean {
+  try {
+    return localStorage.getItem(STAGE_FLOW_KEY) === '1';
+  } catch {
+    return false;
+  }
+}
 
 /**
  * `sumi-session-summary`'s `[sumiSummaryDetails]` content for a finished
@@ -36,7 +72,7 @@ import { tallyType, type TallySummary } from '../../../core/review-tally';
  */
 @Component({
   selector: 'app-review-summary-details',
-  imports: [RouterLink, SumiProgressRow],
+  imports: [RouterLink, SumiProgressRow, SumiFlowChart, SumiIcon],
   templateUrl: './review-summary-details.html',
   styleUrl: './review-summary-details.scss',
   host: { class: 'app-review-summary-details' },
@@ -77,6 +113,38 @@ export class ReviewSummaryDetails {
     const summary = this.summary();
     return footerLine(summary.markedKnown, summary.reset, summary.open);
   });
+
+  /** Hidden entirely when nothing completed this session (e.g. ended after
+   *  half an item) -- there is no flow to draw. Desktop-only is CSS alone
+   *  (see the stylesheet), not reflected here, since it must survive a
+   *  resize without Angular re-rendering anything. */
+  protected readonly showStageFlowSection = computed(() => this.summary().items > 0);
+
+  protected readonly stageFlowCategories = STAGE_FLOW_CATEGORIES;
+
+  protected readonly stageFlowFlows = computed(() =>
+    this.summary().flow.map((f) => ({ from: f.from, to: f.to, value: f.count })),
+  );
+
+  protected readonly stageFlowAriaLabel = computed(() => stageFlowAriaLabel(this.summary().items));
+
+  protected readonly stageFlowHint = computed(() => stageFlowHint(this.summary().items));
+
+  /** Open/closed, remembered in localStorage -- read once here (component
+   *  creation), written back on the `<details>`'s own `toggle` event (see
+   *  the template and `onStageFlowToggle` below). A later summary's box
+   *  starts open if this one was left open. */
+  protected readonly stageFlowOpen = signal(readStageFlowOpen());
+
+  protected onStageFlowToggle(event: Event): void {
+    const open = (event.target as HTMLDetailsElement).open;
+    this.stageFlowOpen.set(open);
+    try {
+      localStorage.setItem(STAGE_FLOW_KEY, open ? '1' : '0');
+    } catch {
+      // A remembered preference is a convenience, not a requirement.
+    }
+  }
 
   /** One coloured "correct" segment plus a same-colour-as-track "wrong"
    *  segment -- `sumi-segmented-bar`'s own background is already
