@@ -125,9 +125,18 @@ sumi-prompt-card {
 
 /* Shared dt/dd label styling for the facts and content cards -- the same
    look the former single `.detail` card used, now reused instead of
-   duplicated across the two. */
+   duplicated across the two. No UA margin on the `<dl>` itself, same as the
+   readings/synonyms/context-sentences components inside these cards, so the
+   gaps between label groups are the `dt` margins alone, and the first label
+   sits on the card's own padding rather than 28px below it. */
 .facts dl,
 .content dl {
+  margin: 0;
+
+  &:first-child > dt:first-child {
+    margin-top: 0;
+  }
+
   dt {
     font-size: 0.8rem;
     text-transform: uppercase;
@@ -211,9 +220,12 @@ sumi-legend {
    its own look now -- see the comment up top for why its colour tokens still
    live here. */
 
+/* Sticks above the phone tab bar rather than behind it. It only started
+   sticking at all once sumi-ui#90 stopped <main> from being its scroll
+   container. */
 .action-bar {
   position: sticky;
-  bottom: 0;
+  bottom: var(--sumi-shell-bottom-height);
   display: flex;
   align-items: center;
   flex-wrap: wrap;
