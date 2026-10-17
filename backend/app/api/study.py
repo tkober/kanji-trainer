@@ -3,13 +3,14 @@
 from __future__ import annotations
 
 from datetime import datetime, timezone
+from typing import Iterable
 
 from fastapi import APIRouter, Depends, HTTPException, Query
 from sqlalchemy import ColumnElement, case, func, or_, select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from .. import srs
-from ..answers import check_meaning, check_reading
+from ..answers import AnswerCheck, check_meaning, check_reading
 from ..db import Progress, ReviewLog, Subject, get_session
 from ..models import (
     AnswerIn,
@@ -19,6 +20,7 @@ from ..models import (
     Lessons,
     LevelSummary,
     OverrideResult,
+    PracticeOut,
     Queue,
     QueueItem,
     QuizIn,
@@ -64,6 +66,42 @@ async def _kanji_readings_for(
         )
     )
     return tuple(kanji.readings) if kanji is not None else ()
+
+
+async def _check(
+    session: AsyncSession,
+    config: RuntimeConfig,
+    subject: Subject,
+    question: QuestionType,
+    answer: str,
+    gave_up: bool,
+    synonyms: Iterable[str],
+) -> AnswerCheck:
+    """Check one answer. Shared by the review, lesson-quiz and practice
+    endpoints -- the three agree on exactly how an answer is judged, and
+    only on that.
+
+    Alt+H gives up regardless of what was typed -- check against an empty
+    answer instead, which both checkers already treat as a plain wrong
+    answer (no retry, no typo, `expected` the primary meaning or reading).
+    That is exactly the one way to answer that is allowed to reveal anything
+    on purpose.
+
+    ``synonyms`` is the caller's problem, not this function's: `check_reading`
+    never reads it, and whether to load it at all (and at what cost) differs
+    per caller -- see the comments where each one is loaded.
+    """
+    answer_text = "" if gave_up else answer
+    if question is QuestionType.MEANING:
+        return check_meaning(
+            answer_text,
+            subject.meanings,
+            subject.auxiliary_meanings,
+            config.meaning_typo_tolerance_divisor,
+            synonyms,
+        )
+    kanji_readings = await _kanji_readings_for(session, subject, question)
+    return check_reading(answer_text, subject.readings, subject.object_type, kanji_readings)
 
 
 def _questions(progress: Progress, subject: Subject) -> list[QuestionType]:
@@ -239,25 +277,9 @@ async def submit_answer(
     # and the synonym editor saves a whole list -- an empty one shown after a
     # reading would overwrite every synonym the item has on the first add.
     synonyms = await load_synonyms(session, subject.id)
-    # Alt+H gives up regardless of what was typed -- check against an empty
-    # answer instead, which both checkers already treat as a plain wrong
-    # answer (no retry, no typo, `expected` the primary meaning or reading).
-    # That is exactly the one way to answer that is allowed to reveal
-    # anything on purpose.
-    answer_text = "" if payload.gave_up else payload.answer
-    if payload.question is QuestionType.MEANING:
-        check = check_meaning(
-            answer_text,
-            subject.meanings,
-            subject.auxiliary_meanings,
-            config.meaning_typo_tolerance_divisor,
-            synonyms,
-        )
-    else:
-        kanji_readings = await _kanji_readings_for(session, subject, payload.question)
-        check = check_reading(
-            answer_text, subject.readings, subject.object_type, kanji_readings
-        )
+    check = await _check(
+        session, config, subject, payload.question, payload.answer, payload.gave_up, synonyms
+    )
 
     # --- the two second chances, both of which leave the item untouched ---
     #
@@ -570,24 +592,15 @@ async def quiz_answer(
             status_code=409, detail="This item is not a lesson; it has already been learned."
         )
 
-    # Alt+H gives up regardless of what was typed -- same empty-answer trick
-    # as the review endpoint, which both checkers already treat as a plain
-    # wrong answer with `expected` filled in.
-    answer_text = "" if payload.gave_up else payload.answer
+    # Loaded only for a meaning question -- unlike the review endpoint, there
+    # is no response detail here that needs them regardless, so a reading
+    # question costs no extra query.
+    synonyms: Iterable[str] = ()
     if payload.question is QuestionType.MEANING:
         synonyms = await load_synonyms(session, subject.id)
-        check = check_meaning(
-            answer_text,
-            subject.meanings,
-            subject.auxiliary_meanings,
-            config.meaning_typo_tolerance_divisor,
-            synonyms,
-        )
-    else:
-        kanji_readings = await _kanji_readings_for(session, subject, payload.question)
-        check = check_reading(
-            answer_text, subject.readings, subject.object_type, kanji_readings
-        )
+    check = await _check(
+        session, config, subject, payload.question, payload.answer, payload.gave_up, synonyms
+    )
 
     return QuizOut(
         correct=check.correct,
@@ -630,3 +643,111 @@ async def start_lessons(
 
     await session.commit()
     return OverrideResult(changed=len(started))
+
+
+# --- practice (issue #95, epic #85) -----------------------------------------
+
+
+def _practice_allowed(progress: Progress, now: datetime, config: RuntimeConfig) -> None:
+    """Raise 409 unless this item is neither due nor mid-review.
+
+    Mirrors `review_queue`'s own due filter, in the opposite direction: that
+    query serves an item when ``state == learning`` and ``next_review_at`` is
+    set and at or before ``due_cutoff(now, grace)``. This allows practice
+    otherwise -- ``learning`` or ``known``, with ``next_review_at`` either
+    unset or strictly after that same cutoff, and no review half-answered
+    already. Same comparison, same cutoff, deliberately: an item is always in
+    exactly one of "due" or "practisable", never both and never neither.
+    """
+    if progress.state == ItemState.NEW.value:
+        raise HTTPException(
+            status_code=409,
+            detail="This item has not been learned yet; take its lesson first.",
+        )
+    if progress.state == ItemState.SUSPENDED.value:
+        raise HTTPException(status_code=409, detail="This item is suspended.")
+    if progress.state not in (ItemState.LEARNING.value, ItemState.KNOWN.value):
+        # Every state ItemState defines today is handled above; this is a
+        # deliberate fallback rather than a silent fall-through for a future
+        # state the rule was not written for.
+        raise HTTPException(status_code=409, detail="This item cannot be practised right now.")
+
+    due_or_in_flight = (
+        progress.pending_meaning is not None
+        or progress.pending_reading is not None
+        or (
+            progress.next_review_at is not None
+            and progress.next_review_at <= srs.due_cutoff(now, config.review_grace_minutes)
+        )
+    )
+    if due_or_in_flight:
+        raise HTTPException(
+            status_code=409,
+            detail="This item has a review due; answer it in Reviews.",
+        )
+
+
+@router.post("/practice/answer", response_model=PracticeOut)
+async def practice_answer(
+    payload: QuizIn, session: AsyncSession = Depends(get_session)
+) -> PracticeOut:
+    """Check one answer against an item already in the rotation. Moves
+    nothing -- no `ReviewLog`, no `Progress` change, no commit, and
+    `srs.begin_review` is never called.
+
+    Epic #85 ("Review mistakes"): after a review session, the learner can
+    practise the items they got wrong, scored like the lesson quiz --
+    nothing at stake -- without that touching the SRS. The frontend already
+    knows which items those were (the tally from issue #82); this endpoint
+    does not need to, and carries no notion of "a session" at all. All it
+    answers is `_practice_allowed`'s one rule: an item may be practised
+    exactly when it is *not* also sitting in `GET /api/reviews` right now
+    (due) or mid-answer there (`pending_meaning`/`pending_reading` set). That
+    rule is what makes handing back `expected` and `subject` safe here with
+    no held verdict and no reveal-protected retry -- the same reasoning the
+    lesson quiz already relies on, extended to items that have left it: if
+    the review queue cannot also serve this exact question right now,
+    answering it here reveals nothing a real review was about to ask for.
+
+    Reuses `QuizIn` as the request body -- the two are identical field for
+    field. 404 for an unknown subject, like the other two endpoints.
+    """
+    config = await load_runtime_config(session)
+    now = datetime.now(timezone.utc)
+
+    row = (
+        await session.execute(
+            select(Progress, Subject)
+            .join(Subject, Subject.id == Progress.subject_id)
+            .where(Progress.subject_id == payload.subject_id)
+        )
+    ).first()
+    if row is None:
+        raise HTTPException(status_code=404, detail="Subject not found.")
+    progress, subject = row
+
+    _practice_allowed(progress, now, config)
+
+    if payload.question not in srs.required_questions(subject.object_type):
+        # E.g. a reading question for a radical. Same status as the review
+        # endpoint's own "not a question this item owes" case, with a message
+        # that fits a stateless check rather than a half-answered review.
+        raise HTTPException(status_code=409, detail="That question is not asked for this item.")
+
+    # Always loaded, like the review endpoint and unlike the lesson quiz:
+    # `subject` is always in the response here (there is no held verdict to
+    # withhold it for), and that detail needs the full synonym list.
+    synonyms = await load_synonyms(session, subject.id)
+    check = await _check(
+        session, config, subject, payload.question, payload.answer, payload.gave_up, synonyms
+    )
+
+    return PracticeOut(
+        correct=check.correct,
+        expected=check.expected,
+        secondary=check.secondary,
+        typo=check.typo,
+        retry=check.retry,
+        hint=check.hint,
+        subject=subject_detail(subject, synonyms),
+    )
