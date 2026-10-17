@@ -186,7 +186,7 @@
         <div sumiCardHeader class="head">
           <div>
             <h2>Activity</h2>
-            <p class="muted">Answers per day, last 26 weeks</p>
+            <p class="muted">Answers per day, last 12 months</p>
           </div>
           @if (streak() > 0) {
             <span class="streak muted">{{ streak() }} days in a row</span>
@@ -194,29 +194,53 @@
         </div>
 
         <sumi-calendar-heatmap
-          ariaLabel="Answers per day, over the last 26 weeks"
+          ariaLabel="Answers per day, over the last 12 months"
           [days]="heatmapDays()"
-          [weeks]="26"
+          [weeks]="52"
           unit="answers"
           [table]="true"
         />
 
         <div class="spark-row">
           <div class="spark">
-            <p class="muted spark-label">Accuracy, 30 days</p>
-            <sumi-sparkline
-              ariaLabel="Daily answer accuracy over the last 30 days"
-              [points]="accuracySparkPoints()"
-              [value]="accuracyDisplay()"
-              [delta]="accuracyDelta()"
+            <div class="chart-head">
+              <p class="muted spark-label">Accuracy per day, last 30 days</p>
+              <p class="chart-figure">
+                <span class="sumi-tabular">{{ accuracyDisplay() }}</span>
+                <span class="muted">overall</span>
+              </p>
+            </div>
+            <sumi-line-chart
+              ariaLabel="Share of correct answers per day over the last 30 days"
+              [points]="accuracyPoints()"
+              [series]="accuracySeries"
+              [startDate]="accuracyStartDate()"
+              [endDate]="accuracyEndDate()"
+              [yMin]="50"
+              [yMax]="100"
+              [unit]="accuracyUnit"
+              [gaps]="true"
+              [area]="true"
+              [table]="true"
+              [height]="150"
             />
           </div>
           <div class="spark">
-            <p class="muted spark-label">Lessons, 30 days</p>
-            <sumi-sparkline
+            <div class="chart-head">
+              <p class="muted spark-label">Lessons started per day, last 30 days</p>
+              <p class="chart-figure">
+                <span class="sumi-tabular">{{ lessonsSum() }}</span>
+                <span class="muted">in total</span>
+              </p>
+            </div>
+            <sumi-bar-chart
               ariaLabel="Lessons started per day over the last 30 days"
-              [points]="lessonsSparkPoints()"
-              [value]="lessonsDisplay()"
+              [bars]="lessonsBars()"
+              [labelEvery]="7"
+              [table]="true"
+              labelHeader="Day"
+              valueHeader="Lessons"
+              [height]="150"
             />
           </div>
         </div>

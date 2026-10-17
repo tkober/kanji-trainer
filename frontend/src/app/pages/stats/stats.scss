@@ -233,6 +233,35 @@ h2 {
   }
 }
 
+.spark {
+  min-width: 0;
+}
+
+.chart-head {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 0 var(--sumi-space-3);
+
+  .spark-label {
+    margin: 0;
+  }
+}
+
+.chart-figure {
+  display: flex;
+  align-items: baseline;
+  gap: 0.35rem;
+  margin: 0 0 0.3rem;
+  font-size: 0.85rem;
+
+  .sumi-tabular {
+    font-size: 1.25rem;
+    font-weight: 600;
+  }
+}
+
 .spark-label {
   margin: 0 0 0.3rem;
   font-size: 0.85rem;
