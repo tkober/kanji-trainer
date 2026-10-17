@@ -1,4 +1,4 @@
-<sumi-page width="narrow" [inkEnd]="false">
+<sumi-page [width]="phase() === 'ended' ? 'default' : 'narrow'" [inkEnd]="false">
   @switch (phase()) {
     @case ('idle') {
       @if (loading()) {
@@ -6,7 +6,13 @@
       } @else if (loadFailed()) {
         <sumi-error-state title="Can't reach the server" companion="tsuru">
           Your progress is safe. Check the connection and try again.
-          <button sumiErrorAction type="button" sumiButton variant="secondary" (click)="retryLoad()">
+          <button
+            sumiErrorAction
+            type="button"
+            sumiButton
+            variant="secondary"
+            (click)="retryLoad()"
+          >
             Try again
           </button>
         </sumi-error-state>
@@ -29,16 +35,26 @@
     }
 
     @case ('ended') {
-      <!-- No title: sumi-session-summary supplies its own heading. -->
-      <sumi-session-gate [showAction]="false" companion="tsuru" (start)="restart()">
+      <!-- No title: sumi-session-summary supplies its own heading. width="wide"
+           (#83) gives room for the projected Items/Correct/Answers tiles and
+           the sumiSummaryDetails section below -- see
+           review-summary-details's own class doc. -->
+      <sumi-session-gate width="wide" [showAction]="false" companion="tsuru" (start)="restart()">
         <sumi-session-summary
-          [answered]="answered()"
-          [correct]="correct()"
           [durationMs]="sessionDurationMs()"
           [levelUp]="levelUp()"
+          timePosition="last"
           (restart)="restart()"
         >
           <sumi-hanko sumiSummaryArt [characters]="hankoCharacters()" [label]="hankoLabel()" />
+          <div sumiSummaryTile label="Items">{{ tallySummary().items }}</div>
+          <div sumiSummaryTile label="Correct">
+            {{ tallySummary().correctItems }} <small>({{ itemAccuracyPercent() }}%)</small>
+          </div>
+          <div sumiSummaryTile label="Answers">
+            {{ answersTotal().correct }} <small>of {{ answersTotal().answered }}</small>
+          </div>
+          <app-review-summary-details sumiSummaryDetails [summary]="tallySummary()" />
         </sumi-session-summary>
       </sumi-session-gate>
     }
@@ -72,7 +88,11 @@
             [tone]="toneFor(card.subject.object_type)"
           >
             @if (!card.subject.characters && card.subject.character_image_url) {
-              <img sumiPromptVisual="ink" [src]="card.subject.character_image_url" [alt]="card.subject.slug" />
+              <img
+                sumiPromptVisual="ink"
+                [src]="card.subject.character_image_url"
+                [alt]="card.subject.slug"
+              />
             }
           </sumi-prompt-card>
 
@@ -107,12 +127,24 @@
                 {{ checkButtonLabel() }}
               </button>
               @if (settledKind() === null) {
-                <button type="button" sumiButton sumiHoldFocus title="Alt+K" (click)="requestKnown()">
+                <button
+                  type="button"
+                  sumiButton
+                  sumiHoldFocus
+                  title="Alt+K"
+                  (click)="requestKnown()"
+                >
                   I know this
                 </button>
               }
               @if (settledKind() === 'wrong') {
-                <button type="button" sumiButton variant="danger" sumiHoldFocus (click)="resetCurrent()">
+                <button
+                  type="button"
+                  sumiButton
+                  variant="danger"
+                  sumiHoldFocus
+                  (click)="resetCurrent()"
+                >
                   Relearn from scratch
                 </button>
               }
@@ -172,13 +204,18 @@
                     [characters]="subject.characters"
                   />
 
-                  <app-radical-illustration [subjectId]="subject.id" [objectType]="subject.object_type" />
+                  <app-radical-illustration
+                    [subjectId]="subject.id"
+                    [objectType]="subject.object_type"
+                  />
 
                   <dl>
                     @if (subject.wanikani_url; as url) {
                       <dt>Source</dt>
                       <dd>
-                        <a [href]="url" target="_blank" rel="noopener">Open the original on WaniKani ↗</a>
+                        <a [href]="url" target="_blank" rel="noopener"
+                          >Open the original on WaniKani ↗</a
+                        >
                       </dd>
                     }
                   </dl>
@@ -189,14 +226,23 @@
 
           @if (confirmKnown()) {
             <p class="warning">
-              This marks <strong lang="ja">{{ card.subject.characters || card.subject.slug }}</strong> as
-              known — meaning <strong>and</strong> reading. Both leave the reviews.
+              This marks
+              <strong lang="ja">{{ card.subject.characters || card.subject.slug }}</strong> as known
+              — meaning <strong>and</strong> reading. Both leave the reviews.
             </p>
             <div class="row actions">
-              <button type="button" sumiButton variant="primary" sumiHoldFocus (click)="requestKnown()">
+              <button
+                type="button"
+                sumiButton
+                variant="primary"
+                sumiHoldFocus
+                (click)="requestKnown()"
+              >
                 Mark whole item known (Alt+K / Enter)
               </button>
-              <button type="button" sumiButton sumiHoldFocus (click)="cancelKnown()">Cancel (Esc)</button>
+              <button type="button" sumiButton sumiHoldFocus (click)="cancelKnown()">
+                Cancel (Esc)
+              </button>
             </div>
           }
         </div>

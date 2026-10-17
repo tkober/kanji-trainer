@@ -12,6 +12,17 @@
   --radical: #00a1f1;
   --kanji: #f100a1;
   --vocabulary: #a100f1;
+
+  /* Stage colours, shared by `/stats`' sunburst and bars and the review
+     summary's "Reached a new stage" cards (#83) -- moved here from
+     `pages/stats/stats.scss`'s `:host` so both can use the same tokens.
+     Apprentice and Guru use the bars' own Apprentice/Guru+ colours; Master,
+     Enlightened and Burned go darker from there. */
+  --stage-apprentice: var(--sumi-seq-2);
+  --stage-guru: var(--sumi-seq-5);
+  --stage-master: color-mix(in oklab, var(--sumi-accent) 75%, var(--sumi-text));
+  --stage-enlightened: color-mix(in oklab, var(--sumi-accent) 55%, var(--sumi-text));
+  --stage-burned: color-mix(in oklab, var(--sumi-accent) 35%, var(--sumi-text));
 }
 
 /* WaniKani tags the pieces of a mnemonic, `highlightMnemonic` turns those

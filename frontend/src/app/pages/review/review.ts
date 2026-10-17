@@ -41,6 +41,7 @@ import { ContextSentences } from '../../shared/context-sentences/context-sentenc
 import { RadicalIllustration } from '../../shared/radical-illustration/radical-illustration';
 import { Readings } from '../../shared/readings/readings';
 import { Synonyms } from '../../shared/synonyms/synonyms';
+import { ReviewSummaryDetails } from './review-summary-details/review-summary-details';
 
 /** A queue entry plus what it still owes. */
 type Card = QueueItem;
@@ -80,6 +81,7 @@ function questionsCount(cards: readonly Card[]): number {
     RadicalIllustration,
     Readings,
     RouterLink,
+    ReviewSummaryDetails,
     Synonyms,
     SumiButtonDirective,
     SumiEmptyState,
@@ -148,6 +150,24 @@ export class Review {
    * not yet read anywhere. Reset wherever `answered`/`correct` are reset. */
   protected readonly tally = signal<ReviewTally>(EMPTY_TALLY);
   protected readonly tallySummary = computed(() => summarize(this.tally()));
+  /** The ended summary's "Correct" tile -- item accuracy (every question an
+   *  item owed answered right the first time it was asked), not the
+   *  question accuracy `sessionAccuracy`/the hanko use. Rounded, 0 rather
+   *  than NaN when nothing completed (e.g. ended right after `start()`). */
+  protected readonly itemAccuracyPercent = computed(() => {
+    const summary = this.tallySummary();
+    return summary.items > 0 ? Math.round((summary.correctItems / summary.items) * 100) : 0;
+  });
+  /** The ended summary's "Answers" tile -- correct/answered questions summed
+   *  over meaning and reading, i.e. every counted answer regardless of
+   *  which half of which item it belonged to. */
+  protected readonly answersTotal = computed(() => {
+    const answers = this.tallySummary().answers;
+    return {
+      answered: answers.meaning.answered + answers.reading.answered,
+      correct: answers.meaning.correct + answers.reading.correct,
+    };
+  });
   /** Correctly answered questions this session (issue #54) -- separate from
    * `correct`/`answered`, which stay the accuracy's own numbers. A non-retry
    * correct verdict counts one question; "I know this" counts every open
