@@ -130,88 +130,112 @@
       </p>
 
       @if (current(); as item) {
-        <sumi-prompt-card
-          [text]="item.subject.characters ?? undefined"
-          [meta]="[typeLabel(item.subject.object_type), 'Level ' + item.subject.level, (index() + 1) + ' / ' + items().length]"
-          [tone]="toneFor(item.subject.object_type)"
-        >
-          @if (!item.subject.characters && item.subject.character_image_url) {
-            <img sumiPromptVisual="ink" [src]="item.subject.character_image_url" [alt]="item.subject.slug" />
-          }
-        </sumi-prompt-card>
-
-        <sumi-card class="detail">
-          <dl>
-            <dt>Meaning</dt>
-            <dd>{{ meanings(item.subject) }}</dd>
-          </dl>
-
-          <app-synonyms
-            [subjectId]="item.subject.id"
-            [synonyms]="item.subject.synonyms"
-            (synonymsChange)="onSynonymsChange(item.subject.id, $event)"
-          />
-
-          <app-readings [readings]="item.subject.readings" [objectType]="item.subject.object_type" />
-
-          <dl>
-            @if (item.subject.parts_of_speech.length > 0) {
-              <dt>Part of speech</dt>
-              <dd>{{ item.subject.parts_of_speech.join(', ') }}</dd>
-            }
-            @if (item.subject.meaning_mnemonic) {
-              <dt>Meaning mnemonic</dt>
-              <dd [innerHTML]="item.subject.meaning_mnemonic | mnemonic"></dd>
-            }
-            @if (item.subject.reading_mnemonic) {
-              <dt>Reading mnemonic</dt>
-              <dd [innerHTML]="item.subject.reading_mnemonic | mnemonic"></dd>
-            }
-            @if (item.subject.wanikani_url; as url) {
-              <dt>Source</dt>
-              <dd>
-                <a [href]="url" target="_blank" rel="noopener">Open the original on WaniKani ↗</a>
-              </dd>
-            }
-          </dl>
-
-          <app-context-sentences
-            [sentences]="item.subject.context_sentences"
-            [characters]="item.subject.characters"
-          />
-
-          <app-radical-illustration
-            [subjectId]="item.subject.id"
-            [objectType]="item.subject.object_type"
-          />
-
-          <div class="row nav">
-            <button
-              type="button"
-              sumiButton
-              [disabled]="index() === 0"
-              (click)="previous()"
-            >
-              Back
-            </button>
-            @if (onLastItem()) {
-              <button
-                type="button"
-                sumiButton
-                variant="primary"
-                [disabled]="busy()"
-                (click)="goToQuizGate()"
+        <!-- Three cards in a container-queried layout (issue #86): the item
+             and facts cards stay with the glyph in a sticky left column once
+             the content is wide enough, so the content card can scroll on
+             its own without the item ever leaving view. Below 900px content
+             width (not viewport -- `.reading` is the query container) the
+             three stack and everything scrolls normally, see `.reading` /
+             `.reading-grid` / `.reading-aside` below. -->
+        <div class="reading">
+          <div class="reading-grid">
+            <div class="reading-aside">
+              <sumi-prompt-card
+                [text]="item.subject.characters ?? undefined"
+                [meta]="[typeLabel(item.subject.object_type), 'Level ' + item.subject.level, (index() + 1) + ' / ' + items().length]"
+                [tone]="toneFor(item.subject.object_type)"
               >
-                Continue to quiz
-              </button>
-            } @else {
-              <button type="button" sumiButton (click)="next()">Next</button>
-            }
-            <button type="button" sumiButton [disabled]="busy()" (click)="markCurrentKnown()">
-              I know this one
-            </button>
+                @if (!item.subject.characters && item.subject.character_image_url) {
+                  <img sumiPromptVisual="ink" [src]="item.subject.character_image_url" [alt]="item.subject.slug" />
+                }
+              </sumi-prompt-card>
+
+              <sumi-card class="facts">
+                <dl>
+                  <dt>Meaning</dt>
+                  <dd>{{ meanings(item.subject) }}</dd>
+                </dl>
+
+                <app-readings [readings]="item.subject.readings" [objectType]="item.subject.object_type" />
+
+                @if (item.subject.parts_of_speech.length > 0) {
+                  <dl>
+                    <dt>Part of speech</dt>
+                    <dd>{{ item.subject.parts_of_speech.join(', ') }}</dd>
+                  </dl>
+                }
+
+                <app-synonyms
+                  [subjectId]="item.subject.id"
+                  [synonyms]="item.subject.synonyms"
+                  (synonymsChange)="onSynonymsChange(item.subject.id, $event)"
+                />
+              </sumi-card>
+            </div>
+
+            <sumi-card class="content">
+              <!-- `.prose` caps running text at ~70ch -- the card itself
+                   still fills the column (issue #86). -->
+              <div class="prose">
+                <dl>
+                  @if (item.subject.meaning_mnemonic) {
+                    <dt>Meaning mnemonic</dt>
+                    <dd [innerHTML]="item.subject.meaning_mnemonic | mnemonic"></dd>
+                  }
+                  @if (item.subject.reading_mnemonic) {
+                    <dt>Reading mnemonic</dt>
+                    <dd [innerHTML]="item.subject.reading_mnemonic | mnemonic"></dd>
+                  }
+                  @if (item.subject.wanikani_url; as url) {
+                    <dt>Source</dt>
+                    <dd>
+                      <a [href]="url" target="_blank" rel="noopener">Open the original on WaniKani ↗</a>
+                    </dd>
+                  }
+                </dl>
+
+                <app-context-sentences
+                  [sentences]="item.subject.context_sentences"
+                  [characters]="item.subject.characters"
+                />
+              </div>
+
+              <app-radical-illustration
+                [subjectId]="item.subject.id"
+                [objectType]="item.subject.object_type"
+              />
+
+              <!-- Stays at the end of the content card for now; issue #87
+                   moves it into a sticky action bar. -->
+              <div class="row nav">
+                <button
+                  type="button"
+                  sumiButton
+                  [disabled]="index() === 0"
+                  (click)="previous()"
+                >
+                  Back
+                </button>
+                @if (onLastItem()) {
+                  <button
+                    type="button"
+                    sumiButton
+                    variant="primary"
+                    [disabled]="busy()"
+                    (click)="goToQuizGate()"
+                  >
+                    Continue to quiz
+                  </button>
+                } @else {
+                  <button type="button" sumiButton (click)="next()">Next</button>
+                }
+                <button type="button" sumiButton [disabled]="busy()" (click)="markCurrentKnown()">
+                  I know this one
+                </button>
+              </div>
+            </sumi-card>
           </div>
-        </sumi-card>
+        </div>
       }
 
       <sumi-card class="batch">

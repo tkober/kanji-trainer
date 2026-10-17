@@ -62,7 +62,72 @@ sumi-prompt-card {
   margin-bottom: 1rem;
 }
 
-.detail {
+.nav {
+  margin-top: 1rem;
+}
+
+.footnote {
+  font-size: 0.85rem;
+  margin-bottom: 0;
+}
+
+/* --- reading phase: three cards, container-queried (issue #86) ---------- */
+
+/* The query container -- a plain wrapper, not the grid itself: container
+   queries style descendants, never the container's own box. Its inline
+   size is the page's content width (sumi-page's own padding already
+   subtracted), not the viewport, so a narrow browser window with a wide
+   sumi-page never gets the desktop layout and vice versa. */
+.reading {
+  container-type: inline-size;
+}
+
+.reading-grid {
+  display: flex;
+  flex-direction: column;
+  gap: var(--sumi-space-4);
+}
+
+/* Item card + facts card, stacked. Its own gap replaces the page body's
+   flex gap (which does not reach in here), so the prompt card's own
+   margin-bottom below is zeroed just inside this wrapper. */
+.reading-aside {
+  display: flex;
+  flex-direction: column;
+  gap: var(--sumi-space-4);
+
+  sumi-prompt-card {
+    margin-bottom: 0;
+  }
+}
+
+@container (min-width: 900px) {
+  .reading-grid {
+    display: grid;
+    grid-template-columns: 360px minmax(0, 1fr);
+    gap: var(--sumi-space-6);
+    align-items: start;
+  }
+
+  /* Sticky, and capped to the viewport below the shell's own sticky header
+     -- without the cap, a tall aside (many synonyms, a long vocab word)
+     would run off the bottom of the screen with no way to reach its lower
+     half while the content card scrolls. `--sumi-shell-sticky-height`
+     (sumi-ui#87) is the header+strip wrapper's own rendered height. */
+  .reading-aside {
+    position: sticky;
+    top: calc(var(--sumi-shell-sticky-height) + var(--sumi-space-4));
+    max-height: calc(100dvh - var(--sumi-shell-sticky-height) - 2 * var(--sumi-space-4));
+    overflow-y: auto;
+    scrollbar-width: thin;
+  }
+}
+
+/* Shared dt/dd label styling for the facts and content cards -- the same
+   look the former single `.detail` card used, now reused instead of
+   duplicated across the two. */
+.facts dl,
+.content dl {
   dt {
     font-size: 0.8rem;
     text-transform: uppercase;
@@ -76,13 +141,17 @@ sumi-prompt-card {
   }
 }
 
-.nav {
-  margin-top: 1rem;
+.content {
+  /* Lets the grid track (`minmax(0, 1fr)` above) actually shrink the card
+     instead of the card's own min-content width forcing it wider. */
+  min-width: 0;
 }
 
-.footnote {
-  font-size: 0.85rem;
-  margin-bottom: 0;
+/* Mnemonics and context sentences only -- the nav row and the radical
+   illustration stay full width. ~70ch keeps a long mnemonic readable
+   however wide the content column ends up. */
+.prose {
+  max-width: 70ch;
 }
 
 /* --- selection phase ----------------------------------------------------- */
