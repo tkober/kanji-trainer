@@ -157,3 +157,17 @@ async def _seed_legacy_row(owner_engine: AsyncEngine) -> int:
         )
         await session.commit()
         return subject.id
+
+
+async def test_running_migrations_in_process_leaves_app_loggers_enabled() -> None:
+    """`init_db()` runs Alembic in-process at startup; its `env.py` must not
+    apply alembic.ini's logging config there, whose default
+    `disable_existing_loggers=True` would mute every `app.*` logger for the
+    rest of the process."""
+    import logging
+
+    probe = logging.getLogger("app.logging_probe")
+    await init_db()
+
+    assert probe.disabled is False
+    assert logging.getLogger("app.db").disabled is False
