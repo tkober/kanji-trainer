@@ -32,8 +32,12 @@ from app.db import Base, _new_engine
 
 config = context.config
 
-if config.config_file_name is not None:
-    fileConfig(config.config_file_name)
+# Logging from alembic.ini only for the CLI. Run in-process by `init_db()`
+# (a connection handed in), the app has already configured logging, and
+# `fileConfig`'s default `disable_existing_loggers=True` would silently mute
+# every `app.*` logger created at import time -- for the whole process.
+if config.config_file_name is not None and "connection" not in config.attributes:
+    fileConfig(config.config_file_name, disable_existing_loggers=False)
 
 target_metadata = Base.metadata
 
