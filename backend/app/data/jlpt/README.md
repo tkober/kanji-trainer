@@ -11,7 +11,7 @@ included. Treat them as a guide, not as the exam syllabus.
 |---|---|---|---|
 | `vocab.csv` | 8131 | `jlpt`, `expression`, `reading` | [jamsinclair/open-anki-jlpt-decks](https://github.com/jamsinclair/open-anki-jlpt-decks/tree/1ad66734417aca9dbcca6b2d5ee440cb13ab3ba0), `src/n*.csv` |
 | `kanji.csv` | 2211 | `jlpt`, `kanji` | [davidluzgouveia/kanji-data](https://github.com/davidluzgouveia/kanji-data/tree/00fd7079c3890f430759536f91aa5e854ec0ca4f), `kanji.json` field `jlpt_new` |
-| `supplement.csv` | 36 | `jlpt`, `expression`, `reading` | hand-picked, see "Supplement" below -- every row checked against [Jisho's API](https://jisho.org/api/v1/search/words?keyword=%3Cword%3E) `jlpt` field, 2026-10-18 |
+| `supplement.csv` | 26 | `jlpt`, `expression`, `reading` | hand-picked, see "Supplement" below -- every row checked against [Jisho's API](https://jisho.org/api/v1/search/words?keyword=%3Cword%3E) `jlpt` field, 2026-10-18 |
 
 `jlpt` is the level as a number, 5 for N5 down to 1 for N1.
 
@@ -79,7 +79,7 @@ sports team name), which carries no JLPT tag at all.
 
 Checked against ~1050 of the measurement's 1256 distinct non-proper-noun,
 non-number misses (stopped there -- diminishing returns once a dataset
-this size has already surfaced its common words); 36 passed the check,
+this size has already surfaced its common words); 36 passed the check and 26 are kept,
 added at the level and reading Jisho cites, duplicate readings of a word
 `vocab.csv` already lists kept as their own row exactly like the 97
 two-level words there (e.g. `退く` is already listed at どく, N3; this adds
@@ -90,6 +90,13 @@ already-listed `楽む` (fixed by the rule above, N4) and 室内, checked the
 same way as everything else here, has no Jisho JLPT tag at all -- Jisho
 itself does not consider it part of the Waller lists, so there is no
 source to cite for it and it stays out, per "never guess a level."
+
+**Affixes and compound parts stay out**, even with a Jisho tag: 的, 初, 原,
+店, 次, 相, 過ぎ and 極 are prefixes or suffixes a tokenizer splits off
+(経済的, 初日, 書店, 第二次), and 日曜/木曜 are the front half of
+日曜日/木曜日 (N5) once split. Listing them would put the level of the affix
+on every word it attaches to and push a text's measured mix toward N1 for
+no reason.
 
 ## Updating
 

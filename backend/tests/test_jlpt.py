@@ -499,3 +499,10 @@ async def test_jlpt_endpoint_with_no_leveled_subjects_returns_an_empty_card(sess
     assert body["levels"] == []
     assert body["vocabulary_total"] == 0
     assert body["vocabulary_without_level"] == 0
+
+
+def test_affixes_and_compound_parts_are_not_supplemented():
+    """Split-off affixes and the front half of a split compound would put
+    their own level on every word they belong to -- see the README."""
+    assert word_level("的", "てき") is None
+    assert word_level("日曜", "にちよう") is None
