@@ -78,6 +78,20 @@ def test_vocabulary_not_in_the_list_is_none():
     assert jlpt_level("vocabulary", "存在しない言葉", []) is None
 
 
+def test_vocabulary_okurigana_variant_matches_via_jlpt_level_too():
+    """The same okurigana-variant rule `word_level` uses applies to a
+    WaniKani subject's own matching (`jlpt_level`/`_vocab_level`) -- a
+    subject taught as 落ちる must still find the list's old-spelling 落る."""
+    assert jlpt_level("vocabulary", "落ちる", [{"reading": "おちる"}]) == 4
+
+
+def test_vocabulary_reading_mismatch_on_a_direct_hit_still_wins_over_fallback():
+    """`一月` is listed verbatim (ひとつき) -- the fallback rules must never
+    be tried once the expression itself is found, even though it has kanji
+    and would otherwise have a non-empty skeleton."""
+    assert jlpt_level("vocabulary", "一月", [{"reading": "いちがつ"}]) is None
+
+
 # --- word_level / kanji_level / kanji_characters (issue #75) ----------------
 #
 # Independent lookups against the same checked-in snapshot, for arbitrary
@@ -149,6 +163,109 @@ def test_kanji_level_known_and_unknown_characters():
 def test_kanji_characters_lists_kanji_only_in_order_without_duplicates():
     assert kanji_characters("高校生は楽しい高校生") == ["高", "校", "生", "楽"]
     assert kanji_characters("ひらがなだけ") == []
+
+
+# --- okurigana-variant and adverb-と/に matching rules -----------------------
+#
+# Found measuring `get_jlpt_levels` against real text (jp-reading-practice's
+# fugashi/unidic tokeniser): both rules only ever fire once the expression is
+# not listed verbatim at all, and both still require an exact reading match,
+# so neither can turn an unrelated word into a false hit (see `_fallback_level`
+# and `_adverb_variant_level`'s own doc comments). Every assertion here is
+# checked against a `grep` of the real CSVs first, same convention as above.
+
+
+def test_okurigana_variant_matches_the_lists_old_spelling():
+    # `vocab.csv`: "4,落る,おちる" and "4,落す,おとす" -- the list's old
+    # okurigana, never updated to the now-standard 落ちる/落とす a real
+    # tokeniser hands back.
+    assert word_level("落ちる", "おちる") == 4
+    assert word_level("落とす", "おとす") == 4
+
+
+def test_okurigana_variant_needs_the_reading_too_not_kanji_alone():
+    # `曲る,まがる` (N5) and `曲げる,まげる` (N2) share the kanji 曲 but are
+    # different words at different readings -- the okurigana rule must only
+    # ever match the one with the same reading, never let a shared kanji
+    # root borrow the other's level.
+    assert word_level("曲がる", "まがる") == 5  # okurigana variant of 曲る
+    assert word_level("曲げる", "まげる") == 2  # already listed verbatim
+
+
+def test_okurigana_variant_never_merges_kana_only_homophones():
+    """A word with no kanji at all must never go through the okurigana
+    fallback, even if its reading happens to coincide with some kanji word's
+    own reading elsewhere in the list -- that would be a homophone, not an
+    okurigana variant. `_kanji_skeleton` returning "" is what stops it."""
+    from app.jlpt import _kanji_skeleton
+
+    assert _kanji_skeleton("ひらがなだけ") == ""
+    # Not actually listed at this reading anywhere -- must stay None rather
+    # than matching some unrelated kanji entry through an empty skeleton.
+    assert word_level("そのことば", "そのことば") is None
+
+
+def test_adverb_with_trailing_to_in_the_list_matches_the_bare_form():
+    # `vocab.csv`: "5,ゆっくりと,ゆっくりと" -- a real tokeniser splits ゆっくり
+    # and と into separate tokens (と is its own particle), so the word as it
+    # actually reaches `get_jlpt_levels` never carries the と at all.
+    assert word_level("ゆっくり", "ゆっくり") == 5
+
+
+def test_adverb_with_trailing_ni_in_the_list_matches_the_bare_form():
+    # `vocab.csv` has only "5,すぐに,すぐに", no bare すぐ entry.
+    assert word_level("すぐ", "すぐ") == 5
+
+
+def test_adverb_with_trailing_ni_also_matches_in_reverse():
+    # `本当` is listed twice -- "5,本当,ほんとう" and "3,本当,ほんと" -- but
+    # `本当に` ("really", the common adverb) is not listed at all. A caller
+    # that kept the に attached must still land on the ほんとう reading's own
+    # level, never the unrelated ほんと one.
+    assert word_level("本当に", "ほんとうに") == 5
+    assert word_level("本当", "ほんとう") == 5  # the direct entry itself, unchanged
+
+
+def test_trailing_to_is_not_stripped_in_reverse():
+    """と is also the plain conditional/quotative particle ("多いと" = "if
+    [it's] a lot"), not only an adverb's own ending -- stripping it off a
+    query that happens to end with と would wrongly credit an ordinary
+    sentence fragment with its stem's level. `多い` itself is listed
+    ("5,多い,おおい"), `多いと` is not; the whole point of this test is that
+    the second fact must not resolve through the first."""
+    assert word_level("多いと", "おおいと") is None
+
+
+# --- supplement.csv: words missing from vocab.csv entirely -------------------
+#
+# Added only with a cited source (see the data README's "Supplement"
+# section) -- every assertion here is checked against a `grep` of
+# `supplement.csv` first, same convention as the rest of this file.
+
+
+def test_supplement_fills_a_word_vocab_csv_does_not_have_at_all():
+    # `supplement.csv`: "4,船,ふね" -- cited from Jisho's own JLPT tag;
+    # `vocab.csv` only has 船 as part of the ～船 ("-ship") affix, at an
+    # unrelated reading (せん).
+    assert word_level("船", "ふね") == 4
+
+
+def test_supplement_adds_a_second_reading_without_disturbing_the_first():
+    # `vocab.csv` already lists 退く at どく (N3); the supplement adds it
+    # again at しりぞく (N1) -- two different words, same spelling, same
+    # convention `vocab.csv` itself already uses for words like 本当.
+    assert word_level("退く", "どく") == 3
+    assert word_level("退く", "しりぞく") == 1
+
+
+def test_words_jp_reading_practice_originally_reported_missing():
+    """楽しむ and 室内 are what the brief for this fix started from. 楽しむ
+    turned out to be an okurigana variant of 楽む, already in `vocab.csv`
+    (fixed by the matching rule, not the supplement). 室内 has no Jisho
+    JLPT tag at all -- checked the same way as every supplement candidate
+    -- so it is not guessed into the supplement and stays `None`."""
+    assert word_level("楽しむ", "たのしむ") == 4
+    assert word_level("室内", "しつない") is None
 
 
 # --- refresh_jlpt -------------------------------------------------------------
@@ -382,3 +499,10 @@ async def test_jlpt_endpoint_with_no_leveled_subjects_returns_an_empty_card(sess
     assert body["levels"] == []
     assert body["vocabulary_total"] == 0
     assert body["vocabulary_without_level"] == 0
+
+
+def test_affixes_and_compound_parts_are_not_supplemented():
+    """Split-off affixes and the front half of a split compound would put
+    their own level on every word they belong to -- see the README."""
+    assert word_level("的", "てき") is None
+    assert word_level("日曜", "にちよう") is None
